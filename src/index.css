@@ -1,0 +1,42 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  background-color: #1a1a1a; /* Mörk grå/svart */
+  color: #e5e7eb; /* Ljus text */
+  margin: 0;
+  overflow: hidden; /* Förhindrar scrollbars */
+  width: 100vw;
+  height: 100vh;
+}
+/* ... din tidigare kod ... */
+
+/* En mjukare, långsammare puls för rymd/jord-teman */
+/*
+@keyframes breathe {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; } */ /* Går aldrig ner till 0.5, så det flimrar mindre */
+
+/*
+.animate-breathe {
+  animation: breathe 4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+} */
+
+/* src/index.css */
+.zotero-content span.highlight {
+  border-radius: 2px;
+  padding: 0 2px;
+}
+.zotero-content a {
+  color: #3b82f6;
+  text-decoration: underline;
+}
+/* Scrollbar fix för baksidan */
+textarea::-webkit-scrollbar {
+  width: 6px;
+}
+textarea::-webkit-scrollbar-thumb {
+  background-color: rgba(156, 163, 175, 0.5);
+  border-radius: 3px;
+}

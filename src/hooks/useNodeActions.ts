@@ -1,0 +1,182 @@
+// hooks/useNodeActions.ts
+// Hanterar alla åtgärder på noder: radera, OCR, center camera, bulk tagging
+
+import { useCallback } from 'react';
+import type Konva from 'konva';
+import { useBrainStore } from '../store/useBrainStore';
+import { performOCR } from '../utils/gemini';
+import type { ContextMenuState } from '../components/overlays/ContextMenu';
+import { ZOOM } from '../utils/constants';
+
+interface NodeActionsProps {
+  stageRef: React.RefObject<Konva.Stage | null>;
+  setShowSettings: (show: boolean) => void;
+  setContextMenu: (menu: ContextMenuState | null) => void;
+}
+
+export function useNodeActions({ stageRef, setShowSettings, setContextMenu }: NodeActionsProps) {
+  const store = useBrainStore();
+
+  // Center camera on selected nodes (or all if none selected)
+  const centerCamera = useCallback(() => {
+    const allNodes = Array.from(store.nodes.values());
+    const targetNodes = allNodes.filter(n => n.selected).length > 0
+      ? allNodes.filter(n => n.selected)
+      : allNodes;
+
+    // Update stage directly instead of via canvas.view
+    if (!stageRef.current || targetNodes.length === 0) return;
+
+    let sumX = 0, sumY = 0;
+    targetNodes.forEach(n => {
+      sumX += n.x;
+      sumY += n.y;
+    });
+
+    const centerX = sumX / targetNodes.length;
+    const centerY = sumY / targetNodes.length;
+    const currentScale = stageRef.current.scaleX();
+
+    stageRef.current.position({
+      x: (window.innerWidth / 2) - (centerX * currentScale),
+      y: (window.innerHeight / 2) - (centerY * currentScale),
+    });
+    stageRef.current.batchDraw();
+  }, [store.nodes, stageRef]);
+
+  // Fit all nodes in view (zoom out to show everything)
+  const fitAllNodes = useCallback(() => {
+    const allNodes = Array.from(store.nodes.values());
+    if (!stageRef.current || allNodes.length === 0) return;
+
+    // Beräkna bounding box för alla kort
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    allNodes.forEach(n => {
+      const w = n.width || 200;
+      const h = n.height || 100;
+      minX = Math.min(minX, n.x);
+      minY = Math.min(minY, n.y);
+      maxX = Math.max(maxX, n.x + w);
+      maxY = Math.max(maxY, n.y + h);
+    });
+
+    const contentWidth = maxX - minX;
+    const contentHeight = maxY - minY;
+    const padding = 100; // Marginal runt innehållet
+
+    // Beräkna zoom för att passa allt (minst 10% zoom för att undvika oändligt liten)
+    const scaleX = (window.innerWidth - padding * 2) / contentWidth;
+    const scaleY = (window.innerHeight - padding * 2) / contentHeight;
+    const newScale = Math.max(ZOOM.MIN, Math.min(scaleX, scaleY, 1)); // Min zoom per constant, max 100%
+
+    // Centrera innehållet
+    const centerX = minX + contentWidth / 2;
+    const centerY = minY + contentHeight / 2;
+
+    stageRef.current.scale({ x: newScale, y: newScale });
+    stageRef.current.position({
+      x: (window.innerWidth / 2) - (centerX * newScale),
+      y: (window.innerHeight / 2) - (centerY * newScale),
+    });
+    stageRef.current.batchDraw();
+  }, [store.nodes, stageRef]);
+
+  // Reset zoom to 100% and center
+  const resetZoom = useCallback(() => {
+    const allNodes = Array.from(store.nodes.values());
+    if (!stageRef.current) return;
+
+    // Beräkna center av alla kort
+    let centerX = 0, centerY = 0;
+    if (allNodes.length > 0) {
+      allNodes.forEach(n => {
+        centerX += n.x + (n.width || 200) / 2;
+        centerY += n.y + (n.height || 100) / 2;
+      });
+      centerX /= allNodes.length;
+      centerY /= allNodes.length;
+    }
+
+    stageRef.current.scale({ x: 1, y: 1 });
+    stageRef.current.position({
+      x: (window.innerWidth / 2) - centerX,
+      y: (window.innerHeight / 2) - centerY,
+    });
+    stageRef.current.batchDraw();
+  }, [store.nodes, stageRef]);
+
+  // Run OCR on an image node
+  const runOCR = useCallback(async (id: string) => {
+    const node = store.nodes.get(id);
+    if (!node || node.type !== 'image') return;
+    if (!store.geminiKey) {
+      setShowSettings(true);
+      return;
+    }
+
+    const assetUrl = store.assets[node.content];
+    if (!assetUrl) {
+      console.error('Hittar inte bilden för OCR');
+      return;
+    }
+
+    store.updateNode(id, { ocrText: 'Läser...' });
+    setContextMenu(null);
+
+    try {
+      const response = await fetch(assetUrl);
+      const blob = await response.blob();
+
+      // Convert blob to base64 using Promise
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+
+      const result = await performOCR(base64, store.geminiKey || '');
+
+      // Re-fetch node to avoid stale closure - node might have changed
+      const currentNode = useBrainStore.getState().nodes.get(id);
+      if (!currentNode) return; // Node was deleted
+
+      let finalText = result.text;
+      if (result.description) finalText += '\n\n--- BILDANALYS ---\n' + result.description;
+
+      store.updateNode(id, {
+        ocrText: finalText,
+        tags: [...new Set([...currentNode.tags, ...result.tags])],
+        isFlipped: true
+      });
+    } catch (error) {
+      store.updateNode(id, { ocrText: 'OCR misslyckades' });
+    }
+  }, [store, setShowSettings, setContextMenu]);
+
+  // Delete selected nodes
+  const deleteSelected = useCallback(() => {
+    const selectedNodes = Array.from(store.nodes.values()).filter(n => n.selected);
+    if (selectedNodes.length === 0) return;
+    const requiresConfirm = selectedNodes.length >= 10;
+    if (requiresConfirm && !confirm(`Radera ${selectedNodes.length} valda kort?`)) return;
+    store.saveStateForUndo();
+    selectedNodes.forEach(node => store.removeNode(node.id));
+  }, [store]);
+
+  // Add tag to all selected nodes
+  const addBulkTag = useCallback((tag: string) => {
+    if (tag.trim()) {
+      store.addTagToSelected(tag.trim());
+    }
+  }, [store]);
+
+  return {
+    centerCamera,
+    fitAllNodes,
+    resetZoom,
+    runOCR,
+    deleteSelected,
+    addBulkTag,
+  };
+}

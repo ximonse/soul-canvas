@@ -1,0 +1,1965 @@
+
+  Slutgiltig plan - Sammanfattning
+
+  7 faser:
+  1. Refaktorera App.tsx - Ta bort fysik, dela upp i ~7 nya filer
+  2. Viewport Culling - Stöd för tusentals kort
+  3. Sök-overlay - / öppnar, Enter bekräftar, Escape avbryter
+  4. Arrangemang - v, h, g+v, g+h, c+kommando
+  5. Pinna - P-tangent för att låsa kort på plats
+  6. AI Kluster-overlay - "Vad ser du?" visar mönster
+  7. Kortförbättringar - Markdown, PDF (senare)
+
+  Kortkommandon:
+  - / - Sök
+  - v - Vertikal rad
+  - h - Horisontell rad
+  - g+v - Grid kolumnvis
+  - g+h - Grid radvis
+  - c + kommando - Kopiera först
+  - p - Pinna/avpinna
+
+  Ser detta bra ut? Redo att börja implementera?
+
+● User approved Claude's plan
+  ⎿  Plan saved to: ~\.claude\plans\bubbly-roaming-platypus.md ·
+     /plan to edit
+
+     Soul Canvas Refaktorering - Plan
+
+     Sammanfattning
+
+     Refaktorera soul-canvas för att stödja tusentals
+     anteckningar med AI-drivna mönsterigenkänning och
+     kluster-visualisering.
+
+     ---
+     Fas 1: Refaktorera App.tsx (ta bort fysik, dela upp)
+
+     Ta bort
+
+     - D3 Force physics (rad 336-393 i App.tsx)
+     - usePhysics.ts (hela filen)
+     - Gravitations-UI
+     - d3-force från package.json
+
+     Nya filer att skapa
+
+     | Fil                                        | Rader |
+     Ansvar                    |
+     |--------------------------------------------|-------|------
+     ---------------------|
+     | src/hooks/useCanvas.ts                     | ~80   | Pan,
+     zoom, view state     |
+     | src/hooks/useKeyboard.ts                   | ~100  | Alla
+     kortkommandon        |
+     | src/components/canvas/Canvas.tsx           | ~120  |
+     Canvas wrapper            |
+     | src/components/canvas/CanvasBackground.tsx | ~40   |
+     Bakgrund (grid/prickar)   |
+     | src/components/overlays/SettingsModal.tsx  | ~100  |
+     Inställningar             |
+     | src/components/overlays/ContextMenu.tsx    | ~50   |
+     Högerklicksmeny           |
+     | src/components/overlays/SelectionBar.tsx   | ~60   |
+     Verktygsrad för markering |
+
+     Resultat
+
+     - App.tsx reduceras från 586 → ~100 rader
+
+     ---
+     Fas 2: Viewport Culling (skalbarhet)
+
+     Nya filer
+
+     | Fil                                    | Ansvar
+                |
+     |----------------------------------------|------------------
+     -----------|
+     | src/utils/viewportUtils.ts             | Beräkna synligt
+     område      |
+     | src/hooks/useViewportCulling.ts        | Hook för synliga
+     noder      |
+     | src/components/canvas/NodeRenderer.tsx | Rendera endast
+     synliga kort |
+
+     Algoritm
+
+     Synliga kort = kort där:
+       - kort.x + bredd > viewport.vänster - 200px
+       - kort.x < viewport.höger + 200px
+       - kort.y + höjd > viewport.topp - 200px
+       - kort.y < viewport.botten + 200px
+
+     ---
+     Fas 3: Sök-overlay
+
+     Nya filer
+
+     | Fil                                       | Ansvar
+               |
+     |-------------------------------------------|---------------
+     ----------|
+     | src/hooks/useSearch.ts                    | Söklogik och
+     state      |
+     | src/components/overlays/SearchOverlay.tsx | Overlay med
+     sökresultat |
+
+     Beteende
+
+     1. Öppna sök → bakgrund mörknar
+     2. Träffar visas som overlay-kopior i förgrunden
+     3. Enter → markerar träffarna, stänger overlay
+     4. Escape → avbryter, återställer
+     5. Ctrl+klick → avmarkera enskilt kort
+
+     ---
+     Fas 4: Markering & Arrangemang
+
+     Nya filer
+
+     | Fil                         | Ansvar                   |
+     |-----------------------------|--------------------------|
+     | src/hooks/useSelection.ts   | Markeringslogik          |
+     | src/utils/arrangement.ts    | Portas från spatial-view |
+     | src/hooks/useArrangement.ts | Arrangeringskommandon    |
+
+     Kortkommandon
+
+     | Kommando     | Resultat                                 |
+     |--------------|------------------------------------------|
+     | /            | Öppna sök-overlay                        |
+     | v            | Vertikal rad, översta vid muspekare      |
+     | h            | Horisontell rad, mittersta vid muspekare |
+     | g+v          | 5 kolumner, fyller kolumnvis             |
+     | g+h          | 5 kolumner, fyller radvis                |
+     | c + kommando | Kopiera kort, sedan arrangera            |
+     | p            | Pinna/lås markerade kort                 |
+
+     ---
+     Fas 5: Pinna/Avpinna (P-tangent)
+
+     Ändringar
+
+     | Fil                        | Ändring
+             |
+     |----------------------------|------------------------------
+     --------|
+     | src/types/types.ts         | Lägg till pinned?: boolean
+             |
+     | src/store/useBrainStore.ts | Lägg till togglePin(),
+     pinSelected() |
+     | CardView.tsx               | Visuell indikator (pin-ikon)
+             |
+
+     Beteende
+
+     - P → Pinna/avpinna markerade kort
+     - Pinnade kort kan inte flyttas
+     - Måste avpinnas först (P igen eller högerklick → "Avpinna")
+     - Pinnade kort är fortfarande sökbara
+
+     ---
+     Fas 6: AI Kluster-overlay
+
+     Nya filer
+
+     | Fil                                        | Ansvar
+                            |
+     |--------------------------------------------|--------------
+     -----------------------|
+     | src/hooks/useClustering.ts                 |
+     Kluster-detektering från embeddings |
+     | src/components/overlays/ClusterOverlay.tsx | Visualisering
+      av kluster            |
+
+     Dela upp AIPanel.tsx
+
+     | Fil              | Rader | Ansvar              |
+     |------------------|-------|---------------------|
+     | AIPanel.tsx      | ~100  | Container           |
+     | AIStatus.tsx     | ~50   | Status, API-nycklar |
+     | AIActions.tsx    | ~100  | Knappar             |
+     | AIReflection.tsx | ~60   | Reflektionsmodal    |
+
+     ---
+     Fas 7: Kortförbättringar (valfri)
+
+     Dela upp NodeView.tsx
+
+     | Fil             | Ansvar        |
+     |-----------------|---------------|
+     | CardView.tsx    | Container     |
+     | CardContent.tsx | Framsida      |
+     | CardBack.tsx    | Baksida       |
+     | CardImage.tsx   | Bildhantering |
+
+     Nya features
+
+     - Markdown-rendering (react-markdown)
+     - PDF-förhandsgranskning (pdfjs-dist)
+
+     ---
+     Ny filstruktur
+
+     src/
+     ├── App.tsx                          (~100 rader)
+     ├── components/
+     │   ├── canvas/
+     │   │   ├── Canvas.tsx               (~120)
+     │   │   ├── CanvasBackground.tsx     (~40)
+     │   │   ├── NodeRenderer.tsx         (~80)
+     │   │   └── Synapses.tsx             (~50)
+     │   ├── cards/
+     │   │   ├── CardView.tsx             (~100)
+     │   │   ├── CardContent.tsx          (~80)
+     │   │   ├── CardBack.tsx             (~60)
+     │   │   └── CardImage.tsx            (~50)
+     │   ├── overlays/
+     │   │   ├── SearchOverlay.tsx        (~120)
+     │   │   ├── ClusterOverlay.tsx       (~100)
+     │   │   ├── SettingsModal.tsx        (~100)
+     │   │   ├── ContextMenu.tsx          (~50)
+     │   │   └── SelectionBar.tsx         (~60)
+     │   └── panels/
+     │       ├── AIPanel.tsx              (~100)
+     │       ├── AIStatus.tsx             (~50)
+     │       ├── AIActions.tsx            (~100)
+     │       └── AIReflection.tsx         (~60)
+     ├── hooks/
+     │   ├── useCanvas.ts                 (~80)
+     │   ├── useSelection.ts              (~100)
+     │   ├── useArrangement.ts            (~120)
+     │   ├── useKeyboard.ts               (~100)
+     │   ├── useSearch.ts                 (~80)
+     │   ├── useViewportCulling.ts        (~60)
+     │   ├── useClustering.ts             (~80)
+     │   ├── useIntelligence.ts           (behåll)
+     │   └── useFileSystem.ts             (behåll)
+     ├── store/
+     │   ├── useBrainStore.ts             (~180)
+     │   └── selectors.ts                 (~50)
+     ├── utils/
+     │   ├── arrangement.ts               (~150, portas)
+     │   ├── constants.ts                 (~50)
+     │   ├── viewportUtils.ts             (~40)
+     │   └── ... (behåll befintliga)
+     └── types/
+         └── types.ts                     (~80)
+
+     ---
+     Kritiska filer
+
+     1. src/App.tsx - Huvudlogik att extrahera (586 rader)
+     2. src/components/AIPanel.tsx - AI-funktionalitet att bevara
+      (399 rader)
+     3. src/store/useBrainStore.ts - Utöka med lås
+     4. spatial-view/src/lib/arrangement.js - Algoritmer att
+     porta
+
+     ---
+     Beroenden
+
+     Ta bort
+
+     - d3-force
+
+     Lägg till (Fas 7)
+
+     - react-markdown (markdown)
+     - pdfjs-dist (PDF)
+
+
+
+
+
+
+
+
+
+
+
+● Utmärkt! Planen är godkänd. Låt mig börja med Fas 1:
+
+● Read(src\App.tsx)
+  ⎿  Read 587 lines
+
+● Bra, nu ser jag strukturen. App.tsx har 586 rader med mycket
+  som kan extraheras. Låt mig börja skapa de nya filerna:
+
+● Bash(mkdir -p
+      "C:/Users/ximon/Kodprojekt/soul-canvas/src/components/canvas" "
+      C:/Users/ximon/Kodprojekt/soul-canvas/src/components/overlays")
+  ⎿  (No content)
+
+● Write(src\utils\constants.ts)
+  ⎿  Wrote 1 lines to src\utils\constants.ts
+     // src/utils/constants.ts
+     // Centraliserade konstanter för Soul Canvas
+     // Kortstorlekar (A7-liknande proportioner)
+     export const CARD = {
+       DEFAULT_WIDTH: 200,
+       DEFAULT_HEIGHT: 150,
+       IMAGE_WIDTH: 280,
+       IMAGE_HEIGHT: 200,
+       MIN_WIDTH: 100,
+
+● Write(src\hooks\useCanvas.ts)
+  ⎿  Wrote 1 lines to src\hooks\useCanvas.ts
+     // src/hooks/useCanvas.ts
+     // Hanterar canvas-interaktioner: pan, zoom, view state
+     import { useState, useCallback } from 'react';
+     import { ZOOM } from '../utils/constants';
+     export interface ViewState {
+       x: number;
+       y: number;
+       k: number; // scale/zoom
+
+● Write(src\hooks\useKeyboard.ts)
+  ⎿  Wrote 1 lines to src\hooks\useKeyboard.ts
+     // src/hooks/useKeyboard.ts
+     // Hanterar alla globala kortkommandon
+     import { useEffect, useCallback } from 'react';
+     interface KeyboardActions {
+       onOpenCommandPalette: () => void;
+       onOpenSearch: () => void;
+       onDeleteSelected: () => void;
+       onEscape: () => void;
+
+● Read(src\themes.ts)
+  ⎿  Read 127 lines
+
+● Write(src\components\canvas\CanvasBackground.tsx)
+  ⎿  Wrote 1 lines to src\components\canvas\CanvasBackground.tsx
+     // src/components/canvas/CanvasBackground.tsx
+     // Renderar bakgrunden baserat på tema (grid, dots, stars,
+     none)
+     import { memo } from 'react';
+     import type { Theme } from '../../themes';
+     import type { ViewState } from '../../hooks/useCanvas';
+     interface CanvasBackgroundProps {
+       theme: Theme;
+       view: ViewState;
+
+● Write(src\components\overlays\SettingsModal.tsx)
+  ⎿  Wrote 1 lines to src\components\overlays\SettingsModal.tsx
+     // src/components/overlays/SettingsModal.tsx
+     // Modal för inställningar (API-nycklar, auto-länkning)
+     import { useBrainStore } from '../../store/useBrainStore';
+     interface SettingsModalProps {
+       onClose: () => void;
+     }
+     export function SettingsModal({ onClose }:
+     SettingsModalProps) {
+
+● Write(src\components\overlays\ContextMenu.tsx)
+  ⎿  Wrote 1 lines to src\components\overlays\ContextMenu.tsx
+     // src/components/overlays/ContextMenu.tsx
+     // Högerklicksmeny för kort
+     import { useBrainStore } from '../../store/useBrainStore';
+     export interface ContextMenuState {
+       x: number;
+       y: number;
+       nodeId: string;
+     }
+
+● Read(src\types\types.ts)
+  ⎿  Read 55 lines
+
+● Update(src\types\types.ts)
+  ⎿  Updated src\types\types.ts with 7 additions
+       16      isFlipped?: boolean;     // Om vi tittar på
+            baksidan just nu (sparas ej till fil
+            nödvändigtvis)
+       17      selected?: boolean;      // För bulk-hantering
+       18
+       19 +    // Pin/Lock
+       20 +    pinned?: boolean;        // Om kortet är låst
+          + på plats (kan inte flyttas)
+       21 +
+       22 +    // Storlek (för viewport culling)
+       23 +    width?: number;
+       24 +    height?: number;
+       25 +
+       26      // PHASE 2: AI/Embeddings
+       27      embedding?: number[];    // OpenAI embedding
+            vector (1536 dimensions for
+            text-embedding-3-small)
+       28      semanticTags?: string[]; // AI-genererade
+            konceptuella taggar
+
+● Read(src\store\useBrainStore.ts)
+  ⎿  Read 161 lines
+
+● Update(src\store\useBrainStore.ts)
+  ⎿  Updated src\store\useBrainStore.ts with 5 additions
+       28      clearSelection: () => void;
+       29      addTagToSelected: (tag: string) => void;
+       30      removeTagFromSelected: (tag: string) => void;
+       31 +
+       32 +    // Pinning
+       33 +    togglePin: (id: string) => void;
+       34 +    pinSelected: () => void;
+       35 +    unpinSelected: () => void;
+       36    }
+       37
+       38    // Vi uppdaterar BrainState också
+
+● Update(src\store\useBrainStore.ts)
+  ⎿  Updated src\store\useBrainStore.ts with 14 additions and 1
+     removal
+       161
+       162      removeTagFromSelected: (tag) => set((state) =>
+              ({
+       163        nodes: state.nodes.map(n => n.selected ? {
+             ...n, tags: n.tags.filter(t => t !== tag) } : n)
+       164 -    }))
+       164 +    })),
+       165 +
+       166 +    // Pinning
+       167 +    togglePin: (id) => set((state) => ({
+       168 +      nodes: state.nodes.map(n => n.id === id ? {
+           + ...n, pinned: !n.pinned } : n)
+       169 +    })),
+       170 +
+       171 +    pinSelected: () => set((state) => ({
+       172 +      nodes: state.nodes.map(n => n.selected ? {
+           + ...n, pinned: true } : n)
+       173 +    })),
+       174 +
+       175 +    unpinSelected: () => set((state) => ({
+       176 +      nodes: state.nodes.map(n => n.selected ? {
+           + ...n, pinned: false } : n)
+       177 +    })),
+       178    }));
+
+● Nu ska jag skriva om App.tsx. Den blir betydligt kortare utan
+  fysik:
+
+● Write(src\App.tsx)
+  ⎿  Updated src\App.tsx with 132 additions and 403 removals
+         1    // src/App.tsx
+         2 -  import { useEffect, useRef,
+           -  useState, useCallback, useMemo } from 'react';
+         2 +  import { useEffect,
+           +  useState, useCallback, useMemo } from 'react';
+         3    import { useFileSystem } from
+             './hooks/useFileSystem';
+         4    import { useBrainStore } from
+             './store/useBrainStore';
+         5    import { useIntelligence } from
+             './hooks/useIntelligence';
+         6 -  import { forceSimulation, forceManyBody,
+           - forceCollide, forceLink, forceX, forceY } from
+           - 'd3-force';
+         6 +  import { useCanvas } from './hooks/useCanvas';
+         7 +  import { useKeyboard } from
+           + './hooks/useKeyboard';
+         8    import { THEMES } from './themes';
+         9 -  import { processImageFile } from
+           -  './utils/imageProcessor';
+           -   // Vi använder fortfarande denna för att krympa
+           -   bilden innan sparning!
+         9 +  import { processImageFile } from
+           +  './utils/imageProcessor';
+        10    import { performOCR } from './utils/gemini';
+        11    import { parseZoteroHTML, isZoteroHTML } from
+             './utils/zoteroParser';
+        12 +  import { AUTOSAVE_DELAY_MS } from
+           + './utils/constants';
+        13
+        14    // Komponenter
+        15    import { NodeView } from
+             './components/NodeView';
+        16    import { AppMenu } from './components/AppMenu';
+        17    import { AIPanel } from './components/AIPanel';
+        18    import { CommandPalette } from
+             './components/CommandPalette';
+        19 +  import { CanvasBackground } from
+           + './components/canvas/CanvasBackground';
+        20 +  import { SettingsModal } from
+           + './components/overlays/SettingsModal';
+        21 +  import { ContextMenu, type ContextMenuState }
+           + from './components/overlays/ContextMenu';
+        22
+        23    const THEME_KEYS = Object.keys(THEMES);
+        24 -  const PHYSICS_ENABLED = true; // Enable physics
+           - so gravity can be adjusted and clustering works
+        24
+        25 -  // Hjälpfunktion för att konvertera base64 till
+           - en Blob (för att kunna spara som fil)
+        25    const dataURLtoBlob = (dataurl: string) => {
+        26 -      const arr = dataurl.split(','), mime =
+           -  arr[0].match(/:(.*?);/)?.[1];
+        27 -      const bstr = atob(arr[1]);
+        28 -      let n = bstr.length;
+        29 -      const u8arr = new Uint8Array(n);
+        30 -      while(n--){ u8arr[n] = bstr.charCodeAt(n); }
+        31 -      return new Blob([u8arr], {type:mime});
+        32 -  }
+        26 +    const arr = dataurl.split(','), mime =
+           +  arr[0].match(/:(.*?);/)?.[1];
+        27 +    const bstr = atob(arr[1]);
+        28 +    let n = bstr.length;
+        29 +    const u8arr = new Uint8Array(n);
+        30 +    while (n--) { u8arr[n] = bstr.charCodeAt(n); }
+        31 +    return new Blob([u8arr], { type: mime });
+        32 +  };
+        33
+        34    function App() {
+        35 -    const { openFile, saveFile, saveAsset, hasFile
+           -   } = useFileSystem(); // NYTT: saveAsset
+        35 +    const { openFile, saveFile, saveAsset, hasFile
+           +   } = useFileSystem();
+        36      const store = useBrainStore();
+        37      const intelligence = useIntelligence();
+        38 -
+        39 -    const [view, setView] = useState({ x: 0, y: 0,
+           -  k: 1 });
+        40 -    const [isPanning, setIsPanning] =
+           - useState(false);
+        38 +    const canvas = useCanvas();
+        39 +
+        40      const [themeIndex, setThemeIndex] =
+             useState(0);
+        41      const currentThemeKey =
+             THEME_KEYS[themeIndex];
+        42      const theme = THEMES[currentThemeKey];
+        43 -
+        44 -    const [isDraggingFile, setIsDraggingFile] =
+           - useState(false);
+        45 -    const simulationRef = useRef<any>(null);
+        46 -    const nodePositionsRef = useRef<Map<string, {
+           - x: number; y: number }>>(new Map());
+        47 -    const nodeMetaRef = useRef<Record<string, { x:
+           -  number; y: number; selected: boolean }>>({});
+        48 -    const lastUpdateRef = useRef<number>(0);
+        49 -    const lastTickRef = useRef<number>(0);
+        43
+        44 -    const [contextMenu, setContextMenu] =
+           - useState<{x: number, y: number, nodeId: string} |
+           -  null>(null);
+        44 +    const [isDraggingFile, setIsDraggingFile] =
+           + useState(false);
+        45 +    const [contextMenu, setContextMenu] =
+           + useState<ContextMenuState | null>(null);
+        46      const [showSettings, setShowSettings] =
+             useState(false);
+        47      const [showAIPanel, setShowAIPanel] =
+             useState(false);
+        48      const [showCommandPalette,
+             setShowCommandPalette] = useState(false);
+        49 -    const [tagInput, setTagInput] = useState("");
+        50 -
+        49 +    const [tagInput, setTagInput] = useState('');
+        50      const [saveStatus, setSaveStatus] =
+             useState<'idle' | 'waiting' | 'saving' |
+             'saved'>('idle');
+        51      const [zenMode, setZenMode] = useState(false);
+        52 -    const [gravityStrength, setGravityStrength] =
+           - useState(0.1);
+        53 -    const [showGravityUI, setShowGravityUI] =
+           - useState(false);
+        52
+        53 -    // Optimize: Only recalculate when selection
+           - changes
+        53      const selectedNodesCount = useMemo(() =>
+        54        store.nodes.filter(n => n.selected).length,
+        55 -      [store.nodes.map(n => n.selected).join(',')]
+        55 +      [store.nodes]
+        56      );
+        57
+        58 -    const handleManualSave = () => {
+        58 +    const handleManualSave = useCallback(() => {
+        59        if (document.activeElement instanceof
+             HTMLElement) document.activeElement.blur();
+        60 -      setTimeout(() => { saveFile();
+           - setSaveStatus('saved'); setTimeout(() =>
+           - setSaveStatus('idle'), 2000); }, 100);
+        61 -    };
+        60 +      setTimeout(() => {
+        61 +        saveFile();
+        62 +        setSaveStatus('saved');
+        63 +        setTimeout(() => setSaveStatus('idle'),
+           + 2000);
+        64 +      }, 100);
+        65 +    }, [saveFile]);
+        66
+        67 -    const centerCamera = () => {
+        68 -      const targetNodes = store.nodes.filter(n =>
+           -  n.selected).length > 0
+           -   ? store.nodes.filter(n => n.selected) :
+           -  store.nodes;
+        69 -      if (targetNodes.length === 0) { setView({ x:
+           -  0, y: 0, k: 1 }); return; }
+        70 -      let sumX = 0, sumY = 0;
+           - targetNodes.forEach(n => { sumX += n.x; sumY +=
+           - n.y; });
+        71 -      const newViewX = (window.innerWidth / 2) -
+           - ((sumX / targetNodes.length) * view.k);
+        72 -      const newViewY = (window.innerHeight / 2) -
+           - ((sumY / targetNodes.length) * view.k);
+        73 -      setView(prev => ({ ...prev, x: newViewX, y:
+           - newViewY }));
+        74 -    };
+        67 +    const centerCamera = useCallback(() => {
+        68 +      const targetNodes = store.nodes.filter(n =>
+           +  n.selected).length > 0
+        69 +        ? store.nodes.filter(n => n.selected)
+        70 +        : store.nodes;
+        71 +      canvas.centerOnNodes(targetNodes);
+        72 +    }, [store.nodes, canvas]);
+        73
+        74 -    const runOCR = async (id: string) => {
+        74 +    const runOCR = useCallback(
+           +  async (id: string) => {
+        75        const node = store.nodes.find(n => n.id ===
+             id);
+        76        if (!node || node.type !== 'image') return;
+        77 -      if (!store.geminiKey) { alert("
+           -  Ange Gemini API-nyckel!"
+           -  ); setShowSettings(true); return; }
+        78 -
+        79 -      // Vi måste hämta själva bilden från
+           - assets-mappen (via URLen i minnet)
+        77 +      if (!store.geminiKey) { alert('
+           +  Ange Gemini API-nyckel!'
+           +  ); setShowSettings(true); return; }
+        78 +
+        79        const assetUrl = store.assets[node.content];
+        80 -      if (!assetUrl) { alert("Hittar inte bilden!"
+           -  ); return; }
+        80 +      if (!assetUrl) { alert('Hittar inte bilden!'
+           +  ); return; }
+        81
+        82 -      store.updateNode(id, { ocrText: "🔍 Läser...
+           -  " });
+        83 -
+        84 -      // För att skicka till Gemini måste vi göra
+           - om Blob-URL till Base64 igen
+        82 +      store.updateNode(id, { ocrText: 'Läser...'
+           +   });
+        83 +
+        84        const response = await fetch(assetUrl);
+        85        const blob = await response.blob();
+        86        const reader = new FileReader();
+        87        reader.onloadend = async () => {
+        88 -          const base64 = reader.result as string;
+        89 -          const result = await performOCR(base64,
+           -  store.geminiKey || '');
+        90 -
+        91 -          let finalText = result.text;
+        92 -          if (result.description) finalText +=
+           - "\n\n--- 🖼️ BILDANALYS ---\n" +
+           - result.description;
+        93 -          store.updateNode(id, { ocrText:
+           - finalText, tags: [...new Set([...node.tags,
+           - ...result.tags])], isFlipped: true });
+        88 +        const base64 = reader.result as string;
+        89 +        const result = await performOCR(base64,
+           +  store.geminiKey || '');
+        90 +        let finalText = result.text;
+        91 +        if (result.description) finalText +=
+           + '\n\n--- BILDANALYS ---\n' + result.description;
+        92 +        store.updateNode(id, { ocrText: finalText,
+           +  tags: [...new Set([...node.tags,
+           + ...result.tags])], isFlipped: true });
+        93        };
+        94        reader.readAsDataURL(blob);
+        95        setContextMenu(null);
+        96 -    };
+        96 +    }, [store]);
+        97
+        98 -    const addBulkTag = () => { if
+           - (tagInput.trim()) {
+           - store.addTagToSelected(tagInput.trim());
+           - setTagInput(""); } };
+        99 -
+       100 -    const deleteSelected = () => {
+        98 +    const deleteSelected = useCallback(() => {
+        99        const selectedNodes = store.nodes.filter(n
+             => n.selected);
+       100        if (selectedNodes.length === 0) return;
+       101 -
+       101        if (confirm(`Radera ${selectedNodes.length}
+             valda kort?`)) {
+       102          selectedNodes.forEach(node =>
+             store.removeNode(node.id));
+       103        }
+       104 -    };
+       104 +    }, [store]);
+       105
+       106 -    // --- NY HANTERING AV DROP (Spara till
+           - assets) ---
+       106      const handleDrop = async (e: React.DragEvent)
+             => {
+       107        e.preventDefault(); e.stopPropagation();
+             setIsDraggingFile(false);
+       108        if (!hasFile) return;
+       109
+       110 -      const worldX = (e.clientX - view.x) /
+           - view.k;
+       111 -      const worldY = (e.clientY - view.y) /
+           - view.k;
+       110 +      const worldPos =
+           + canvas.screenToWorld(e.clientX, e.clientY);
+       111        const files =
+             Array.from(e.dataTransfer.files);
+       112
+       113        for (const file of files) {
+       114          if (file.type.startsWith('image/')) {
+       115 -          // 1. Krymp bilden först (vi vill inte
+           - spara 10MB filer)
+       115            const resizedBase64 = await
+             processImageFile(file, 900);
+       116            const blob =
+             dataURLtoBlob(resizedBase64);
+       117            const processedFile = new File([blob],
+             file.name, { type: 'image/jpeg' });
+       118 -
+       119 -          // 2. Skapa ett unikt filnamn
+       120 -          const uniqueName =
+           - `${Date.now()}_${file.name.replace(/\s+/g,
+           - '_')}`; // Inga mellanslag
+       121 -
+       122 -          // 3. Spara filen fysiskt i
+           - 'assets'-mappen
+       118 +          const uniqueName =
+           + `${Date.now()}_${file.name.replace(/\s+/g,
+           + '_')}`;
+       119            const relativePath = await
+             saveAsset(processedFile, uniqueName);
+       120 -
+       121 -          if (relativePath) {
+       122 -              // 4. Lägg till noden, men peka på
+           - filnamnet istället för base64
+       123 -              store.addNode(relativePath, worldX,
+           - worldY, 'image');
+       124 -          }
+       125 -
+       120 +          if (relativePath)
+           + store.addNode(relativePath, worldPos.x,
+           + worldPos.y, 'image');
+       121          } else if (file.type === 'text/html' ||
+             file.name.endsWith('.html')) {
+       122            const text = await file.text();
+       123 -
+       124 -          // Check if it's a Zotero export with
+           - multiple notes
+       123            if (isZoteroHTML(text)) {
+       124              const notes = parseZoteroHTML(text);
+       125 -
+       125              if (notes.length > 0) {
+       126 -              // Create separate nodes for each
+           - note
+       127 -              // Arrange them in a grid pattern
+       126                const spacing = 350;
+       127                const cols =
+             Math.ceil(Math.sqrt(notes.length));
+       128 -
+       128                notes.forEach((note, index) => {
+       129                  const row = Math.floor(index /
+             cols);
+       130                  const col = index % cols;
+       131 -                const x = worldX + (col *
+           - spacing);
+       132 -                const y = worldY + (row *
+           - spacing);
+       133 -
+       134 -                // Use HTML content to preserve
+           - links
+       135 -                store.addNode(note.htmlContent, x,
+           -  y, 'zotero');
+       131 +                store.addNode(note.htmlContent,
+           + worldPos.x + col * spacing, worldPos.y + row *
+           + spacing, 'zotero');
+       132                });
+       133 -
+       134 -              // Show success message
+       135 -              setTimeout(() => {
+       136 -                alert(`✅ Importerade
+           - ${notes.length} Zotero-anteckningar!`);
+       137 -              }, 100);
+       133              } else {
+       134 -              // Fallback: treat as single note
+       135 -              store.addNode(text, worldX, worldY,
+           - 'zotero');
+       134 +              store.addNode(text, worldPos.x,
+           + worldPos.y, 'zotero');
+       135              }
+       136            } else {
+       137 -            // Regular HTML file
+       138 -            store.addNode(text, worldX, worldY,
+           - 'zotero');
+       137 +            store.addNode(text, worldPos.x,
+           + worldPos.y, 'zotero');
+       138            }
+       139          }
+       140        }
+       141      };
+       142
+       143 -    // Hantera Paste (Ctrl+V) på samma sätt
+       143 +    // Paste handler
+       144      useEffect(() => {
+       145        const handlePaste = async (e:
+             ClipboardEvent) => {
+       146          if (!hasFile) return;
+       147 -        if (document.activeElement instanceof
+           -  HTMLElement &&
+           -  (document.activeElement.tagName === 'TEXTAREA'
+           -  || document.activeElement.tagName === 'INPUT'
+           -  )) return;
+       147 +        if (document.activeElement instanceof
+           +  HTMLElement && ['TEXTAREA', 'INPUT'].includes(
+           +  document.activeElement.tagName)) return;
+       148
+       149          const items = e.clipboardData?.items;
+       150          if (!items) return;
+     ...
+       197              if (file) {
+       198                const resizedBase64 = await
+             processImageFile(file, 900);
+       199                const blob =
+             dataURLtoBlob(resizedBase64);
+       200 -              const processedFile = new
+           -  File([blob], "pasted_image.jpg"
+           -  , { type: 'image/jpeg' });
+       201 -
+       200 +              const processedFile = new
+           +  File([blob], 'pasted_image.jpg'
+           +  , { type: 'image/jpeg' });
+       201                const uniqueName =
+             `pasted_${Date.now()}.jpg`;
+       202                const relativePath = await
+             saveAsset(processedFile, uniqueName);
+       203 -
+       204 -              const centerX = (window.innerWidth /
+           -  2 - view.x) / view.k;
+       205 -              const centerY = (window.innerHeight
+           - / 2 - view.y) / view.k;
+       206 -
+       207 -              if (relativePath)
+           - store.addNode(relativePath, centerX, centerY,
+           - 'image');
+       203 +              const centerPos =
+           + canvas.screenToWorld(window.innerWidth / 2,
+           + window.innerHeight / 2);
+       204 +              if (relativePath)
+           + store.addNode(relativePath, centerPos.x,
+           + centerPos.y, 'image');
+       205              }
+       206            }
+       207          }
+       208        };
+       209        window.addEventListener('paste',
+             handlePaste);
+       210        return () =>
+             window.removeEventListener('paste', handlePaste);
+       211 -    }, [hasFile, view, store, saveAsset]);
+       211 +    }, [hasFile, canvas, store, saveAsset]);
+       212
+       213 -    // Auto-link when new embeddings are created
+       213 +    // Auto-link on new embeddings
+       214      useEffect(() => {
+       215        if (store.enableAutoLink) {
+       216          const nodesWithNewEmbeddings =
+             store.nodes.filter(
+       217 -          n => n.embedding && n.lastEmbedded &&
+       218 -          new Date(n.lastEmbedded).getTime() >
+           - Date.now() - 5000 // Last 5 seconds
+       217 +          n => n.embedding && n.lastEmbedded &&
+           +   new Date(n.lastEmbedded).getTime() > Date.now()
+           +   - 5000
+       218          );
+       219 -
+       220 -        if (nodesWithNewEmbeddings.length > 0) {
+       221 -          intelligence.autoLinkSimilarNodes();
+       222 -        }
+       219 +        if (nodesWithNewEmbeddings.length > 0)
+           + intelligence.autoLinkSimilarNodes();
+       220        }
+       221 -    }, [store.nodes
+           -  .map(n => n.lastEmbedded).join(','),
+           -   store.enableAutoLink]);
+       221 +    }, [store.nodes, store.enableAutoLink
+           +  , intelligence]);
+       222
+       223 -    useEffect(() => {
+       224 -      const handleGlobalKeyDown = (e:
+           - KeyboardEvent) => {
+       225 -        const isTyping = document.activeElement
+           - instanceof HTMLElement &&
+           - (document.activeElement.tagName === 'TEXTAREA' ||
+           -  document.activeElement.tagName === 'INPUT');
+       226 -
+       227 -        // Space opens command palette (unless
+           - typing)
+       228 -        if (e.key === ' ' && !isTyping) {
+       229 -          e.preventDefault();
+       230 -          setShowCommandPalette(true);
+       231 -          return;
+       232 -        }
+       233 -
+       234 -        // Delete key removes selected nodes
+       235 -        if ((e.key === 'Delete' || e.key ===
+           - 'Backspace') && !isTyping && selectedNodesCount >
+           -  0) {
+       236 -          e.preventDefault();
+       237 -          deleteSelected();
+       238 -          return;
+       239 -        }
+       240 -
+       241 -        if (e.key === 'Escape') {
+       242 -          if (isTyping) { (document.activeElement
+           - as HTMLElement).blur(); return; }
+       243 -          setZenMode(false); setContextMenu(null);
+           -  setShowSettings(false); setShowAIPanel(false);
+           - setShowCommandPalette(false);
+           - store.clearSelection();
+       244 -        }
+       245 -        if ((e.ctrlKey || e.metaKey) && e.key ===
+           - 'Enter') { e.preventDefault();
+           - handleManualSave(); }
+       246 -        if (e.key.toLowerCase() === 'z' &&
+           - !isTyping && !e.ctrlKey) setZenMode(prev =>
+           - !prev);
+       247 -        if (e.key === '-' && !isTyping) {
+           - e.preventDefault(); centerCamera(); }
+       248 -        if (e.key.toLowerCase() === 'i' &&
+           - !isTyping && !e.ctrlKey) { e.preventDefault();
+           - setShowAIPanel(prev => !prev); }
+       249 -        if (e.key.toLowerCase() === 'b' &&
+           - !isTyping && !e.ctrlKey) { e.preventDefault();
+           - setShowAIPanel(prev => !prev); }
+       250 -      };
+       251 -      window.addEventListener('keydown',
+           - handleGlobalKeyDown);
+       252 -      return () =>
+           - window.removeEventListener('keydown',
+           - handleGlobalKeyDown);
+       253 -    }, [selectedNodesCount, store, zenMode, view,
+           - intelligence, deleteSelected]);
+       223 +    // Keyboard shortcuts
+       224 +    useKeyboard({
+       225 +      onOpenCommandPalette: () =>
+           + setShowCommandPalette(true),
+       226 +      onOpenSearch: () =>
+           + setShowCommandPalette(true), // TODO: Implement
+           + search overlay
+       227 +      onDeleteSelected: deleteSelected,
+       228 +      onEscape: () => { setZenMode(false);
+           + setContextMenu(null); setShowSettings(false);
+           + setShowAIPanel(false);
+           + setShowCommandPalette(false);
+           + store.clearSelection(); },
+       229 +      onSave: handleManualSave,
+       230 +      onToggleZen: () => setZenMode(prev =>
+           + !prev),
+       231 +      onCenterCamera: centerCamera,
+       232 +      onToggleAIPanel: () => setShowAIPanel(prev
+           + => !prev),
+       233 +      onPin: () => { const selected =
+           + store.nodes.filter(n => n.selected); if
+           + (selected.some(n => n.pinned))
+           + store.unpinSelected(); else store.pinSelected();
+           + },
+       234 +      onArrangeVertical: () => { /* TODO:
+           + Implement */ },
+       235 +      onArrangeHorizontal: () => { /* TODO:
+           + Implement */ },
+       236 +      onArrangeGridVertical: () => { /* TODO:
+           + Implement */ },
+       237 +      onArrangeGridHorizontal: () => { /* TODO:
+           + Implement */ },
+       238 +      onToggleCopyMode: () => { /* TODO: Implement
+           +  */ },
+       239 +    }, selectedNodesCount > 0);
+       240
+       241 -    useEffect(() => { // Autosave
+       241 +    // Autosave
+       242 +    useEffect(() => {
+       243        if (!hasFile) return;
+       244        setSaveStatus('waiting');
+       245 -      const timer = setTimeout(async () => {
+           - setSaveStatus('saving'); await saveFile();
+           - setSaveStatus('saved'); setTimeout(() =>
+           - setSaveStatus('idle'), 2000); }, 2000);
+       245 +      const timer = setTimeout(async () => {
+       246 +        setSaveStatus('saving');
+       247 +        await saveFile();
+       248 +        setSaveStatus('saved');
+       249 +        setTimeout(() => setSaveStatus('idle'),
+           + 2000);
+       250 +      }, AUTOSAVE_DELAY_MS);
+       251        return () => clearTimeout(timer);
+       252 -    }, [store.nodes, store.synapses, hasFile]);
+       252 +    }, [store.nodes, store.synapses, hasFile
+           +  , saveFile]);
+       253
+       254 -    // Cache node meta to avoid heavy lookups
+           - during physics ticks
+       255 -    useEffect(() => {
+       256 -      const meta: Record<string, { x: number; y:
+           - number; selected: boolean }> = {};
+       257 -      store.nodes.forEach((n) => {
+       258 -        meta[n.id] = { x: n.x || 0, y: n.y || 0,
+           - selected: !!n.selected };
+       259 -      });
+       260 -      nodeMetaRef.current = meta;
+       261 -    }, [store.nodes]);
+       262 -
+       263 -    // Debounced position update to prevent
+           - infinite loop
+       264 -    const updatePositionsDebounced =
+           - useCallback(() => {
+       265 -      const now = Date.now();
+       266 -      // Only update store every 500ms to
+           - drastically reduce re-renders
+       267 -      if (now - lastUpdateRef.current < 500)
+           - return;
+       268 -
+       269 -      lastUpdateRef.current = now;
+       270 -      const positions = nodePositionsRef.current;
+       271 -
+       272 -      if (positions.size === 0) return;
+       273 -
+       274 -      // Collect only the nodes that moved
+           - meaningfully and are not currently selected
+       275 -      const updates = new Map<string, { x: number;
+           -  y: number }>();
+       276 -      positions.forEach((pos, nodeId) => {
+       277 -        const meta = nodeMetaRef.current[nodeId];
+       278 -        if (!meta || meta.selected) return;
+       279 -
+       280 -        const dx = Math.abs((meta.x || 0) -
+           - pos.x);
+       281 -        const dy = Math.abs((meta.y || 0) -
+           - pos.y);
+       282 -        if (dx > 5 || dy > 5) {
+       283 -          updates.set(nodeId, pos);
+       284 -        }
+       285 -      });
+       286 -
+       287 -      positions.clear();
+       288 -      if (updates.size > 0) {
+       289 -        // Single Zustand set() call instead of
+           - one per node to avoid render storms
+       290 -        store.updateNodePositions(updates);
+       291 -      }
+       292 -    }, [store]);
+       293 -
+       294 -    // Fysik - Memoize physics data to prevent
+           - recreation on every render
+       295 -    const physicsData = useMemo(() => {
+       296 -      if (store.nodes.length === 0) return null;
+       297 -
+       298 -      return {
+       299 -        nodes: store.nodes.map(n => ({
+       300 -          id: n.id,
+       301 -          x: n.x || 0,
+       302 -          y: n.y || 0,
+       303 -          type: n.type
+       304 -        })),
+       305 -        links: store.synapses.map(s => ({
+       306 -          source: s.sourceId,
+       307 -          target: s.targetId
+       308 -        }))
+       309 -      };
+       310 -    }, [store.nodes.length,
+           - store.synapses.length]);
+       311 -
+       312 -    useEffect(() => {
+       313 -      if (!physicsData || !PHYSICS_ENABLED)
+           - return;
+       314 -
+       315 -      const { nodes: physicsNodes, links:
+           - physicsLinks } = physicsData;
+       316 -
+       317 -      const dynamicRepulsion = -3000 * (1 -
+           - gravityStrength) - 50;
+       318 -      const dynamicGravity =
+           - Math.pow(gravityStrength, 1.5) * 0.8;
+       319 -
+       320 -      simulationRef.current =
+           - forceSimulation(physicsNodes)
+       321 -        .alphaMin(0.001) // Lower threshold so
+           - simulation settles faster
+       322 -        .alphaDecay(0.02) // Faster decay to
+           - reduce CPU usage
+       323 -        .force('charge',
+           - forceManyBody().strength(dynamicRepulsion))
+       324 -        .force('collide',
+           - forceCollide().radius((d: any) => d.type ===
+           - 'image' ? 250 : 160).iterations(2)) // Reduce
+           - iterations
+       325 -        .force('x', forceX(window.innerWidth /
+           - 2).strength(dynamicGravity))
+       326 -        .force('y', forceY(window.innerHeight /
+           - 2).strength(dynamicGravity))
+       327 -        .force('link',
+           - forceLink(physicsLinks).id((d: any) =>
+           - d.id).distance(300))
+       328 -        .velocityDecay(0.6) // Higher decay for
+           - faster settling
+       329 -        .on('tick', () => {
+       330 -          // Hard throttle tick work to ~30fps to
+           - keep rAF light
+       331 -          const now = performance.now();
+       332 -          if (now - lastTickRef.current < 33)
+           - return;
+       333 -          lastTickRef.current = now;
+       334 -
+       335 -          // Store positions in ref instead of
+           - updating store directly
+       336 -          for (let i = 0; i < physicsNodes.length;
+           -  i++) {
+       337 -            const node = physicsNodes[i];
+       338 -            if (node.x === undefined || node.y ===
+           -  undefined) continue;
+       339 -
+       340 -            const prev =
+           - nodePositionsRef.current.get(node.id);
+       341 -            const dx = prev ? Math.abs(prev.x -
+           - node.x) : Infinity;
+       342 -            const dy = prev ? Math.abs(prev.y -
+           - node.y) : Infinity;
+       343 -            // Skip tiny jitter to keep the tick
+           - light
+       344 -            if (dx < 1 && dy < 1) continue;
+       345 -
+       346 -            nodePositionsRef.current.set(node.id,
+           - { x: node.x, y: node.y });
+       347 -          }
+       348 -
+       349 -          // Debounced update to store
+       350 -          updatePositionsDebounced();
+       351 -        });
+       352 -
+       353 -      simulationRef.current.alpha(1).restart();
+       354 -
+       355 -      // Stop the simulation once it's settled to
+           - avoid unsolicited movement/CPU
+       356 -      let settleCheck: number | undefined;
+       357 -      const checkSettle = () => {
+       358 -        if (!simulationRef.current) return;
+       359 -        if (simulationRef.current.alpha() < 0.02)
+           - {
+       360 -          simulationRef.current.stop();
+       361 -          return;
+       362 -        }
+       363 -        settleCheck =
+           - window.setTimeout(checkSettle, 300);
+       364 -      };
+       365 -      settleCheck = window.setTimeout(checkSettle,
+           -  300);
+       366 -
+       367 -      // Hard stop after a couple seconds as a
+           - fallback
+       368 -      const hardStop = window.setTimeout(() =>
+           - simulationRef.current?.stop(), 2500);
+       369 -
+       370 -      return () => {
+       371 -        if (settleCheck)
+           - window.clearTimeout(settleCheck);
+       372 -        window.clearTimeout(hardStop);
+       373 -        if (simulationRef.current) {
+       374 -          simulationRef.current.stop();
+       375 -        }
+       376 -      };
+       377 -    }, [hasFile, store.nodes.length,
+           - store.synapses.length, gravityStrength,
+           - updatePositionsDebounced]);
+       378 -
+       379 -    const handleWheel = (e: React.WheelEvent) => {
+       380 -      if (e.shiftKey) {
+       381 -          const delta = e.deltaY > 0 ? -0.05 :
+           - 0.05;
+       382 -          setGravityStrength(prev => {
+       383 -              const newVal =
+           - Math.min(Math.max(0.01, prev + delta), 1.0);
+       384 -              return
+           - parseFloat(newVal.toFixed(2));
+       385 -          });
+       386 -          setShowGravityUI(true);
+       387 -          setTimeout(() =>
+           - setShowGravityUI(false), 2000);
+       388 -          return;
+       389 -      }
+       390 -      const newK = Math.min(Math.max(0.05, view.k
+           - * Math.pow(1.001, -e.deltaY)), 10);
+       391 -      setView({ x: e.clientX - (e.clientX -
+           - view.x) * (newK / view.k), y: e.clientY -
+           - (e.clientY - view.y) * (newK / view.k), k: newK
+           - });
+       392 -    };
+       393 -
+       254      const handleNodeClick = (e: React.MouseEvent,
+             id: string) => {
+       255        e.stopPropagation();
+       256 -      if (e.ctrlKey || e.metaKey || e.shiftKey) {
+           -  store.toggleSelection(id, true); }
+       256 +      if (e.ctrlKey || e.metaKey || e.shiftKey)
+           +  store.toggleSelection(id, true);
+       257        else { const node = store.nodes.find(n =>
+             n.id === id); if (!node?.selected)
+             store.toggleSelection(id, false); }
+       258      };
+       259
+       260      const handleCanvasClick = () => {
+             store.clearSelection(); setContextMenu(null); };
+       261 -    const handleRightClick = (e: React.MouseEvent,
+           -  id: string) => { e.preventDefault();
+           - e.stopPropagation(); const node =
+           - store.nodes.find(n => n.id === id); if
+           - (!node?.selected) store.toggleSelection(id,
+           - false); setContextMenu({ x: e.clientX, y:
+           - e.clientY, nodeId: id }); };
+       261
+       262 +    const handleRightClick = (e: React.MouseEvent,
+           +  id: string) => {
+       263 +      e.preventDefault(); e.stopPropagation();
+       264 +      const node = store.nodes.find(n => n.id ===
+           + id);
+       265 +      if (!node?.selected)
+           + store.toggleSelection(id, false);
+       266 +      setContextMenu({ x: e.clientX, y: e.clientY,
+           +  nodeId: id });
+       267 +    };
+       268 +
+       269 +    const addBulkTag = () => { if
+           + (tagInput.trim()) {
+           + store.addTagToSelected(tagInput.trim());
+           + setTagInput(''); } };
+       270 +
+       271      return (
+       272 -      <div
+       272 +      <div
+       273          className={`w-screen h-screen
+             overflow-hidden relative font-sans cursor-move
+             transition-colors duration-700 ${theme.bg}
+             ${theme.text}`}
+       274 -        onWheel={handleWheel}
+       275 -        onMouseDown={e => (e.button === 0 ||
+           - e.button === 1) && setIsPanning(true)}
+       276 -        onMouseMove={e => isPanning && setView(p
+           - => ({...p, x: p.x + e.movementX, y: p.y +
+           - e.movementY}))}
+       277 -        onMouseUp={() => setIsPanning(false)}
+       278 -        onDoubleClick={(e) => hasFile &&
+           -  store.addNode("Ny tanke...", (e.clientX
+           -   - view.x)/view.k, (e.clientY - view.y)/view.k)}
+       279 -        onDragOver={(e) => {e.preventDefault(); if
+           -  (hasFile) setIsDraggingFile(true)}}
+           -  onDragLeave={() => setIsDraggingFile(false)}
+           -   onDrop={handleDrop}
+       274 +        onWheel={canvas.handleWheel}
+       275 +        onMouseDown={canvas.handleMouseDown}
+       276 +        onMouseMove={canvas.handleMouseMove}
+       277 +        onMouseUp={canvas.handleMouseUp}
+       278 +        onDoubleClick={(e) => hasFile &&
+           +  store.addNode('Ny tanke...', ...Object.values(
+           +  canvas.screenToWorld(e.clientX, e.clientY)))}
+       279 +        onDragOver={(e) => {
+           +  e.preventDefault(); if
+           +  (hasFile) setIsDraggingFile(true); }}
+       280 +        onDragLeave={() =>
+           + setIsDraggingFile(false)}
+       281 +        onDrop={handleDrop}
+       282          onClick={handleCanvasClick}
+       283 -        onContextMenu={(e) => e.preventDefault()}
+       283 +        onContextMenu={(e) => e.preventDefault()}
+       284        >
+       285 -        <div className="absolute inset-0
+           - pointer-events-none opacity-40"
+       286 -             style={{ backgroundImage:
+           - theme.bgType === 'grid' ?
+           - 'linear-gradient(currentColor 1px, transparent
+           - 1px), linear-gradient(90deg, currentColor 1px,
+           - transparent 1px)' : 'none', backgroundSize: '40px
+           -  40px', transform: `translate(${view.x}px,
+           - ${view.y}px) scale(${view.k})`, color: '#9ca3af'
+           - }}>
+       287 -        </div>
+       285 +        <CanvasBackground theme={theme}
+           + view={canvas.view} />
+       286
+       287          {isDraggingFile && hasFile && (
+       288            <div className="absolute inset-0 z-50
+             bg-blue-500/20 backdrop-blur-sm border-4
+             border-blue-400 border-dashed m-4 rounded-3xl
+             flex items-center justify-center
+             pointer-events-none">
+       289 -            <p className="text-3xl font-bold
+           -  text-white drop-shadow-lg">Släpp filen här
+           -   för att spara den i biblioteket!</p>
+       289 +            <p className="text-3xl font-bold
+           +  text-white drop-shadow-lg">Släpp filen här!</p>
+       290            </div>
+       291          )}
+       292
+     ...
+       443            onConnect={openFile}
+             onSave={handleManualSave} onToggleTheme={() =>
+             setThemeIndex((i) => (i + 1) %
+             THEME_KEYS.length)} onOpenSettings={() =>
+             setShowSettings(true)}
+       444          />
+       445
+       446 -        {/* AI Intelligence Button */}
+       447 -        {false && hasFile && !zenMode && (
+       448 -          <button
+       449 -            onClick={() => setShowAIPanel(true)}
+       450 -            className="fixed top-20 right-6 z-40
+           - bg-gradient-to-r from-purple-600 to-pink-600
+           - hover:from-purple-700 hover:to-pink-700
+           - text-white px-4 py-2 rounded-lg shadow-lg
+           - transition-all flex items-center gap-2
+           - font-semibold"
+       451 -            title="Öppna AI-panel (I)"
+       452 -          >
+       453 -            🧠 Intelligent Motor
+       454 -          </button>
+       455 -        )}
+       456 -
+       457 -        {showGravityUI && (
+       458 -          <div className="absolute bottom-6
+           - right-6 z-50 bg-black/80 text-white px-4 py-2
+           - rounded-lg shadow-xl backdrop-blur font-mono
+           - text-sm pointer-events-none animate-bounce">
+       459 -              G: {Math.round(gravityStrength *
+           - 100)}%
+       460 -              <div className="w-full h-1
+           - bg-gray-700 mt-1 rounded overflow-hidden"><div
+           - className="h-full bg-blue-500 transition-all"
+           - style={{ width: `${gravityStrength * 100}%`
+           - }}></div></div>
+       461 -          </div>
+       462 -        )}
+       446          {zenMode && <div className="absolute
+             bottom-10 left-1/2 transform -translate-x-1/2
+             text-gray-500 text-xs opacity-50
+             pointer-events-none">Tryck 'Z' eller 'Esc' för
+             verktyg</div>}
+       447 -
+       447 +
+       448          {selectedNodesCount > 0 && !zenMode && (
+       449            <div className="absolute bottom-10
+             left-1/2 transform -translate-x-1/2 z-50
+             bg-gray-800 p-4 rounded-xl shadow-2xl border
+             border-gray-700 flex gap-2 items-center"
+             onMouseDown={e => e.stopPropagation()}>
+       450 -              <span className="text-white
+           -  font-bold">{selectedNodesCount} valda</span>
+       451 -              {selectedNodesCount > 1 && (
+       452 -                <>
+       453 -
+           -  <input type="text" value={tagInput} onChange={e
+           -  => setTagInput(e.target.value)} placeholder="Ny
+           -  tagg..." className="bg-gray-900 text-white px-2
+           -  py-1 rounded border border-gray-600
+           -  outline-none" onKeyDown={e => e.key === 'Enter'
+           -  && addBulkTag()} />
+       454 -
+           -  <button onClick={addBulkTag} className="px-3
+           -  py-1 bg-blue-600 rounded text-white
+           -  text-sm">Tagga</button>
+       455 -                </>
+       456 -              )}
+       457 -
+           -  <button onClick={deleteSelected} className="px-3
+           -   py-1 bg-red-600 hover:bg-red-700 rounded
+           -  text-white text-sm font-semibold">🗑️
+           -  Radera</button>
+       458 -
+           -  <button onClick={() => store.clearSelection()}
+           -  className="px-3 py-1 bg-gray-700
+           -  hover:bg-gray-600 text-gray-300 rounded
+           -  text-sm">Avbryt</button>
+       450 +            <span className="text-white
+           +  font-bold">{selectedNodesCount} valda</span>
+       451 +            {selectedNodesCount > 1 && (
+       452 +              <>
+       453 +
+           +  <input type="text" value={tagInput} onChange={e
+           +  => setTagInput(e.target.value)} placeholder="Ny
+           +  tagg..." className="bg-gray-900 text-white px-2
+           +  py-1 rounded border border-gray-600
+           +  outline-none" onKeyDown={e => e.key === 'Enter'
+           +  && addBulkTag()} />
+       454 +
+           +  <button onClick={addBulkTag} className="px-3
+           +  py-1 bg-blue-600 rounded text-white
+           +  text-sm">Tagga</button>
+       455 +              </>
+       456 +            )}
+       457 +
+           +  <button onClick={deleteSelected} className="px-3
+           +   py-1 bg-red-600 hover:bg-red-700 rounded
+           +  text-white text-sm font-semibold">
+           +  Radera</button>
+       458 +
+           +  <button onClick={() => store.clearSelection()}
+           +  className="px-3 py-1 bg-gray-700
+           +  hover:bg-gray-600 text-gray-300 rounded
+           +  text-sm">Avbryt</button>
+       459            </div>
+       460          )}
+       461
+       462 -        {showSettings && (
+       463 -          <div className="absolute inset-0 z-[100]
+           -  flex items-center justify-center bg-black/50
+           - backdrop-blur-sm" onMouseDown={() =>
+           - setShowSettings(false)}>
+       464 -              <div className="bg-gray-900 p-8
+           - rounded-2xl shadow-2xl border border-gray-700
+           - w-[500px] max-h-[80vh] overflow-y-auto"
+           - onMouseDown={e => e.stopPropagation()}>
+       465 -                  <h2 className="text-xl
+           - text-white mb-6 font-bold">⚙️ Inställningar</h2>
+       466 -
+       467 -                  <div className="space-y-4">
+       468 -                    <div>
+       469 -                      <label className="block
+           - text-gray-400 text-sm mb-2">🔮 Gemini API Key
+           - (OCR & Bildanalys)</label>
+       470 -                      <input type="password"
+           - value={store.geminiKey || ''} onChange={e =>
+           - store.setGeminiKey(e.target.value)}
+           - className="w-full bg-black/50 border
+           - border-gray-600 rounded p-2 text-white"
+           - placeholder="sk-..." />
+       471 -                    </div>
+       472 -
+       473 -                    <div>
+       474 -                      <label className="block
+           - text-gray-400 text-sm mb-2">🧠 OpenAI API Key
+           - (Embeddings & Semantisk sökning)</label>
+       475 -                      <input type="password"
+           - value={store.openaiKey || ''} onChange={e =>
+           - store.setOpenAIKey(e.target.value)}
+           - className="w-full bg-black/50 border
+           - border-gray-600 rounded p-2 text-white"
+           - placeholder="sk-..." />
+       476 -                    </div>
+       477 -
+       478 -                    <div>
+       479 -                      <label className="block
+           - text-gray-400 text-sm mb-2">💭 Claude API Key (AI
+           -  Reflektion & Frågor)</label>
+       480 -                      <input type="password"
+           - value={store.claudeKey || ''} onChange={e =>
+           - store.setClaudeKey(e.target.value)}
+           - className="w-full bg-black/50 border
+           - border-gray-600 rounded p-2 text-white"
+           - placeholder="sk-ant-..." />
+       481 -                    </div>
+       482 -
+       483 -                    <div className="border-t
+           - border-gray-700 pt-4 mt-4">
+       484 -                      <label className="flex
+           - items-center justify-between text-gray-300 mb-2">
+       485 -                        <span>🔗 Auto-länkning
+           - (Semantisk gravitation)</span>
+       486 -                        <button
+       487 -                          onClick={() =>
+           - store.toggleAutoLink()}
+       488 -                          className={`px-3 py-1
+           - rounded text-sm ${store.enableAutoLink ?
+           - 'bg-green-600' : 'bg-gray-700'}`}
+       489 -                        >
+       490 -                          {store.enableAutoLink ?
+           - 'PÅ' : 'AV'}
+       491 -                        </button>
+       492 -                      </label>
+       493 -                      <p className="text-xs
+           - text-gray-500 mb-2">Länkar automatiskt kort med
+           - liknande innehåll</p>
+       494 -
+       495 -                      {store.enableAutoLink && (
+       496 -                        <div>
+       497 -                          <label className="block
+           - text-gray-400 text-xs mb-1">Tröskelvärde:
+           - {Math.round((store.autoLinkThreshold || 0.75) *
+           - 100)}%</label>
+       498 -                          <input
+       499 -                            type="range"
+       500 -                            min="0.5"
+       501 -                            max="0.95"
+       502 -                            step="0.05"
+       503 -
+           - value={store.autoLinkThreshold || 0.75}
+       504 -                            onChange={e => store.s
+           - etAutoLinkThreshold(parseFloat(e.target.value))}
+       505 -                            className="w-full"
+       506 -                          />
+       507 -                        </div>
+       508 -                      )}
+       509 -                    </div>
+       510 -                  </div>
+       511 -
+       512 -                  <button onClick={() =>
+           - setShowSettings(false)} className="w-full
+           - bg-blue-600 text-white py-2 rounded mt-6
+           - hover:bg-blue-700 transition">Stäng</button>
+       513 -              </div>
+       514 -          </div>
+       515 -        )}
+       462 +        {showSettings && <SettingsModal
+           + onClose={() => setShowSettings(false)} />}
+       463
+       464 -        <div style={{ transform: `translate(${
+           -  view.x}px, ${view.y}px) scale(${
+           -  view.k})`, transformOrigin: '0 0', width:
+           -  '100%', height: '100%', position: 'absolute' }}>
+       464 +        <div style={{ transform: `translate(${
+           +  canvas.view.x}px, ${canvas.view.y}px) scale(${
+           +  canvas.
+           +  view.k})`, transformOrigin: '0 0', width:
+           +  '100%', height: '100%', position: 'absolute' }}>
+       465            <svg className="absolute
+             overflow-visible pointer-events-none" style={{
+             top: 0, left: 0 }}>
+       466 -              {store.synapses.map(s => {
+       467 -
+           -  const start = store.nodes.find(n => n.id ===
+           -  s.sourceId);
+       468 -
+           -  const end = store.nodes.find(n => n.id ===
+           -  s.targetId);
+       469 -                  if(!start || !end) return null;
+       470 -
+           -  return <line key={s.id} x1={start.x}
+           -  y1={start.y} x2={end.x} y2={end.y}
+           -  stroke={theme.lineColor} strokeWidth="2"
+           -  strokeOpacity={theme.lineOpacity} />;
+       471 -              })}
+       466 +            {store.synapses.map(s => {
+       467 +
+           +  const start = store.nodes.find(n => n.id ===
+           +  s.sourceId);
+       468 +
+           +  const end = store.nodes.find(n => n.id ===
+           +  s.targetId);
+       469 +              if (!start || !end) return null;
+       470 +
+           +  return <line key={s.id} x1={start.x}
+           +  y1={start.y} x2={end.x} y2={end.y}
+           +  stroke={theme.lineColor} strokeWidth="2"
+           +  strokeOpacity={theme.lineOpacity} />;
+       471 +            })}
+       472            </svg>
+       473
+       474 -          {/* Only pass nodeId to NodeView - let
+           - it handle its own data fetching */}
+       474            {store.nodes.map((node) => (
+       475              <NodeView
+       476                key={node.id}
+     ...
+       555            ))}
+       556          </div>
+       557
+       558 -        {contextMenu && (
+       559 -          <div className="fixed z-[100]
+           - bg-gray-800 border border-gray-700 rounded
+           - shadow-xl py-1 w-40 backdrop-blur-md" style={{
+           - left: contextMenu.x, top: contextMenu.y }}
+           - onMouseDown={e => e.stopPropagation()}>
+       560 -              <button onClick={() => {
+           - store.updateNode(contextMenu.nodeId, { isFlipped:
+           -  !store.nodes.find(n=>n.id===contextMenu.nodeId)?
+           - .isFlipped }); setContextMenu(null); }}
+           - className="w-full text-left px-4 py-2 text-sm
+           - text-gray-200 hover:bg-blue-600">Vänd kort
+           - ⟳</button>
+       561 -              <button onClick={() =>
+           - runOCR(contextMenu.nodeId)} className="w-full
+           - text-left px-4 py-2 text-sm text-gray-200
+           - hover:bg-blue-600">✨ AI: Läs text</button>
+       562 -              <div className="h-px bg-gray-700
+           - my-1"></div>
+       563 -              <button onClick={() => {
+           - store.removeNode(contextMenu.nodeId);
+           - setContextMenu(null); }} className="w-full
+           - text-left px-4 py-2 text-sm text-red-400
+           - hover:bg-red-900/50">Radera</button>
+       564 -          </div>
+       565 -        )}
+       566 -
+       567 -        {/* AI Panel */}
+       558 +        {contextMenu && <ContextMenu
+           + menu={contextMenu} onClose={() =>
+           + setContextMenu(null)} onRunOCR={runOCR} />}
+       559          {showAIPanel && <AIPanel onClose={() =>
+             setShowAIPanel(false)} />}
+       560 -
+       561 -        {/* Command Palette */}
+       560          {showCommandPalette && (
+       561            <CommandPalette
+       562              onClose={() =>
+             setShowCommandPalette(false)}
+
+● Bash(wc -l "C:/Users/ximon/Kodprojekt/soul-canvas/src/App.tsx")
+  ⎿  315 C:/Users/ximon/Kodprojekt/soul-canvas/src/App.tsx
+
+● App.tsx är nu 315 rader (från 586). Nu tar jag bort
+  fysik-beroenden:
+
+● Bash(ls -la "C:/Users/ximon/Kodprojekt/soul-canvas/src/hooks/")
+  ⎿  total 44
+     drwxr-xr-x 1 ximon 197609    0 dec  6 00:37 .
+     drwxr-xr-x 1 ximon 197609    0 dec  6 00:40 ..
+     … +8 lines (ctrl+o to expand)
+
+● Bash(rm "C:/Users/ximon/Kodprojekt/soul-canvas/src/hooks/usePhysics
+      .ts")
+  ⎿  (No content)
+
+● Read(package.json)
+  ⎿  Read 44 lines
+
+● Update(package.json)
+  ⎿  Updated package.json with 2 removals
+       12      "dependencies": {
+       13        "@anthropic-ai/sdk": "^0.71.1",
+       14        "@google/generative-ai": "^0.24.1",
+       15 -      "@types/d3-force": "^3.0.10",
+       15        "clsx": "^2.1.1",
+       16 -      "d3-force": "^3.0.0",
+       16        "idb-keyval": "^6.2.2",
+       17        "openai": "^6.10.0",
+       18        "react": "^19.2.0",
+
+● Bash(cd "C:/Users/ximon/Kodprojekt/soul-canvas" && npm run build
+      2>&1 | head -100)
+  ⎿  > soul-canvas@0.0.0 build
+     > tsc -b && vite build
+     … +2 lines (ctrl+o to expand)
+
+● Read(src\App.tsx)
+  ⎿  Read 10 lines
+
+● Update(src\App.tsx)
+  ⎿  Updated src\App.tsx with 5 additions and 1 removal
+       234          onMouseDown={canvas.handleMouseDown}
+       235          onMouseMove={canvas.handleMouseMove}
+       236          onMouseUp={canvas.handleMouseUp}
+       237 -        onDoubleClick={(e) => hasFile &&
+           - store.addNode('Ny tanke...',
+           - ...Object.values(canvas.screenToWorld(e.clientX,
+           - e.clientY)))}
+       237 +        onDoubleClick={(e) => {
+       238 +          if (!hasFile) return;
+       239 +          const pos =
+           + canvas.screenToWorld(e.clientX, e.clientY);
+       240 +          store.addNode('Ny tanke...', pos.x,
+           + pos.y);
+       241 +        }}
+       242          onDragOver={(e) => { e.preventDefault();
+             if (hasFile) setIsDraggingFile(true); }}
+       243          onDragLeave={() =>
+             setIsDraggingFile(false)}
+       244          onDrop={handleDrop}
+
+● Bash(cd "C:/Users/ximon/Kodprojekt/soul-canvas" && npm run build
+      2>&1 | head -100)
+  ⎿  > soul-canvas@0.0.0 build
+     > tsc -b && vite build
+     … +22 lines (ctrl+o to expand)
+
+● Utmärkt! Bygget lyckades! Fas 1 är klar.
+
+● Fas 1 Klar!
+
+  Sammanfattning av ändringar
+
+  Nya filer skapade:
+  - src/utils/constants.ts - Centraliserade konstanter
+  - src/hooks/useCanvas.ts - Pan/zoom-logik (80 rader)
+  - src/hooks/useKeyboard.ts - Kortkommandon (150 rader)
+  - src/components/canvas/CanvasBackground.tsx - Bakgrund (50
+  rader)
+  - src/components/overlays/SettingsModal.tsx - Inställningar
+  (100 rader)
+  - src/components/overlays/ContextMenu.tsx - Högerklicksmeny (80
+   rader)
+
+  Uppdaterade filer:
+  - src/App.tsx - 586 → 318 rader (46% minskning)
+  - src/types/types.ts - Lade till pinned, width, height
+  - src/store/useBrainStore.ts - Lade till pin-funktioner
+  - package.json - Tog bort d3-force
+
+  Borttagna filer:
+  - src/hooks/usePhysics.ts
+
+  Vad som fungerar nu
+
+  - Korten ligger stilla (ingen fysik)
+  - Pan/zoom fungerar
+  - P-tangent för att pinna kort (förbered för Fas 5)
+  - Alla befintliga funktioner (AI, sparning, teman)
+
+  Nästa steg (Fas 2-6)
+
+  Ska jag fortsätta med Fas 2: Viewport Culling så att vi kan
+  hantera tusentals kort?
+
+> continue
+
+● Börjar med Fas 2: Viewport Culling för att stödja tusentals
+  kort.
+
+● Write(src\utils\viewportUtils.ts)
+  ⎿  Wrote 1 lines to src\utils\viewportUtils.ts
+     // src/utils/viewportUtils.ts
+     // Utilities för viewport-beräkningar och culling
+     import type { MindNode } from '../types/types';
+     import type { ViewState } from '../hooks/useCanvas';
+     import { CARD, SPACING } from './constants';
+     export interface Viewport {
+       left: number;
+       top: number;
+
+● Write(src\hooks\useViewportCulling.ts)
+  ⎿  Wrote 1 lines to src\hooks\useViewportCulling.ts
+     // src/hooks/useViewportCulling.ts
+     // Hook för att beräkna vilka noder som är synliga i
+     viewport
+     import { useMemo, useState, useEffect } from 'react';
+     import type { MindNode } from '../types/types';
+     import type { ViewState } from './useCanvas';
+     import { calculateViewport, getVisibleNodes } from
+     '../utils/viewportUtils';
+     interface UseViewportCullingOptions {
+       nodes: MindNode[];
+
+● Nu uppdaterar jag App.tsx för att använda viewport culling:
+
+● Update(src\App.tsx)
+  ⎿  Updated src\App.tsx with 1 addition
+        5    import { useIntelligence } from
+            './hooks/useIntelligence';
+        6    import { useCanvas } from './hooks/useCanvas';
+        7    import { useKeyboard } from
+            './hooks/useKeyboard';
+        8 +  import { useViewportCulling } from
+          + './hooks/useViewportCulling';
+        9    import { THEMES } from './themes';
+       10    import { processImageFile } from
+            './utils/imageProcessor';
+       11    import { performOCR } from './utils/gemini';
+
+● Update(src\App.tsx)
+  ⎿  Updated src\App.tsx with 7 additions
+       38      const intelligence = useIntelligence();
+       39      const canvas = useCanvas();
+       40
+       41 +    // Viewport culling för prestanda med många
+          + kort
+       42 +    const { visibleNodes, totalNodes, visibleCount
+          + } = useViewportCulling({
+       43 +      nodes: store.nodes,
+       44 +      view: canvas.view,
+       45 +      enabled: store.nodes.length > 50, // Aktivera
+          +  bara om >50 kort
+       46 +    });
+       47 +
+       48      const [themeIndex, setThemeIndex] =
+            useState(0);
+       49      const currentThemeKey = THEME_KEYS[themeIndex];
+       50      const theme = THEMES[currentThemeKey];
+
+● Update(src\App.tsx)
+  ⎿  Updated src\App.tsx with 1 addition and 1 removal
+       294              })}
+       295            </svg>
+       296
+       297 -          {store.nodes.map((node) => (
+       297 +          {visibleNodes.map((node) => (
+       298              <NodeView
+       299                key={node.id}
+       300                nodeId={node.id}
+
+● Nu lägger jag till en diskret indikator som visar antal
+  synliga/totala kort:
+
+● Update(src\App.tsx)
+  ⎿  Updated src\App.tsx with 7 additions
+       268
+       269          {zenMode && <div className="absolute
+             bottom-10 left-1/2 transform -translate-x-1/2
+             text-gray-500 text-xs opacity-50
+             pointer-events-none">Tryck 'Z' eller 'Esc' för
+             verktyg</div>}
+       270
+       271 +        {/* Visa antal kort om culling är aktivt
+           + */}
+       272 +        {totalNodes > 50 && !zenMode && (
+       273 +          <div className="absolute bottom-4 left-4
+           +  text-xs text-gray-500 opacity-60
+           + pointer-events-none">
+       274 +            {visibleCount}/{totalNodes} kort
+       275 +          </div>
+       276 +        )}
+       277 +
+       278          {selectedNodesCount > 0 && !zenMode && (
+       279            <div className="absolute bottom-10
+             left-1/2 transform -translate-x-1/2 z-50
+             bg-gray-800 p-4 rounded-xl shadow-2xl border
+             border-gray-700 flex gap-2 items-center"
+             onMouseDown={e => e.stopPropagation()}>
+       280              <span className="text-white
+             font-bold">{selectedNodesCount} valda</span>
+
+● Bash(cd "C:/Users/ximon/Kodprojekt/soul-canvas" && npm run build
+      2>&1 | head -50)
+  ⎿  > soul-canvas@0.0.0 build
+     > tsc -b && vite build
+     … +22 lines (ctrl+o to expand)
+
+● Fas 2 klar! Nu fortsätter jag med Fas 3: Sök-overlay.
+
+● Write(src\hooks\useSearch.ts)
+  ⎿  Wrote 1 lines to src\hooks\useSearch.ts
+     // src/hooks/useSearch.ts
+     // Hook för sökning med overlay-funktionalitet
+     import { useState, useCallback, useMemo } from 'react';
+     import type { MindNode } from '../types/types';
+     interface UseSearchOptions {
+       nodes: MindNode[];
+     }
+
+● Write(src\components\overlays\SearchOverlay.tsx)
+  ⎿  Wrote 1 lines to src\components\overlays\SearchOverlay.tsx
+     // src/components/overlays/SearchOverlay.tsx
+     // Sök-overlay med träffar visade i förgrunden
+     import { useEffect, useRef } from 'react';
+     import type { MindNode } from '../../types/types';
+     import type { Theme } from '../../themes';
+     import { getTimeStyle } from '../../themes';
+     import { useBrainStore } from '../../store/useBrainStore';
+     interface SearchOverlayProps {
+
+● Nu integrerar jag sökningen i App.tsx:
+
+● Update(src\App.tsx)
+  ⎿  Updated src\App.tsx with 1 addition
+        6    import { useCanvas } from './hooks/useCanvas';
+        7    import { useKeyboard } from
+            './hooks/useKeyboard';
+        8    import { useViewportCulling } from
+            './hooks/useViewportCulling';
+        9 +  import { useSearch } from './hooks/useSearch';
+       10    import { THEMES } from './themes';
+       11    import { processImageFile } from
+            './utils/imageProcessor';
+       12    import { performOCR } from './utils/gemini';
+
+● Update(src\App.tsx)
+  ⎿  Updated src\App.tsx with 1 addition
+       21    import { CanvasBackground } from
+            './components/canvas/CanvasBackground';
+       22    import { SettingsModal } from
+            './components/overlays/SettingsModal';
+       23    import { ContextMenu, type ContextMenuState }
+            from './components/overlays/ContextMenu';
+       24 +  import { SearchOverlay } from
+          + './components/overlays/SearchOverlay';
+       25
+       26    const THEME_KEYS = Object.keys(THEMES);
+       27
+
+● Update(src\App.tsx)
+  ⎿  Updated src\App.tsx with 3 additions
+       47        enabled: store.nodes.length > 50, // Aktivera
+             bara om >50 kort
+       48      });
+       49
+       50 +    // Sökning
+       51 +    const search = useSearch({ nodes: store.nodes
+          + });
+       52 +
+       53      const [themeIndex, setThemeIndex] =
+            useState(0);
+       54      const currentThemeKey = THEME_KEYS[themeIndex];
+       55      const theme = THEMES[currentThemeKey];
+
+● Update(src\App.tsx)
+  ⎿  Updated src\App.tsx with 13 additions and 2 removals
+       192        }
+       193      }, [store.nodes, store.enableAutoLink,
+             intelligence]);
+       194
+       195 +    // Hantera sökresultat - markera alla träffar
+       196 +    const handleSearchConfirm = useCallback(() =>
+           + {
+       197 +      const ids = search.confirmSearch();
+       198 +      // Markera alla träffar
+       199 +      store.clearSelection();
+       200 +      ids.forEach(id => store.toggleSelection(id,
+           + true));
+       201 +    }, [search, store]);
+       202 +
+       203      // Keyboard shortcuts
+       204      useKeyboard({
+       205        onOpenCommandPalette: () =>
+             setShowCommandPalette(true),
+       206 -      onOpenSearch: () =>
+           - setShowCommandPalette(true), // TODO: Implement
+           - search overlay
+       206 +      onOpenSearch: () => search.openSearch(),
+       207        onDeleteSelected: deleteSelected,
+       208 -      onEscape: () => { setZenMode(false);
+           - setContextMenu(null); setShowSettings(false);
+           - setShowAIPanel(false);
+           - setShowCommandPalette(false);
+           - store.clearSelection(); },
+       208 +      onEscape: () => {
+       209 +        if (search.isOpen) { search.closeSearch();
+           +  return; }
+       210 +        setZenMode(false); setContextMenu(null);
+           + setShowSettings(false); setShowAIPanel(false);
+           + setShowCommandPalette(false);
+           + store.clearSelection();
+       211 +      },
+       212        onSave: handleManualSave,
+       213        onToggleZen: () => setZenMode(prev =>
+             !prev),
+       214        onCenterCamera: centerCamera,
+  ⎿  Limit reached · add funds to continue with extra usage
+     /upgrade to increase your usage limit.
+
+> /model
+  ⎿  Set model to Default (Sonnet 4.5 · Best for everyday tasks)
+
+> continue
+  ⎿  Limit reached · resets 3am (Europe/Stockholm) · /upgrade to Max
+     or add funds to continue with extra usage
+     /upgrade to increase your usage limit.
+
+  Todos
+  ☒ Fas 1: Refaktorera App.tsx (ta bort fysik)
+  ☒ Fas 2: Viewport Culling (skalbarhet)
+  ☐ Fas 3: Sök-overlay
+  ☐ Fas 4: Markering & Arrangemang
+  ☐ Fas 5: Pinna/Avpinna
+  ☐ Fas 6: AI Kluster-overlay
+
+> /usage
+─────────────────────────────────────────────────────────────────────
+ Settings:  Status   Config   Usage   (tab to cycle)
+
+ Current session
+ ██████████████████████████████████████████████████ 100% used
+ Resets 2:59am (Europe/Stockholm)
+
+ Current week (all models)
+ ██████                                             12% used
+ Resets Dec 8, 8:59pm (Europe/Stockholm)
+
+ Nov 24, 2025 update:
+ Pro users can now use /extra-usage for access to Opus 4.5 in Claude
+  Code. Opus models are still included with your plan on claude.ai
+
+ Esc to exit
