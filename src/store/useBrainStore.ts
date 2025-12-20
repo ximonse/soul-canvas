@@ -1,6 +1,6 @@
 // src/store/useBrainStore.ts
 import { create } from 'zustand';
-import type { MindNode, Synapse, Sequence } from '../types/types';
+import type { AIProvider, MindNode, Synapse, Sequence } from '../types/types';
 import { createSelectionSlice, type SelectionActions } from './slices/selectionSlice';
 import { createHistorySlice, historyInitialState, type HistoryState, type HistoryActions } from './slices/historySlice';
 
@@ -33,10 +33,7 @@ interface CoreState {
 // Core actions interface
 interface CoreActions {
   setFileHandle: (handle: FileSystemDirectoryHandle | null) => void;
-  setApiKey: (key: string) => void;
-  setGeminiKey: (key: string) => void;
-  setOpenAIKey: (key: string) => void;
-  setClaudeKey: (key: string) => void;
+  setApiKey: (provider: AIProvider, key: string) => void;
   setAutoLinkThreshold: (threshold: number) => void;
   toggleAutoLink: () => void;
   toggleSynapseLines: () => void;
@@ -66,6 +63,21 @@ interface CoreActions {
   removeFromSequence: (nodeId: string) => void;
 }
 
+const PROVIDER_STORAGE_KEYS: Record<AIProvider, string> = {
+  gemini: 'gemini_key',
+  openai: 'openai_key',
+  claude: 'claude_key',
+};
+
+const PROVIDER_STATE_KEYS: Record<AIProvider, 'geminiKey' | 'openaiKey' | 'claudeKey'> = {
+  gemini: 'geminiKey',
+  openai: 'openaiKey',
+  claude: 'claudeKey',
+};
+
+const getInitialApiKey = (provider: AIProvider) =>
+  localStorage.getItem(PROVIDER_STORAGE_KEYS[provider]) || '';
+
 // Combined store type
 type BrainStore = CoreState & HistoryState & CoreActions & SelectionActions & HistoryActions;
 
@@ -85,34 +97,22 @@ export const useBrainStore = create<BrainStore>()((set) => ({
   ...historyInitialState,
 
   // AI Keys & Settings
-  geminiKey: localStorage.getItem('gemini_key') || '',
-  openaiKey: localStorage.getItem('openai_key') || '',
-  claudeKey: localStorage.getItem('claude_key') || '',
+  geminiKey: getInitialApiKey('gemini'),
+  openaiKey: getInitialApiKey('openai'),
+  claudeKey: getInitialApiKey('claude'),
   autoLinkThreshold: 0.75,
   enableAutoLink: false,
 
   // Settings actions
   setFileHandle: (handle) => set({ fileHandle: handle }),
 
-  setApiKey: (key) => {
-    localStorage.setItem('gemini_key', key);
-    set({ geminiKey: key });
-  },
+  setApiKey: (provider, key) => set(() => {
+    const storageKey = PROVIDER_STORAGE_KEYS[provider];
+    const stateKey = PROVIDER_STATE_KEYS[provider];
 
-  setGeminiKey: (key) => {
-    localStorage.setItem('gemini_key', key);
-    set({ geminiKey: key });
-  },
-
-  setOpenAIKey: (key) => {
-    localStorage.setItem('openai_key', key);
-    set({ openaiKey: key });
-  },
-
-  setClaudeKey: (key) => {
-    localStorage.setItem('claude_key', key);
-    set({ claudeKey: key });
-  },
+    localStorage.setItem(storageKey, key);
+    return { [stateKey]: key } as Pick<CoreState, typeof stateKey>;
+  }),
 
   setAutoLinkThreshold: (threshold) => set({ autoLinkThreshold: threshold }),
   toggleAutoLink: () => set((state) => ({ enableAutoLink: !state.enableAutoLink })),

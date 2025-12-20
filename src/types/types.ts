@@ -51,6 +51,8 @@ export interface Sequence {
   createdAt: string;
 }
 
+export type AIProvider = 'gemini' | 'openai' | 'claude';
+
 export interface BrainState {
   nodes: Map<string, MindNode>; // Changed to Map
   synapses: Synapse[];
