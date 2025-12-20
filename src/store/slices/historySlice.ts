@@ -10,6 +10,7 @@ export interface HistoryState {
   clipboard: MindNode[];
   undoStack: Array<{ nodes: Map<string, MindNode>; synapses: Synapse[] }>;
   redoStack: Array<{ nodes: Map<string, MindNode>; synapses: Synapse[] }>;
+  pendingSave: boolean;
 }
 
 export interface HistoryActions {
@@ -31,6 +32,7 @@ export const historyInitialState: HistoryState = {
   clipboard: [],
   undoStack: [],
   redoStack: [],
+  pendingSave: false,
 };
 
 export const createHistorySlice = (set: SetState): HistoryActions => ({
@@ -81,7 +83,7 @@ export const createHistorySlice = (set: SetState): HistoryActions => ({
       newNodesMap.set(newNode.id, newNode);
     });
 
-    return { nodes: newNodesMap };
+    return { nodes: newNodesMap, pendingSave: true };
   }),
 
   saveStateForUndo: () => set((state) => {
@@ -120,7 +122,8 @@ export const createHistorySlice = (set: SetState): HistoryActions => ({
       nodes: new Map(previousState.nodes),
       synapses: [...previousState.synapses],
       undoStack: newUndoStack,
-      redoStack: newRedoStack
+      redoStack: newRedoStack,
+      pendingSave: true
     };
   }),
 
@@ -143,7 +146,8 @@ export const createHistorySlice = (set: SetState): HistoryActions => ({
       nodes: new Map(nextState.nodes),
       synapses: [...nextState.synapses],
       undoStack: newUndoStack,
-      redoStack: newRedoStack
+      redoStack: newRedoStack,
+      pendingSave: true
     };
   }),
 });
