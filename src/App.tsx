@@ -30,6 +30,7 @@ function App() {
   // Core hooks
   const { openFile, saveFile, saveAsset, hasFile } = useFileSystem();
   const store = useBrainStore();
+  const { pendingSave, setPendingSave } = store;
   const intelligence = useIntelligence();
   const aiChat = useAIChat();
   const canvas = useCanvas();
@@ -96,10 +97,11 @@ function App() {
     if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
     setTimeout(() => {
       saveFile();
+      setPendingSave(false);
       setSaveStatus('saved');
       setTimeout(() => setSaveStatus('idle'), 2000);
     }, 100);
-  }, [saveFile]);
+  }, [saveFile, setPendingSave]);
 
   const handleSearchConfirm = useCallback(() => {
     const ids = search.confirmSearch();
@@ -145,16 +147,17 @@ function App() {
 
   // Auto-save effect
   useEffect(() => {
-    if (!hasFile) return;
+    if (!hasFile || !pendingSave) return;
     setSaveStatus('waiting');
     const timer = setTimeout(async () => {
       setSaveStatus('saving');
       await saveFile();
+      setPendingSave(false);
       setSaveStatus('saved');
       setTimeout(() => setSaveStatus('idle'), 2000);
     }, AUTOSAVE_DELAY_MS);
     return () => clearTimeout(timer);
-  }, [store.nodes, store.synapses, hasFile, saveFile]);
+  }, [pendingSave, hasFile, saveFile, setPendingSave]);
 
   // Auto-link effect
   useEffect(() => {
