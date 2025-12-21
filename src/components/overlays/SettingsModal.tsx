@@ -36,7 +36,7 @@ export function SettingsModal({ onClose, theme }: SettingsModalProps) {
             <input
               type="password"
               value={store.geminiKey || ''}
-              onChange={e => store.setGeminiKey(e.target.value)}
+              onChange={e => store.setApiKey('gemini', e.target.value)}
               className="w-full bg-black/20 border rounded p-3"
               style={{ borderColor: theme.node.border, color: theme.node.text }}
               placeholder="AIza..."
@@ -50,7 +50,7 @@ export function SettingsModal({ onClose, theme }: SettingsModalProps) {
             <input
               type="password"
               value={store.openaiKey || ''}
-              onChange={e => store.setOpenAIKey(e.target.value)}
+              onChange={e => store.setApiKey('openai', e.target.value)}
               className="w-full bg-black/20 border rounded p-3"
               style={{ borderColor: theme.node.border, color: theme.node.text }}
               placeholder="sk-..."
@@ -64,7 +64,7 @@ export function SettingsModal({ onClose, theme }: SettingsModalProps) {
             <input
               type="password"
               value={store.claudeKey || ''}
-              onChange={e => store.setClaudeKey(e.target.value)}
+              onChange={e => store.setApiKey('claude', e.target.value)}
               className="w-full bg-black/20 border rounded p-3"
               style={{ borderColor: theme.node.border, color: theme.node.text }}
               placeholder="sk-ant-..."

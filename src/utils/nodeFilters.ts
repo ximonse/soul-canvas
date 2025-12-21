@@ -1,5 +1,7 @@
 import type { MindNode, Session } from '../types/types';
 
+export type TagFilterMode = 'all' | 'include' | 'exclude';
+
 // Filtrera kort baserat på session
 export const filterNodesBySession = (
   nodes: MindNode[],

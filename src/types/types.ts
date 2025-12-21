@@ -66,6 +66,8 @@ export interface Session {
   lastOpened: number;
 }
 
+export type AIProvider = 'gemini' | 'openai' | 'claude';
+
 export interface BrainState {
   nodes: Map<string, MindNode>; // Changed to Map
   synapses: Synapse[];
@@ -88,7 +90,6 @@ export interface AIReflection {
   context: string[];  // Node IDs som triggade frågan
   timestamp: string;
 }
-
 // Samtalsminne - ett meddelande i en konversation
 export interface ConversationMessage {
   role: 'system' | 'user' | 'assistant';
@@ -105,7 +106,7 @@ export interface Conversation {
   updatedAt: string;
   messages: ConversationMessage[];
   contextNodeIds: string[];         // Vilka kort var involverade?
-  provider: 'claude' | 'openai' | 'gemini';
+  provider: AIProvider;
   summary?: string;                 // AI-genererad sammanfattning
   themes?: string[];                // Upptäckta teman
   isArchived?: boolean;

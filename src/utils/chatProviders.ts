@@ -4,8 +4,9 @@
 import Anthropic from '@anthropic-ai/sdk';
 import OpenAI from 'openai';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import type { AIProvider } from '../types/types';
 
-export type ChatProvider = 'claude' | 'openai' | 'gemini';
+export type ChatProvider = AIProvider;
 
 export interface ChatMessage {
   role: 'user' | 'assistant' | 'system';

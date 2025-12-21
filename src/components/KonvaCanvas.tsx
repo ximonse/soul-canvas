@@ -2,6 +2,7 @@
 import React, { useRef, useEffect, useState, useMemo } from 'react';
 import { Stage, Layer, Rect } from 'react-konva';
 import type Konva from 'konva';
+import type { KonvaEventObject } from 'konva/lib/Node';
 import { useBrainStore } from '../store/useBrainStore';
 import { gComboState } from '../hooks/useKeyboard';
 import type { CanvasAPI } from '../hooks/useCanvas';
@@ -21,6 +22,14 @@ interface KonvaCanvasProps {
   onContextMenu?: (nodeId: string, screenPos: { x: number; y: number }) => void;
   onZoomChange?: (zoom: number) => void;
 }
+
+const toWorldPosition = (stage: Konva.Stage, pointer: { x: number; y: number }) => {
+  const scale = stage.scaleX();
+  return {
+    x: (pointer.x - stage.x()) / scale,
+    y: (pointer.y - stage.y()) / scale,
+  };
+};
 
 const KonvaCanvas: React.FC<KonvaCanvasProps> = ({
   currentThemeKey,
@@ -95,7 +104,7 @@ const KonvaCanvas: React.FC<KonvaCanvasProps> = ({
     });
   };
 
-  const handleStageWheel = (e: any) => {
+  const handleStageWheel = (e: KonvaEventObject<WheelEvent>) => {
     // Om G är nedtryckt, låt useKeyboard hantera gravity-justering
     if (gComboState.pressed) {
       return;
@@ -110,10 +119,7 @@ const KonvaCanvas: React.FC<KonvaCanvasProps> = ({
     const pointer = stage.getPointerPosition();
     if (!pointer) return;
 
-    const mousePointTo = {
-      x: (pointer.x - stage.x()) / oldScale,
-      y: (pointer.y - stage.y()) / oldScale,
-    };
+    const mousePointTo = toWorldPosition(stage, pointer);
 
     const direction = e.evt.deltaY > 0 ? -1 : 1;
     const newScale = direction > 0 ? oldScale * 1.1 : oldScale / 1.1;
@@ -132,7 +138,7 @@ const KonvaCanvas: React.FC<KonvaCanvasProps> = ({
     onZoomChange?.(clampedScale);
   };
 
-  const handleStageDblClick = (e: any) => {
+  const handleStageDblClick = (e: KonvaEventObject<MouseEvent>) => {
     if (e.target === e.target.getStage()) {
       const stage = stageRef.current;
       if (!stage) return;
@@ -140,18 +146,14 @@ const KonvaCanvas: React.FC<KonvaCanvasProps> = ({
       const pointer = stage.getPointerPosition();
       if (!pointer) return;
 
-      const scale = stage.scaleX();
-      const worldPos = {
-        x: (pointer.x - stage.x()) / scale,
-        y: (pointer.y - stage.y()) / scale,
-      };
+      const worldPos = toWorldPosition(stage, pointer);
 
       store.addNode('', worldPos.x, worldPos.y, 'text');
     }
   };
 
   // Drag-select handlers
-  const handleStageMouseDown = (e: any) => {
+  const handleStageMouseDown = (e: KonvaEventObject<MouseEvent>) => {
     if (e.target !== e.target.getStage()) return;
 
     const stage = stageRef.current;
@@ -160,11 +162,7 @@ const KonvaCanvas: React.FC<KonvaCanvasProps> = ({
     const pointer = stage.getPointerPosition();
     if (!pointer) return;
 
-    const scale = stage.scaleX();
-    const worldPos = {
-      x: (pointer.x - stage.x()) / scale,
-      y: (pointer.y - stage.y()) / scale,
-    };
+    const worldPos = toWorldPosition(stage, pointer);
 
     if (!e.evt.ctrlKey && !e.evt.metaKey) {
       store.clearSelection();
@@ -181,18 +179,14 @@ const KonvaCanvas: React.FC<KonvaCanvasProps> = ({
     }
   };
 
-  const handleStageMouseMove = () => {
+  const handleStageMouseMove = (_e: KonvaEventObject<MouseEvent>) => {
     const stage = stageRef.current;
     if (!stage) return;
 
     const pointer = stage.getPointerPosition();
     if (!pointer) return;
 
-    const scale = stage.scaleX();
-    const worldPos = {
-      x: (pointer.x - stage.x()) / scale,
-      y: (pointer.y - stage.y()) / scale,
-    };
+    const worldPos = toWorldPosition(stage, pointer);
     canvas.setCursorPos(worldPos);
 
     if (!selectionRect || !selectionRect.visible) return;
@@ -204,7 +198,7 @@ const KonvaCanvas: React.FC<KonvaCanvasProps> = ({
     });
   };
 
-  const handleStageMouseUp = () => {
+  const handleStageMouseUp = (_e: KonvaEventObject<MouseEvent>) => {
     if (!selectionRect || !selectionRect.visible) return;
 
     const x1 = Math.min(selectionRect.x1, selectionRect.x2);
