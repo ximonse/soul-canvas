@@ -1,4 +1,4 @@
-import type { MindNode } from '../types/types';
+import type { MindNode, Synapse } from '../types/types';
 import { CARD, SPACING } from './constants';
 
 interface Position {
@@ -21,10 +21,14 @@ const getNodeSize = (node: MindNode) => {
   // Estimate height for text nodes - MUST match KonvaNode.tsx calculation
   const textContent = node.ocrText || node.content || '';
   const estimatedLines = textContent.split('\n').length + (textContent.length / 30) + 1;
-  const estimatedHeight = Math.max(
+  let estimatedHeight = Math.max(
     CARD.MIN_HEIGHT,
     Math.min(CARD.MAX_HEIGHT, estimatedLines * CARD.LINE_HEIGHT_TEXT + CARD.PADDING * 2)
   );
+
+  if (node.title) {
+    estimatedHeight += CARD.LINE_HEIGHT + CARD.PADDING / 2;
+  }
 
   return { width, height: estimatedHeight };
 };
@@ -262,6 +266,82 @@ export const arrangeKanban = (nodes: MindNode[], columns: number = SPACING.GRID_
 
     positions.set(node.id, { x, y });
   });
+
+  return centerArrangement(positions, center);
+};
+
+/**
+ * Arrange nodes in a 16:9 rectangle with most connected nodes in center
+ * Less connected nodes spread outward in concentric rings
+ */
+export const arrangeCentrality = (
+  nodes: MindNode[],
+  synapses: Synapse[],
+  center?: Position
+): Map<string, Position> => {
+  if (nodes.length === 0) return new Map();
+
+  const nodeIds = new Set(nodes.map(n => n.id));
+
+  // Count connections per node (only count synapses between selected nodes)
+  const connectionCount = new Map<string, number>();
+  nodes.forEach(n => connectionCount.set(n.id, 0));
+
+  for (const syn of synapses) {
+    if (nodeIds.has(syn.sourceId) && nodeIds.has(syn.targetId)) {
+      connectionCount.set(syn.sourceId, (connectionCount.get(syn.sourceId) || 0) + 1);
+      connectionCount.set(syn.targetId, (connectionCount.get(syn.targetId) || 0) + 1);
+    }
+  }
+
+  // Sort by connection count (most connected first)
+  const sortedNodes = [...nodes].sort((a, b) => {
+    const countA = connectionCount.get(a.id) || 0;
+    const countB = connectionCount.get(b.id) || 0;
+    return countB - countA; // Descending
+  });
+
+  const positions = new Map<string, Position>();
+
+  // Calculate rectangle dimensions (16:9 aspect ratio)
+  const avgWidth = CARD.WIDTH + SPACING.GRID_GAP;
+  const avgHeight = 150 + SPACING.GRID_GAP; // Approximate average card height
+
+  // Calculate grid size to fit all nodes in ~16:9 ratio
+  const totalNodes = sortedNodes.length;
+  // For 16:9: width/height = 16/9, so cols/rows ≈ sqrt(n * 16/9) : sqrt(n * 9/16)
+  const cols = Math.max(1, Math.ceil(Math.sqrt(totalNodes * 16 / 9)));
+  const rows = Math.max(1, Math.ceil(totalNodes / cols));
+
+  const totalWidth = cols * avgWidth;
+  const totalHeight = rows * avgHeight;
+
+  // Center of the rectangle
+  const rectCenterX = totalWidth / 2;
+  const rectCenterY = totalHeight / 2;
+
+  // Generate all grid positions
+  const gridPositions: Position[] = [];
+  for (let row = 0; row < rows; row++) {
+    for (let col = 0; col < cols; col++) {
+      gridPositions.push({
+        x: col * avgWidth,
+        y: row * avgHeight
+      });
+    }
+  }
+
+  // Sort grid positions by distance from center
+  gridPositions.sort((a, b) => {
+    const distA = Math.sqrt(Math.pow(a.x - rectCenterX, 2) + Math.pow(a.y - rectCenterY, 2));
+    const distB = Math.sqrt(Math.pow(b.x - rectCenterX, 2) + Math.pow(b.y - rectCenterY, 2));
+    return distA - distB;
+  });
+
+  // Assign most connected nodes to center positions
+  for (let i = 0; i < sortedNodes.length && i < gridPositions.length; i++) {
+    positions.set(sortedNodes[i].id, gridPositions[i]);
+  }
 
   return centerArrangement(positions, center);
 };

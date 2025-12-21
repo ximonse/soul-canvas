@@ -1,8 +1,9 @@
 // src/store/useBrainStore.ts
 import { create } from 'zustand';
-import type { MindNode, Synapse, Sequence } from '../types/types';
+import type { MindNode, Synapse, Sequence, Conversation, ConversationMessage, Session } from '../types/types';
 import { createSelectionSlice, type SelectionActions } from './slices/selectionSlice';
 import { createHistorySlice, historyInitialState, type HistoryState, type HistoryActions } from './slices/historySlice';
+import { GRAVITY } from '../utils/constants';
 
 // Core state interface
 interface CoreState {
@@ -24,10 +25,20 @@ interface CoreState {
   showSynapseLines: boolean;  // Toggle för att visa/dölja linjer mellan kort
   graphGravity: number;       // Gravitations-styrka för graf-layout (0.1 - 3.0, default 1.0)
   synapseVisibilityThreshold: number;  // Visa bara kopplingar med similarity >= detta värde (0-1)
+  includeTags: string[];   // Taggar att inkludera (visa bara kort med dessa)
+  excludeTags: string[];   // Taggar att exkludera (dölj kort med dessa)
 
   // Sequences (D+klick kedjor)
   sequences: Sequence[];
   activeSequence: Sequence | null;  // Pågående kedja under D-hållning
+
+  // Conversations (AI-chattar med minne)
+  conversations: Conversation[];
+  activeConversationId: string | null;
+
+  // Sessions (arbetsytor/projekt)
+  sessions: Session[];
+  activeSessionId: string | null;  // null = "all-inclusive" (visa alla kort)
 }
 
 // Core actions interface
@@ -42,6 +53,8 @@ interface CoreActions {
   toggleSynapseLines: () => void;
   setGraphGravity: (gravity: number) => void;
   setSynapseVisibilityThreshold: (threshold: number) => void;
+  toggleTagFilter: (tag: string) => void;  // Växla: neutral → include → exclude → neutral
+  clearTagFilter: () => void;
 
   loadNodes: (nodes: MindNode[], synapses?: Synapse[]) => void;
   loadAssets: (assets: Record<string, string>) => void;
@@ -64,6 +77,24 @@ interface CoreActions {
   finishSequence: () => void;
   cancelSequence: () => void;
   removeFromSequence: (nodeId: string) => void;
+
+  // Conversation actions (AI-chattar med minne)
+  loadConversations: (conversations: Conversation[]) => void;
+  createConversation: (provider: 'claude' | 'openai' | 'gemini', contextNodeIds?: string[]) => string;
+  setActiveConversation: (id: string | null) => void;
+  addMessageToConversation: (conversationId: string, message: Omit<ConversationMessage, 'timestamp'>) => void;
+  updateConversation: (id: string, updates: Partial<Conversation>) => void;
+  archiveConversation: (id: string) => void;
+
+  // Session actions
+  loadSessions: (sessions: Session[]) => void;
+  createSession: (name: string) => string;
+  deleteSession: (id: string) => void;
+  renameSession: (id: string, name: string) => void;
+  switchSession: (id: string | null) => void;
+  addCardsToSession: (sessionId: string, cardIds: string[]) => void;
+  removeCardsFromSession: (sessionId: string, cardIds: string[]) => void;
+  saveSessionViewState: (sessionId: string, viewState: { x: number; y: number; zoom: number }) => void;
 }
 
 // Combined store type
@@ -82,6 +113,12 @@ export const useBrainStore = create<BrainStore>()((set) => ({
   sequences: [],
   activeSequence: null,
   synapseVisibilityThreshold: 0,  // Default: visa alla kopplingar
+  conversations: [],
+  activeConversationId: null,
+  sessions: [],
+  activeSessionId: null,
+  includeTags: [],
+  excludeTags: [],
   ...historyInitialState,
 
   // AI Keys & Settings
@@ -117,8 +154,33 @@ export const useBrainStore = create<BrainStore>()((set) => ({
   setAutoLinkThreshold: (threshold) => set({ autoLinkThreshold: threshold }),
   toggleAutoLink: () => set((state) => ({ enableAutoLink: !state.enableAutoLink })),
   toggleSynapseLines: () => set((state) => ({ showSynapseLines: !state.showSynapseLines })),
-  setGraphGravity: (gravity) => set({ graphGravity: Math.max(0.05, Math.min(5.0, gravity)) }),
+  setGraphGravity: (gravity) => set({ graphGravity: Math.max(GRAVITY.MIN, Math.min(GRAVITY.MAX, gravity)) }),
   setSynapseVisibilityThreshold: (threshold) => set({ synapseVisibilityThreshold: Math.max(0, Math.min(1, threshold)) }),
+
+  // Växla tagg-filter: neutral → include → exclude → neutral
+  toggleTagFilter: (tag) => set((state) => {
+    const clean = tag.trim();
+    if (!clean) return {};
+
+    const inInclude = state.includeTags.includes(clean);
+    const inExclude = state.excludeTags.includes(clean);
+
+    if (!inInclude && !inExclude) {
+      // neutral → include
+      return { includeTags: [...state.includeTags, clean] };
+    } else if (inInclude) {
+      // include → exclude
+      return {
+        includeTags: state.includeTags.filter(t => t !== clean),
+        excludeTags: [...state.excludeTags, clean]
+      };
+    } else {
+      // exclude → neutral
+      return { excludeTags: state.excludeTags.filter(t => t !== clean) };
+    }
+  }),
+
+  clearTagFilter: () => set({ includeTags: [], excludeTags: [] }),
 
   // Helper function
   createNodesMap: (nodesArray: MindNode[]) => {
@@ -147,7 +209,17 @@ export const useBrainStore = create<BrainStore>()((set) => ({
     };
     const newNodes = new Map(state.nodes);
     newNodes.set(newNode.id, newNode);
-    return { nodes: newNodes };
+
+    // Auto-lägg till i aktiv session
+    let newSessions = state.sessions;
+    if (state.activeSessionId) {
+      newSessions = state.sessions.map(s =>
+        s.id === state.activeSessionId
+          ? { ...s, cardIds: [...s.cardIds, newNode.id] }
+          : s
+      );
+    }
+    return { nodes: newNodes, sessions: newSessions };
   }),
 
   addNodeWithId: (id, content, x, y, type = 'text') => set((state) => {
@@ -162,7 +234,17 @@ export const useBrainStore = create<BrainStore>()((set) => ({
     };
     const newNodes = new Map(state.nodes);
     newNodes.set(newNode.id, newNode);
-    return { nodes: newNodes };
+
+    // Auto-lägg till i aktiv session
+    let newSessions = state.sessions;
+    if (state.activeSessionId) {
+      newSessions = state.sessions.map(s =>
+        s.id === state.activeSessionId
+          ? { ...s, cardIds: [...s.cardIds, id] }
+          : s
+      );
+    }
+    return { nodes: newNodes, sessions: newSessions };
   }),
 
   removeNode: (id) => set((state) => {
@@ -302,6 +384,151 @@ export const useBrainStore = create<BrainStore>()((set) => ({
     newSequences[sequenceIndex] = updatedSequence;
     return { sequences: newSequences };
   }),
+
+  // Conversation actions (AI-chattar med minne)
+  loadConversations: (conversations) => set({ conversations }),
+
+  createConversation: (provider, contextNodeIds = []) => {
+    const id = crypto.randomUUID();
+    const now = new Date().toISOString();
+    const newConversation: Conversation = {
+      id,
+      title: 'Nytt samtal',
+      createdAt: now,
+      updatedAt: now,
+      messages: [],
+      contextNodeIds,
+      provider,
+    };
+    useBrainStore.setState((state) => ({
+      conversations: [newConversation, ...state.conversations],
+      activeConversationId: id,
+    }));
+    return id;
+  },
+
+  setActiveConversation: (id) => set({ activeConversationId: id }),
+
+  addMessageToConversation: (conversationId, message) => set((state) => {
+    const convIndex = state.conversations.findIndex(c => c.id === conversationId);
+    if (convIndex === -1) return {};
+
+    const conv = state.conversations[convIndex];
+    const newMessage: ConversationMessage = {
+      ...message,
+      timestamp: new Date().toISOString(),
+    };
+
+    const updatedConv: Conversation = {
+      ...conv,
+      messages: [...conv.messages, newMessage],
+      updatedAt: new Date().toISOString(),
+      // Lägg till nya kort till kontexten om de finns
+      contextNodeIds: message.addedNodeIds
+        ? [...new Set([...conv.contextNodeIds, ...message.addedNodeIds])]
+        : conv.contextNodeIds,
+    };
+
+    const newConversations = [...state.conversations];
+    newConversations[convIndex] = updatedConv;
+    return { conversations: newConversations };
+  }),
+
+  updateConversation: (id, updates) => set((state) => {
+    const convIndex = state.conversations.findIndex(c => c.id === id);
+    if (convIndex === -1) return {};
+
+    const updatedConv: Conversation = {
+      ...state.conversations[convIndex],
+      ...updates,
+      updatedAt: new Date().toISOString(),
+    };
+
+    const newConversations = [...state.conversations];
+    newConversations[convIndex] = updatedConv;
+    return { conversations: newConversations };
+  }),
+
+  archiveConversation: (id) => set((state) => {
+    const convIndex = state.conversations.findIndex(c => c.id === id);
+    if (convIndex === -1) return {};
+
+    const updatedConv: Conversation = {
+      ...state.conversations[convIndex],
+      isArchived: true,
+      updatedAt: new Date().toISOString(),
+    };
+
+    const newConversations = [...state.conversations];
+    newConversations[convIndex] = updatedConv;
+    return { conversations: newConversations };
+  }),
+
+  // Session actions
+  loadSessions: (sessions) => set({ sessions }),
+
+  createSession: (name) => {
+    const id = crypto.randomUUID();
+    const now = Date.now();
+    const newSession: Session = {
+      id,
+      name,
+      cardIds: [],
+      viewState: { x: 0, y: 0, zoom: 1 },
+      createdAt: now,
+      lastOpened: now,
+    };
+    useBrainStore.setState((state) => ({
+      sessions: [...state.sessions, newSession],
+      activeSessionId: id,
+    }));
+    return id;
+  },
+
+  deleteSession: (id) => set((state) => ({
+    sessions: state.sessions.filter(s => s.id !== id),
+    activeSessionId: state.activeSessionId === id ? null : state.activeSessionId,
+  })),
+
+  renameSession: (id, name) => set((state) => ({
+    sessions: state.sessions.map(s => s.id === id ? { ...s, name } : s),
+  })),
+
+  switchSession: (id) => set((state) => {
+    // Spara nuvarande vy-state innan byte (om vi har en aktiv session)
+    const currentSession = state.sessions.find(s => s.id === state.activeSessionId);
+    if (currentSession) {
+      // View state sparas separat via saveSessionViewState
+    }
+    return {
+      activeSessionId: id,
+      sessions: state.sessions.map(s =>
+        s.id === id ? { ...s, lastOpened: Date.now() } : s
+      ),
+    };
+  }),
+
+  addCardsToSession: (sessionId, cardIds) => set((state) => ({
+    sessions: state.sessions.map(s => {
+      if (s.id !== sessionId) return s;
+      const newCardIds = [...new Set([...s.cardIds, ...cardIds])];
+      return { ...s, cardIds: newCardIds };
+    }),
+  })),
+
+  removeCardsFromSession: (sessionId, cardIds) => set((state) => ({
+    sessions: state.sessions.map(s => {
+      if (s.id !== sessionId) return s;
+      const cardIdSet = new Set(cardIds);
+      return { ...s, cardIds: s.cardIds.filter(id => !cardIdSet.has(id)) };
+    }),
+  })),
+
+  saveSessionViewState: (sessionId, viewState) => set((state) => ({
+    sessions: state.sessions.map(s =>
+      s.id === sessionId ? { ...s, viewState } : s
+    ),
+  })),
 
   // Selection slice
   ...createSelectionSlice(set as any),

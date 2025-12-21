@@ -13,6 +13,7 @@ export const CardEditor = ({ cardId, onClose, theme }: CardEditorProps) => {
   const store = useBrainStore();
   const [content, setContent] = useState('');
   const [tags, setTags] = useState('');
+  const [title, setTitle] = useState('');
   const [caption, setCaption] = useState('');
   const [comment, setComment] = useState('');
   const [semanticTags, setSemanticTags] = useState<string[]>([]);
@@ -25,6 +26,7 @@ export const CardEditor = ({ cardId, onClose, theme }: CardEditorProps) => {
     if (card) {
       setContent(card.content || '');
       setTags((card.tags || []).join(', '));
+      setTitle(card.title || '');
       setCaption(card.caption || '');
       setComment(card.comment || '');
       setSemanticTags(card.semanticTags || []);
@@ -51,6 +53,7 @@ export const CardEditor = ({ cardId, onClose, theme }: CardEditorProps) => {
     store.updateNode(cardId, {
       content,
       tags: tagsArray,
+      title: title.trim(),
       caption: caption.trim(),
       comment: comment.trim(),
       semanticTags: semanticTags,
@@ -113,6 +116,21 @@ export const CardEditor = ({ cardId, onClose, theme }: CardEditorProps) => {
 
         {/* Body */}
         <div className="flex-1 p-4 overflow-y-auto flex flex-col gap-3">
+          <input
+            type="text"
+            value={title}
+            onChange={e => setTitle(e.target.value)}
+            placeholder="Rubrik (visas på kortet)"
+            className="px-4 py-2 rounded-lg outline-none text-sm"
+            style={{
+              backgroundColor: theme.canvasColor,
+              color: theme.node.text,
+              borderColor: theme.node.border,
+              borderWidth: '1px',
+              borderStyle: 'solid',
+              fontWeight: 600
+            }}
+          />
           <textarea
             ref={textareaRef}
             value={content}

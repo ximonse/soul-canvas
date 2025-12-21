@@ -1,5 +1,6 @@
 // src/App.tsx
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
+import type { MindNode } from './types/types';
 import type Konva from 'konva';
 import { useFileSystem } from './hooks/useFileSystem';
 import { useBrainStore } from './store/useBrainStore';
@@ -12,17 +13,21 @@ import { useImportHandlers } from './hooks/useImportHandlers';
 import { useNodeActions } from './hooks/useNodeActions';
 import { useKeyboardHandlers } from './hooks/useKeyboardHandlers';
 import { useSelectionScope } from './hooks/useSelectionScope';
+import { useSessionSearch } from './hooks/useSessionSearch';
 import { THEMES } from './themes';
 import { AUTOSAVE_DELAY_MS } from './utils/constants';
 
 // Komponenter
 import { AppMenu } from './components/AppMenu';
-import { BulkActionsToolbar } from './components/BulkActionsToolbar';
 import { ModalManager } from './components/ModalManager';
 import KonvaCanvas from './components/KonvaCanvas';
 import { SelectionScopePanel } from './components/overlays/SelectionScopePanel';
 import MassImportOverlay from './components/overlays/MassImportOverlay';
+import { QuoteExtractorOverlay } from './components/overlays/QuoteExtractorOverlay';
+import { SessionPanel } from './components/SessionPanel';
 import type { ContextMenuState } from './components/overlays/ContextMenu';
+import { filterNodesByTags, filterNodesBySession } from './utils/nodeFilters';
+import { summarizeChatToCard } from './utils/claude';
 
 const THEME_KEYS = Object.keys(THEMES);
 
@@ -34,8 +39,30 @@ function App() {
   const aiChat = useAIChat();
   const canvas = useCanvas();
   const stageRef = useRef<Konva.Stage>(null);
-  const search = useSearch({ nodes: store.nodes });
-  const { arrangeVertical, arrangeHorizontal, arrangeGridHorizontal, arrangeGridVertical, arrangeCircle, arrangeKanban } = useArrangement(canvas.cursorPos);
+
+  // Session-filtrering: först session, sedan taggar
+  const allNodesArray = useMemo(() => Array.from(store.nodes.values()), [store.nodes]);
+  const activeSession = useMemo(
+    () => store.activeSessionId ? store.sessions.find(s => s.id === store.activeSessionId) || null : null,
+    [store.activeSessionId, store.sessions]
+  );
+  const sessionFilteredNodes = useMemo(
+    () => filterNodesBySession(allNodesArray, activeSession),
+    [allNodesArray, activeSession]
+  );
+  const filteredNodesArray = useMemo(() =>
+    filterNodesByTags(sessionFilteredNodes, store.includeTags, store.excludeTags),
+    [sessionFilteredNodes, store.includeTags, store.excludeTags]
+  );
+  const filteredNodesMap = useMemo(
+    () => new Map<string, MindNode>(filteredNodesArray.map((n) => [n.id, n] as const)),
+    [filteredNodesArray]
+  );
+  const search = useSearch({ nodes: filteredNodesMap });
+
+  // Sök utanför session (för att lägga till kort)
+  const sessionSearch = useSessionSearch({ allNodes: allNodesArray, activeSession });
+  const { arrangeVertical, arrangeHorizontal, arrangeGridHorizontal, arrangeGridVertical, arrangeCircle, arrangeKanban, arrangeCentrality } = useArrangement(canvas.cursorPos);
   const selectionScope = useSelectionScope();
 
   // UI State
@@ -58,12 +85,15 @@ function App() {
   const [showCommandPalette, setShowCommandPalette] = useState(false);
   const [showAIChat, setShowAIChat] = useState(false);
   const [isChatMinimized, setIsChatMinimized] = useState(false);
+  const [isReflectionChat, setIsReflectionChat] = useState(false);
   const [showMassImport, setShowMassImport] = useState(false);
+  const [showQuoteExtractor, setShowQuoteExtractor] = useState(false);
+  const [showSessionPanel, setShowSessionPanel] = useState(false);
   const [editingCardId, setEditingCardId] = useState<string | null>(null);
-  const [tagInput, setTagInput] = useState('');
   const [saveStatus, setSaveStatus] = useState<'idle' | 'waiting' | 'saving' | 'saved'>('idle');
   const [zenMode, setZenMode] = useState(false);
   const [currentZoom, setCurrentZoom] = useState(1);
+  const [isSavingChat, setIsSavingChat] = useState(false);
 
   // Computed
   const selectedNodesCount = useMemo(() =>
@@ -75,7 +105,7 @@ function App() {
   const { handleDrop } = useImportHandlers({ canvas, hasFile, saveAsset });
 
   // Node actions
-  const { centerCamera, fitAllNodes, resetZoom, runOCR, deleteSelected, addBulkTag } = useNodeActions({
+  const { centerCamera, fitAllNodes, resetZoom, runOCR, runOCROnSelected, deleteSelected } = useNodeActions({
     stageRef,
     setShowSettings,
     setContextMenu,
@@ -90,6 +120,14 @@ function App() {
       await intelligence.generateTags(node.id);
     }
   }, [store, intelligence]);
+
+  const handleSummarizeToComment = useCallback((id: string) => {
+    intelligence.summarizeToComment(id);
+  }, [intelligence]);
+
+  const handleSuggestTitle = useCallback((id: string) => {
+    intelligence.suggestTitle(id);
+  }, [intelligence]);
 
   // Simple callbacks
   const handleManualSave = useCallback(() => {
@@ -107,12 +145,67 @@ function App() {
     ids.forEach(id => store.toggleSelection(id, true));
   }, [search, store]);
 
-  const handleAddBulkTag = useCallback(() => {
-    if (tagInput.trim()) {
-      addBulkTag(tagInput);
-      setTagInput('');
+  // Callback för att starta reflektionschat från AIPanel
+  const handleDiscussReflection = useCallback((reflection: string) => {
+    aiChat.startWithReflection(reflection);
+    setIsReflectionChat(true);
+    setShowAIChat(true);
+    setIsChatMinimized(false);
+  }, [aiChat]);
+
+  // Callback för att spara chat som kort (ett eller flera beroende på innehåll)
+  const handleSaveChatAsCard = useCallback(async () => {
+    if (!store.claudeKey) {
+      alert('Claude API-nyckel saknas för att sammanfatta chatten');
+      return;
     }
-  }, [tagInput, addBulkTag]);
+
+    setIsSavingChat(true);
+    try {
+      // Sammanfatta chatten (AI bestämmer antal kort)
+      const { cards } = await summarizeChatToCard(aiChat.messages, store.claudeKey);
+
+      if (cards.length === 0) {
+        alert('Kunde inte sammanfatta chatten');
+        return;
+      }
+
+      // Formatera hela chatten som markdown för comment (delas av alla kort)
+      const visibleMessages = aiChat.messages.filter(m => m.role !== 'system');
+      const chatMarkdown = visibleMessages
+        .map(m => `**${m.role === 'user' ? 'Du' : 'AI'}:**\n${m.content}`)
+        .join('\n\n---\n\n');
+
+      // Skapa kort i mitten av skärmen, arrangerade horisontellt
+      store.saveStateForUndo();
+      const centerPos = canvas.screenToWorld(window.innerWidth / 2, window.innerHeight / 2);
+      const cardWidth = 280;
+      const gap = 40;
+      const totalWidth = cards.length * cardWidth + (cards.length - 1) * gap;
+      const startX = centerPos.x - totalWidth / 2;
+
+      cards.forEach((card, index) => {
+        const nodeId = crypto.randomUUID();
+        const x = startX + index * (cardWidth + gap);
+        store.addNodeWithId(nodeId, card.summary, x, centerPos.y, 'text');
+
+        // Lägg till comment och tags
+        store.updateNode(nodeId, {
+          comment: cards.length > 1
+            ? `[Del ${index + 1} av ${cards.length}]\n\n${chatMarkdown}`
+            : chatMarkdown,
+          tags: [...card.tags, 'chat'],
+          semanticTags: ['chat-sammanfattning'],
+        });
+      });
+
+    } catch (err) {
+      console.error('Failed to save chat as card:', err);
+      alert('Fel vid sparande av chat: ' + (err instanceof Error ? err.message : 'Okänt fel'));
+    } finally {
+      setIsSavingChat(false);
+    }
+  }, [aiChat.messages, store, canvas]);
 
   // Keyboard shortcuts
   useKeyboardHandlers({
@@ -132,10 +225,15 @@ function App() {
     arrangeGridHorizontal,
     arrangeCircle,
     arrangeKanban,
+    arrangeCentrality,
     setShowCommandPalette,
     setShowAIPanel,
-    onOpenAIChat: () => { setShowAIChat(true); setIsChatMinimized(false); },
+    onOpenAIChat: () => { setShowAIChat(true); setIsChatMinimized(false); setIsReflectionChat(false); },
     onOpenMassImport: () => setShowMassImport(true),
+    onOpenQuoteExtractor: () => setShowQuoteExtractor(true),
+    onToggleSessionPanel: () => setShowSessionPanel(prev => !prev),
+    isSessionPanelOpen: showSessionPanel,
+    onCloseSessionPanel: () => setShowSessionPanel(false),
     setZenMode,
     setShowSettings,
     setContextMenu,
@@ -178,6 +276,7 @@ function App() {
         onEditCard={setEditingCardId}
         canvas={canvas}
         stageRef={stageRef}
+        nodes={filteredNodesArray}
         onContextMenu={(nodeId, pos) => setContextMenu({ nodeId, x: pos.x, y: pos.y })}
         onZoomChange={setCurrentZoom}
       />
@@ -204,7 +303,35 @@ function App() {
         onOpenSettings={() => setShowSettings(true)}
       />
 
+      <SessionPanel
+        sessions={store.sessions}
+        activeSessionId={store.activeSessionId}
+        onCreateSession={store.createSession}
+        onDeleteSession={store.deleteSession}
+        onSwitchSession={store.switchSession}
+        onRenameSession={store.renameSession}
+        includeTags={store.includeTags}
+        excludeTags={store.excludeTags}
+        onToggleTagFilter={store.toggleTagFilter}
+        onClearTagFilter={store.clearTagFilter}
+        allNodes={allNodesArray}
+        outsideSearchQuery={sessionSearch.query}
+        outsideSearchResults={sessionSearch.results}
+        onOutsideSearchChange={sessionSearch.setQuery}
+        onAddCardsToSession={(cardIds) => {
+          if (store.activeSessionId) {
+            store.addCardsToSession(store.activeSessionId, cardIds);
+          }
+        }}
+        sessionCardCount={activeSession?.cardIds.length ?? 0}
+        visibleCardCount={filteredNodesArray.length}
+        totalCardCount={allNodesArray.length}
+        isExpanded={showSessionPanel}
+        onToggleExpanded={() => setShowSessionPanel(prev => !prev)}
+      />
+
       {zenMode && (
+
         <div className="absolute bottom-10 left-1/2 transform -translate-x-1/2 text-gray-500 text-xs opacity-50 pointer-events-none">
           Tryck 'Z' eller 'Esc' för verktyg
         </div>
@@ -217,16 +344,6 @@ function App() {
       >
         {Math.round(currentZoom * 100)}%
       </div>
-
-      <BulkActionsToolbar
-        selectedCount={selectedNodesCount}
-        tagInput={tagInput}
-        onTagInputChange={setTagInput}
-        onAddTag={handleAddBulkTag}
-        onDelete={deleteSelected}
-        onClear={store.clearSelection}
-        zenMode={zenMode}
-      />
 
       {/* Selection Scope Panel - vänster sida */}
       {selectionScope.hasConnections && (
@@ -255,6 +372,16 @@ function App() {
         />
       )}
 
+      {/* Quote Extractor Overlay */}
+      {showQuoteExtractor && (
+        <QuoteExtractorOverlay
+          theme={theme}
+          onClose={() => setShowQuoteExtractor(false)}
+          centerX={canvas.screenToWorld(window.innerWidth / 2, window.innerHeight / 2).x}
+          centerY={canvas.screenToWorld(window.innerWidth / 2, window.innerHeight / 2).y}
+        />
+      )}
+
       <ModalManager
         showSettings={showSettings}
         showAIPanel={showAIPanel}
@@ -267,8 +394,11 @@ function App() {
         onSearchConfirm={handleSearchConfirm}
         canvas={canvas}
         onRunOCR={runOCR}
+        onRunOCROnSelected={runOCROnSelected}
         onAutoTag={handleAutoTag}
         onAttractSimilar={intelligence.attractSimilarNodes}
+        onSummarizeToComment={handleSummarizeToComment}
+        onSuggestTitle={handleSuggestTitle}
         handleManualSave={handleManualSave}
         centerCamera={centerCamera}
         handleDrop={handleDrop}
@@ -277,9 +407,23 @@ function App() {
         setChatProvider={aiChat.setProvider}
         sendChat={aiChat.sendMessage}
         isChatSending={aiChat.isSending}
+        chatError={aiChat.error}
         chatTheme={theme}
         setIsChatMinimized={setIsChatMinimized}
+        isReflectionChat={isReflectionChat}
+        onDiscussReflection={handleDiscussReflection}
+        onSaveChatAsCard={handleSaveChatAsCard}
+        isSavingChat={isSavingChat}
         isChatMinimized={isChatMinimized}
+        conversations={aiChat.listConversations}
+        currentConversationId={aiChat.conversationId}
+        onLoadConversation={aiChat.loadConversation}
+        onNewConversation={aiChat.clearMessages}
+        pinnedNodes={aiChat.pinnedNodes}
+        onRemoveNodeFromContext={aiChat.removeNodeFromContext}
+        onAddSelectedToContext={aiChat.addSelectedNodesToContext}
+        onClearPinnedNodes={aiChat.clearPinnedNodes}
+        onAddNodeToContext={aiChat.addNodeToContext}
         arrangeVertical={arrangeVertical}
         arrangeHorizontal={arrangeHorizontal}
         arrangeGridVertical={arrangeGridVertical}

@@ -1,5 +1,5 @@
 // src/components/KonvaCanvas.tsx
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect, useState, useMemo } from 'react';
 import { Stage, Layer, Rect } from 'react-konva';
 import type Konva from 'konva';
 import { useBrainStore } from '../store/useBrainStore';
@@ -17,6 +17,7 @@ interface KonvaCanvasProps {
   onEditCard: (cardId: string) => void;
   canvas: CanvasAPI;
   stageRef?: React.RefObject<Konva.Stage | null>;
+  nodes: MindNode[];
   onContextMenu?: (nodeId: string, screenPos: { x: number; y: number }) => void;
   onZoomChange?: (zoom: number) => void;
 }
@@ -26,6 +27,7 @@ const KonvaCanvas: React.FC<KonvaCanvasProps> = ({
   onEditCard,
   canvas,
   stageRef: externalStageRef,
+  nodes,
   onContextMenu,
   onZoomChange,
 }) => {
@@ -56,12 +58,17 @@ const KonvaCanvas: React.FC<KonvaCanvasProps> = ({
   }, []); // Only run once on mount
 
   const theme = THEMES[currentThemeKey];
+  const filteredNodesMap = useMemo(() => {
+    const map = new Map<string, MindNode>();
+    nodes.forEach((n) => map.set(n.id, n));
+    return map;
+  }, [nodes]);
 
   // Viewport culling for performance with many cards
   const { visibleNodes } = useViewportCulling({
-    nodes: Array.from(store.nodes.values()),
+    nodes,
     view: canvas.view,
-    enabled: store.nodes.size > 50,
+    enabled: nodes.length > 50,
   });
 
   useEffect(() => {
@@ -110,7 +117,7 @@ const KonvaCanvas: React.FC<KonvaCanvasProps> = ({
 
     const direction = e.evt.deltaY > 0 ? -1 : 1;
     const newScale = direction > 0 ? oldScale * 1.1 : oldScale / 1.1;
-    const clampedScale = Math.max(ZOOM.MIN, Math.min(2, newScale));
+    const clampedScale = Math.max(ZOOM.MIN, Math.min(ZOOM.MAX, newScale));
 
     const newPos = {
       x: pointer.x - mousePointTo.x * clampedScale,
@@ -236,7 +243,7 @@ const KonvaCanvas: React.FC<KonvaCanvasProps> = ({
         {store.showSynapseLines && (
           <SynapseLines
             synapses={store.synapses}
-            nodes={store.nodes}
+            nodes={filteredNodesMap}
             visibilityThreshold={store.synapseVisibilityThreshold}
             scale={canvas.view.k}
           />
@@ -273,7 +280,7 @@ const KonvaCanvas: React.FC<KonvaCanvasProps> = ({
         <SequenceArrows
           sequences={store.sequences}
           activeSequence={store.activeSequence}
-          nodes={store.nodes}
+          nodes={filteredNodesMap}
           scale={canvas.view.k}
         />
       </Layer>

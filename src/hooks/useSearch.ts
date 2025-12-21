@@ -152,6 +152,7 @@ export function useSearch({ nodes }: UseSearchOptions): UseSearchResult {
 
     return Array.from(nodes.values()).filter(node => {
       const searchableText = [
+        node.title,
         node.content,
         node.ocrText,
         node.comment,

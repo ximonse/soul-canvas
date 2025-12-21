@@ -15,10 +15,9 @@ export const performOCR = async (imageBase64: string, apiKey: string): Promise<A
   try {
     const genAI = new GoogleGenerativeAI(apiKey);
     
-    // Vi använder 2.0 Flash som är snabb och bra på JSON
-    const model = genAI.getGenerativeModel({ 
-      model: "gemini-2.0-flash",
-      generationConfig: { responseMimeType: "application/json" } 
+    const model = genAI.getGenerativeModel({
+      model: "gemini-2.0-flash-exp",
+      generationConfig: { responseMimeType: "application/json" }
     });
 
     const base64Data = imageBase64.split(',')[1] || imageBase64;

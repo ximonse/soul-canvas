@@ -21,6 +21,7 @@ interface KeyboardActions {
   onToggleSynapseLines: () => void;
   onAdjustGraphGravity: (delta: number) => void;
   onToggleScopePanel?: () => void;
+  onToggleSessionPanel?: () => void;
   // Arrangemang
   onArrangeVertical: () => void;
   onArrangeHorizontal: () => void;
@@ -28,6 +29,7 @@ interface KeyboardActions {
   onArrangeGridHorizontal: () => void;
   onArrangeCircle: () => void;
   onArrangeKanban: () => void;
+  onArrangeCentrality: () => void;
   onDuplicate: () => void;
   // Copy/Paste
   onCopy: () => void;
@@ -39,6 +41,7 @@ interface KeyboardActions {
   onNewCard: () => void;
   onImport: () => void;
   onMassImport: () => void;
+  onQuoteExtractor: () => void;
   onFocusSearch: () => void;
 }
 
@@ -203,6 +206,20 @@ export function useKeyboard(
         return;
       }
 
+      // S = toggla SessionPanel
+      if (key === 's' && !e.ctrlKey) {
+        e.preventDefault();
+        actions.onToggleSessionPanel?.();
+        return;
+      }
+
+      // E = citatextraktor (AI-driven)
+      if (key === 'e' && !e.ctrlKey) {
+        e.preventDefault();
+        actions.onQuoteExtractor();
+        return;
+      }
+
       // F = fokusera sök
       if (key === 'f' && !e.ctrlKey) {
         e.preventDefault();
@@ -265,8 +282,8 @@ export function useKeyboard(
           return;
         }
 
-        // Check for g+v, g+h, g+t combos OR standalone v/h
-        if (['v', 'h', 't'].includes(key)) {
+        // Check for g+v, g+h, g+t, g+c combos OR standalone v/h
+        if (['v', 'h', 't', 'c'].includes(key)) {
           const currentHasSelection = Array.from(useBrainStore.getState().nodes.values()).some(n => n.selected);
 
           if (gComboState.pressed && currentHasSelection) {
@@ -278,6 +295,8 @@ export function useKeyboard(
               actionsRef.current.onArrangeGridHorizontal();
             } else if (key === 't') {
               actionsRef.current.onArrangeKanban();
+            } else if (key === 'c') {
+              actionsRef.current.onArrangeCentrality();
             }
             gComboState.pressed = false;
           } else if (!gComboState.pressed && currentHasSelection && (key === 'v' || key === 'h')) {
@@ -291,7 +310,7 @@ export function useKeyboard(
           } else {
             gComboState.pressed = false;
           }
-          // Don't pass v/h/t to handleKeyDown
+          // Don't pass v/h/t/c to handleKeyDown
           return;
         }
       }

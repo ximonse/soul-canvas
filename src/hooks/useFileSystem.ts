@@ -13,7 +13,7 @@ function revokeAssetUrls(assets: Record<string, string>) {
 }
 
 export function useFileSystem() {
-  const { setFileHandle, loadNodes, loadAssets, fileHandle } = useBrainStore();
+  const { setFileHandle, loadNodes, loadAssets, loadConversations, loadSessions, fileHandle } = useBrainStore();
   // Track current blob URLs for cleanup
   const currentAssetsRef = useRef<Record<string, string>>({});
   const [isReady, setIsReady] = useState(false);
@@ -31,7 +31,7 @@ export function useFileSystem() {
       await setDb('soul-folder-handle', dirHandle);
 
       // 2. Leta efter data.json
-      let data = { nodes: [], synapses: [] };
+      let data = { nodes: [], synapses: [], conversations: [], sessions: [], activeSessionId: null as string | null };
       try {
         const fileHandle = await dirHandle.getFileHandle('data.json');
         const file = await fileHandle.getFile();
@@ -47,7 +47,10 @@ export function useFileSystem() {
 
         data = {
           nodes,
-          synapses: parsed.synapses || []
+          synapses: parsed.synapses || [],
+          conversations: parsed.conversations || [],
+          sessions: parsed.sessions || [],
+          activeSessionId: parsed.activeSessionId || null
         };
       } catch {
         // No data.json found, start with empty brain
@@ -75,11 +78,16 @@ export function useFileSystem() {
 
       loadNodes(data.nodes || [], data.synapses || []);
       loadAssets(assetsMap);
+      loadConversations(data.conversations || []);
+      loadSessions(data.sessions || []);
+      if (data.activeSessionId) {
+        useBrainStore.getState().switchSession(data.activeSessionId);
+      }
     } catch (err) {
       console.error('Kunde inte läsa mapp:', err);
       setFileHandle(null!);
     }
-  }, [setFileHandle, loadNodes, loadAssets]);
+  }, [setFileHandle, loadNodes, loadAssets, loadConversations]);
 
   // Cleanup blob URLs on unmount
   useEffect(() => {
@@ -117,11 +125,15 @@ export function useFileSystem() {
       const fileRef = await fileHandle.getFileHandle('data.json', { create: true });
       const writable = await fileRef.createWritable();
       
+      const state = useBrainStore.getState();
       const dataToSave = {
         version: "3.0-folder",
         lastSaved: new Date().toISOString(),
-        nodes: Array.from(useBrainStore.getState().nodes.values()),
-        synapses: useBrainStore.getState().synapses
+        nodes: Array.from(state.nodes.values()),
+        synapses: state.synapses,
+        conversations: state.conversations,
+        sessions: state.sessions,
+        activeSessionId: state.activeSessionId
       };
       
       await writable.write(JSON.stringify(dataToSave, null, 2));

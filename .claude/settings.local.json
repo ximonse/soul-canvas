@@ -5,7 +5,13 @@
       "Bash(npm run build:*)",
       "Bash(npx tsc:*)",
       "Bash(timeout 10 npm run dev:*)",
-      "Bash(npm install:*)"
+      "Bash(npm install:*)",
+      "WebSearch",
+      "WebFetch(domain:manual.cytoscape.org)",
+      "Bash(gh repo create:*)",
+      "Bash(git -C \"C:\\\\Users\\\\ximon\\\\Kodprojekt\\\\soul-canvas\" remote -v)",
+      "Bash(git -C \"C:\\\\Users\\\\ximon\\\\Kodprojekt\\\\soul-canvas\" remote set-url origin https://github.com/ximonse/soul-canvas.git)",
+      "Bash(git -C \"C:\\\\Users\\\\ximon\\\\Kodprojekt\\\\soul-canvas\" push -u origin main)"
     ],
     "deny": [],
     "ask": []

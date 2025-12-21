@@ -7,6 +7,7 @@ export interface MindNode {
   y: number;
   z: number;
   tags: string[];
+  title?: string;          // Kortets rubrik (AI-genererad eller manuell)
   createdAt: string;
   
   // NYA FÄLT
@@ -51,6 +52,20 @@ export interface Sequence {
   createdAt: string;
 }
 
+// Session - arbetsyta/projekt med urval av kort
+export interface Session {
+  id: string;
+  name: string;
+  cardIds: string[];          // Kort i sessionen (sparas som array för JSON)
+  viewState: {
+    x: number;
+    y: number;
+    zoom: number;
+  };
+  createdAt: number;
+  lastOpened: number;
+}
+
 export interface BrainState {
   nodes: Map<string, MindNode>; // Changed to Map
   synapses: Synapse[];
@@ -72,4 +87,26 @@ export interface AIReflection {
   question: string;
   context: string[];  // Node IDs som triggade frågan
   timestamp: string;
+}
+
+// Samtalsminne - ett meddelande i en konversation
+export interface ConversationMessage {
+  role: 'system' | 'user' | 'assistant';
+  content: string;
+  timestamp: string;
+  addedNodeIds?: string[];  // Kort som drogs in vid detta meddelande
+}
+
+// Samtalsminne - en hel konversation
+export interface Conversation {
+  id: string;
+  title: string;                    // AI-genererad eller manuell
+  createdAt: string;
+  updatedAt: string;
+  messages: ConversationMessage[];
+  contextNodeIds: string[];         // Vilka kort var involverade?
+  provider: 'claude' | 'openai' | 'gemini';
+  summary?: string;                 // AI-genererad sammanfattning
+  themes?: string[];                // Upptäckta teman
+  isArchived?: boolean;
 }

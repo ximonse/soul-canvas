@@ -294,6 +294,7 @@ src/
 | `0` | Reset zoom till 100% |
 | `L` | Toggle synapse-linjer |
 | `P` | Pin/unpin kort |
+| `S` | Session-panel (öppna/stäng) |
 | `N` | Nytt kort |
 | `I` | Import (bild/JSON/HTML) |
 | `M` | Mass-import (text med dubbla radbrytningar) |
@@ -312,5 +313,6 @@ src/
 | `G+V` | Grid vertikal |
 | `G+H` | Grid horisontell |
 | `G+T` | Kanban |
+| `G+C` | Centralitet (16:9 rektangel, mest kopplade i mitten) |
 | `G+scroll` | Justera graph gravity (markerade eller alla) |
 | `D` (håll) + klick | Skapa sekvenskedja |

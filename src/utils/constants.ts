@@ -30,8 +30,14 @@ export const SPACING = {
 // Zoom-gränser
 export const ZOOM = {
   MIN: 0.02,
-  MAX: 10,
+  MAX: 4,
   DEFAULT: 1,
+} as const;
+
+// Graph gravity (force-layout) spann
+export const GRAVITY = {
+  MIN: 0.1,
+  MAX: 3,
 } as const;
 
 // Autosave

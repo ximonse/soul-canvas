@@ -7,7 +7,8 @@ import {
   arrangeGridHorizontal,
   arrangeGridVertical,
   arrangeCircle,
-  arrangeKanban
+  arrangeKanban,
+  arrangeCentrality
 } from '../utils/arrangement';
 import { SPACING } from '../utils/constants';
 
@@ -73,6 +74,19 @@ export const useArrangement = (defaultCenter?: {x: number, y: number}) => {
     updateNodePositions(newPositions);
   }, [updateNodePositions, defaultCenter]);
 
+  // Special handler for centrality arrangement (needs synapses)
+  const applyCentralityArrangement = useCallback((center?: {x: number, y: number}) => {
+    const store = useBrainStore.getState();
+    const currentNodes = store.nodes;
+    const synapses = store.synapses;
+    const selected = Array.from(currentNodes.values()).filter((n) => n.selected);
+    if (selected.length < 2) return;
+
+    const targetCenter = center || defaultCenter;
+    const newPositions = arrangeCentrality(selected, synapses, targetCenter);
+    updateNodePositions(newPositions);
+  }, [updateNodePositions, defaultCenter]);
+
   return {
     // V och H använder sekvensordning om noderna är del av en sekvens
     arrangeVertical: useCallback((center?: {x: number, y: number}) => applyArrangement(arrangeVertical, center, true), [applyArrangement]),
@@ -82,5 +96,6 @@ export const useArrangement = (defaultCenter?: {x: number, y: number}) => {
     arrangeGridVertical: useCallback((center?: {x: number, y: number}) => applyArrangement((nodes, c) => arrangeGridVertical(nodes, SPACING.GRID_COLUMNS, c), center, false), [applyArrangement]),
     arrangeCircle: useCallback((center?: {x: number, y: number}) => applyArrangement(arrangeCircle, center, false), [applyArrangement]),
     arrangeKanban: useCallback((center?: {x: number, y: number}) => applyArrangement((nodes, c) => arrangeKanban(nodes, SPACING.GRID_COLUMNS, c), center, false), [applyArrangement]),
+    arrangeCentrality: applyCentralityArrangement,
   };
 };

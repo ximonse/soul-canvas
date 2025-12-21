@@ -2,6 +2,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useBrainStore } from '../store/useBrainStore';
 import { useIntelligence } from '../hooks/useIntelligence';
+import { exportToCytoscape, exportToCSV } from '../utils/cytoscapeExport';
 import type { Theme } from '../themes';
 
 interface Command {
@@ -106,6 +107,18 @@ export const CommandPalette = ({
 
     // File Commands
     { id: 'save', name: 'Save', shortcut: 'ctrl+enter', action: () => { onSave(); onClose(); }, category: 'file', icon: '💾' },
+    { id: 'export-sif', name: 'Export to Cytoscape (SIF)', shortcut: 'sif', action: () => {
+      const nodes = Array.from(store.nodes.values());
+      const synapses = store.synapses;
+      exportToCytoscape(nodes, synapses);
+      onClose();
+    }, category: 'file', icon: '🕸️' },
+    { id: 'export-csv', name: 'Export to Cytoscape (CSV)', shortcut: 'csv', action: () => {
+      const nodes = Array.from(store.nodes.values());
+      const synapses = store.synapses;
+      exportToCSV(nodes, synapses);
+      onClose();
+    }, category: 'file', icon: '📊' },
     { id: 'settings', name: 'Settings', shortcut: 's', action: () => { onOpenSettings(); onClose(); }, category: 'file', icon: '⚙️' },
   ];
 

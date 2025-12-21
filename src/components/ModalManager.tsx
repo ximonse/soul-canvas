@@ -6,6 +6,7 @@ import { SettingsModal } from './overlays/SettingsModal';
 import { ContextMenu, type ContextMenuState } from './overlays/ContextMenu';
 import { SearchOverlay } from './overlays/SearchOverlay';
 import { AIChatOverlay } from './overlays/AIChatOverlay';
+import { ReflectionChatOverlay } from './overlays/ReflectionChatOverlay';
 import { CardEditor } from './overlays/CardEditor';
 import { AIPanel } from './AIPanel';
 import { CommandPalette } from './CommandPalette';
@@ -13,6 +14,7 @@ import { type CanvasAPI } from '../hooks/useCanvas';
 import { type SearchAPI } from '../hooks/useSearch';
 import { type Theme } from '../themes';
 import type { ChatProvider, ChatMessage } from '../utils/chatProviders';
+import type { Conversation } from '../types/types';
 
 interface ModalManagerProps {
   // Modal visibility states
@@ -34,18 +36,37 @@ interface ModalManagerProps {
 
   // Actions
   onRunOCR: (id: string) => void;
+  onRunOCROnSelected?: () => void;
   onAutoTag?: (id: string) => void;
   onAttractSimilar?: () => void;
   handleManualSave: () => void;
   centerCamera: () => void;
   handleDrop: (e: React.DragEvent) => void;
+  onSummarizeToComment?: (id: string) => void;
+  onSuggestTitle?: (id: string) => void;
   chatMessages: ChatMessage[];
   chatProvider: ChatProvider;
   setChatProvider: (p: ChatProvider) => void;
   sendChat: (text: string, provider?: ChatProvider) => Promise<void>;
   isChatSending: boolean;
+  chatError?: string | null;
   chatTheme: Theme;
   setIsChatMinimized: (v: boolean) => void;
+  isReflectionChat: boolean;
+  onDiscussReflection: (reflection: string) => void;
+  onSaveChatAsCard?: () => Promise<void>;
+  isSavingChat?: boolean;
+  // Conversation history
+  conversations?: Conversation[];
+  currentConversationId?: string | null;
+  onLoadConversation?: (id: string) => void;
+  onNewConversation?: () => void;
+  // Pinned nodes (associativ kontext)
+  pinnedNodes?: import('../types/types').MindNode[];
+  onRemoveNodeFromContext?: (id: string) => void;
+  onAddSelectedToContext?: () => void;
+  onClearPinnedNodes?: () => void;
+  onAddNodeToContext?: (id: string) => void;
 
   // Arrangements
   arrangeVertical: () => void;
@@ -93,17 +114,34 @@ export const ModalManager: React.FC<ModalManagerProps> = ({
   onSearchConfirm,
   canvas,
   onRunOCR,
+  onRunOCROnSelected,
   onAutoTag,
   onAttractSimilar,
   handleManualSave,
   centerCamera,
   handleDrop,
+  onSummarizeToComment,
+  onSuggestTitle,
   chatMessages,
   chatProvider,
   setChatProvider,
   sendChat,
   isChatSending,
+  chatError,
   chatTheme,
+  isReflectionChat,
+  onDiscussReflection,
+  onSaveChatAsCard,
+  isSavingChat,
+  conversations,
+  currentConversationId,
+  onLoadConversation,
+  onNewConversation,
+  pinnedNodes,
+  onRemoveNodeFromContext,
+  onAddSelectedToContext,
+  onClearPinnedNodes,
+  onAddNodeToContext,
   arrangeVertical,
   arrangeHorizontal,
   arrangeGridVertical,
@@ -137,13 +175,22 @@ export const ModalManager: React.FC<ModalManagerProps> = ({
           menu={contextMenu}
           onClose={() => setContextMenu(null)}
           onRunOCR={onRunOCR}
+          onRunOCROnSelected={onRunOCROnSelected}
           onAutoTag={onAutoTag}
           onAttractSimilar={onAttractSimilar}
           onOpenAIChat={() => setShowAIChat(true)}
+          onSummarize={onSummarizeToComment}
+          onSuggestTitle={onSuggestTitle}
+          onAddToChat={onAddNodeToContext}
         />
       )}
 
-      {showAIPanel && <AIPanel onClose={() => setShowAIPanel(false)} />}
+      {showAIPanel && (
+        <AIPanel
+          onClose={() => setShowAIPanel(false)}
+          onDiscussReflection={onDiscussReflection}
+        />
+      )}
 
       {editingCardId && (
         <CardEditor cardId={editingCardId} onClose={() => setEditingCardId(null)} theme={theme} />
@@ -222,16 +269,41 @@ export const ModalManager: React.FC<ModalManagerProps> = ({
       )}
 
       {showAIChat && !isChatMinimized && (
-        <AIChatOverlay
-          messages={chatMessages}
-          provider={chatProvider}
-          setProvider={setChatProvider}
-          onSend={sendChat}
-          onClose={() => { setShowAIChat(false); setIsChatMinimized(false); }}
-          onMinimize={() => setIsChatMinimized(true)}
-          isSending={isChatSending}
-          theme={chatTheme}
-        />
+        isReflectionChat ? (
+          <ReflectionChatOverlay
+            messages={chatMessages}
+            provider={chatProvider}
+            setProvider={setChatProvider}
+            onSend={sendChat}
+            onClose={() => { setShowAIChat(false); setIsChatMinimized(false); }}
+            onMinimize={() => setIsChatMinimized(true)}
+            onSaveAsCard={onSaveChatAsCard}
+            isSending={isChatSending}
+            isSaving={isSavingChat}
+          />
+        ) : (
+          <AIChatOverlay
+            messages={chatMessages}
+            provider={chatProvider}
+            setProvider={setChatProvider}
+            onSend={sendChat}
+            onClose={() => { setShowAIChat(false); setIsChatMinimized(false); }}
+            onMinimize={() => setIsChatMinimized(true)}
+            onSaveAsCard={onSaveChatAsCard}
+            isSending={isChatSending}
+            isSaving={isSavingChat}
+            error={chatError}
+            theme={chatTheme}
+            conversations={conversations}
+            currentConversationId={currentConversationId}
+            onLoadConversation={onLoadConversation}
+            onNewConversation={onNewConversation}
+            pinnedNodes={pinnedNodes}
+            onRemoveNodeFromContext={onRemoveNodeFromContext}
+            onAddSelectedToContext={onAddSelectedToContext}
+            onClearPinnedNodes={onClearPinnedNodes}
+          />
+        )
       )}
 
       {showAIChat && isChatMinimized && (

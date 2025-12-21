@@ -13,15 +13,32 @@ interface ContextMenuProps {
   menu: ContextMenuState;
   onClose: () => void;
   onRunOCR: (nodeId: string) => void;
+  onRunOCROnSelected?: () => void;
   onAutoTag?: (nodeId: string) => void;
   onAttractSimilar?: () => void;
   onOpenAIChat?: () => void;
+  onSummarize?: (nodeId: string) => void;
+  onSuggestTitle?: (nodeId: string) => void;
+  onAddToChat?: (nodeId: string) => void;
 }
 
-export function ContextMenu({ menu, onClose, onRunOCR, onAutoTag, onAttractSimilar, onOpenAIChat }: ContextMenuProps) {
+export function ContextMenu({
+  menu,
+  onClose,
+  onRunOCR,
+  onRunOCROnSelected,
+  onAutoTag,
+  onAttractSimilar,
+  onOpenAIChat,
+  onSummarize,
+  onSuggestTitle,
+  onAddToChat,
+}: ContextMenuProps) {
   const store = useBrainStore();
   const node = store.nodes.get(menu.nodeId);
-  const selectedCount = Array.from(store.nodes.values()).filter(n => n.selected).length;
+  const selectedNodes = Array.from(store.nodes.values()).filter(n => n.selected);
+  const selectedCount = selectedNodes.length;
+  const selectedImageCount = selectedNodes.filter(n => n.type === 'image').length;
 
   // Early return if node was deleted while menu was open
   if (!node) {
@@ -54,6 +71,16 @@ export function ContextMenu({ menu, onClose, onRunOCR, onAutoTag, onAttractSimil
     onClose();
   };
 
+  const handleSummarize = () => {
+    onSummarize?.(menu.nodeId);
+    onClose();
+  };
+
+  const handleSuggestTitle = () => {
+    onSuggestTitle?.(menu.nodeId);
+    onClose();
+  };
+
   const handleAttractSimilar = () => {
     onAttractSimilar?.();
     onClose();
@@ -64,9 +91,31 @@ export function ContextMenu({ menu, onClose, onRunOCR, onAutoTag, onAttractSimil
     onClose();
   };
 
+  const handleAddToChat = () => {
+    // Lägg till markerade kort om flera är markerade, annars bara aktuellt kort
+    if (selectedCount > 1) {
+      selectedNodes.forEach(n => onAddToChat?.(n.id));
+    } else {
+      onAddToChat?.(menu.nodeId);
+    }
+    onClose();
+  };
+
   // Check if current node or any selected node has embedding
   const hasEmbedding = node.embedding ||
     Array.from(store.nodes.values()).some(n => n.selected && n.embedding);
+
+  // Session-relaterat
+  const isInSession = store.activeSessionId !== null;
+
+  const handleRemoveFromSession = () => {
+    if (!store.activeSessionId) return;
+    const cardIdsToRemove = selectedCount > 1
+      ? selectedNodes.map(n => n.id)
+      : [menu.nodeId];
+    store.removeCardsFromSession(store.activeSessionId, cardIdsToRemove);
+    onClose();
+  };
 
   return (
     <menu
@@ -86,14 +135,21 @@ export function ContextMenu({ menu, onClose, onRunOCR, onAutoTag, onAttractSimil
         </button>
       </li>
 
-      {node.type === 'image' && (
+      {(node.type === 'image' || selectedImageCount > 0) && (
         <li role="none">
           <button
-            onClick={handleOCR}
+            onClick={() => {
+              if (selectedImageCount > 1 && onRunOCROnSelected) {
+                onRunOCROnSelected();
+              } else {
+                handleOCR();
+              }
+              onClose();
+            }}
             className="w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-blue-600"
             role="menuitem"
           >
-            AI: Läs text
+            🔍 Läs & beskriv bild{selectedImageCount > 1 ? `er (${selectedImageCount})` : ''}
           </button>
         </li>
       )}
@@ -120,6 +176,30 @@ export function ContextMenu({ menu, onClose, onRunOCR, onAutoTag, onAttractSimil
         </li>
       )}
 
+      {onSummarize && (
+        <li role="none">
+          <button
+            onClick={handleSummarize}
+            className="w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-indigo-600"
+            role="menuitem"
+          >
+            AI: Summera → kommentar
+          </button>
+        </li>
+      )}
+
+      {onSuggestTitle && (
+        <li role="none">
+          <button
+            onClick={handleSuggestTitle}
+            className="w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-indigo-600"
+            role="menuitem"
+          >
+            AI: Föreslå rubrik
+          </button>
+        </li>
+      )}
+
       {onAttractSimilar && hasEmbedding && (
         <li role="none">
           <button
@@ -140,6 +220,30 @@ export function ContextMenu({ menu, onClose, onRunOCR, onAutoTag, onAttractSimil
             role="menuitem"
           >
             💬 Chatta om valda
+          </button>
+        </li>
+      )}
+
+      {onAddToChat && (
+        <li role="none">
+          <button
+            onClick={handleAddToChat}
+            className="w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-teal-600"
+            role="menuitem"
+          >
+            📌 Lägg till i chat{selectedCount > 1 ? ` (${selectedCount})` : ''}
+          </button>
+        </li>
+      )}
+
+      {isInSession && (
+        <li role="none">
+          <button
+            onClick={handleRemoveFromSession}
+            className="w-full text-left px-4 py-2 text-sm text-orange-400 hover:bg-orange-900/50"
+            role="menuitem"
+          >
+            📤 Ta bort från session{selectedCount > 1 ? ` (${selectedCount})` : ''}
           </button>
         </li>
       )}

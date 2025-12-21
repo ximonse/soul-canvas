@@ -154,6 +154,26 @@ export function useNodeActions({ stageRef, setShowSettings, setContextMenu }: No
     }
   }, [store, setShowSettings, setContextMenu]);
 
+  // Run OCR on all selected image nodes
+  const runOCROnSelected = useCallback(async () => {
+    const selectedImages = Array.from(store.nodes.values())
+      .filter(n => n.selected && n.type === 'image');
+
+    if (selectedImages.length === 0) return;
+
+    if (!store.geminiKey) {
+      setShowSettings(true);
+      return;
+    }
+
+    setContextMenu(null);
+
+    // Process all selected images
+    for (const node of selectedImages) {
+      await runOCR(node.id);
+    }
+  }, [store, runOCR, setShowSettings, setContextMenu]);
+
   // Delete selected nodes
   const deleteSelected = useCallback(() => {
     const selectedNodes = Array.from(store.nodes.values()).filter(n => n.selected);
@@ -176,6 +196,7 @@ export function useNodeActions({ stageRef, setShowSettings, setContextMenu }: No
     fitAllNodes,
     resetZoom,
     runOCR,
+    runOCROnSelected,
     deleteSelected,
     addBulkTag,
   };

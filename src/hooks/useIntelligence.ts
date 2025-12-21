@@ -12,8 +12,11 @@ import { calculateConnectedNodesLayout } from '../utils/forceLayout';
 import { 
   generateReflection, 
   generateSemanticTags, 
-  analyzeCluster 
+  analyzeCluster, 
+  generateNodeSummaryComment, 
+  generateNodeTitle 
 } from '../utils/claude';
+import { GRAVITY } from '../utils/constants';
 import type { MindNode, AIReflection } from '../types/types';
 
 export const useIntelligence = () => {
@@ -171,6 +174,68 @@ export const useIntelligence = () => {
   }, [store]);
 
   /**
+   * Generate a short summary and write to node.comment
+   */
+  const summarizeToComment = useCallback(async (nodeId?: string): Promise<number> => {
+    const currentState = useBrainStore.getState();
+    const key = currentState.claudeKey;
+    if (!key) return 0;
+
+    const selected = Array.from(currentState.nodes.values()).filter(n => n.selected);
+    const targets = nodeId
+      ? [currentState.nodes.get(nodeId)].filter(Boolean) as MindNode[]
+      : (selected.length > 0 ? selected : []);
+    if (targets.length === 0) return 0;
+
+    currentState.saveStateForUndo?.();
+    let updated = 0;
+    setIsProcessing(true);
+    try {
+      for (const node of targets) {
+        const summary = await generateNodeSummaryComment(node, key);
+        if (summary) {
+          currentState.updateNode(node.id, { comment: summary });
+          updated++;
+        }
+      }
+      return updated;
+    } finally {
+      setIsProcessing(false);
+    }
+  }, []);
+
+  /**
+   * Generate a concise title for nodes
+   */
+  const suggestTitle = useCallback(async (nodeId?: string): Promise<number> => {
+    const currentState = useBrainStore.getState();
+    const key = currentState.claudeKey;
+    if (!key) return 0;
+
+    const selected = Array.from(currentState.nodes.values()).filter(n => n.selected);
+    const targets = nodeId
+      ? [currentState.nodes.get(nodeId)].filter(Boolean) as MindNode[]
+      : (selected.length > 0 ? selected : []);
+    if (targets.length === 0) return 0;
+
+    currentState.saveStateForUndo?.();
+    let updated = 0;
+    setIsProcessing(true);
+    try {
+      for (const node of targets) {
+        const title = await generateNodeTitle(node, key);
+        if (title) {
+          currentState.updateNode(node.id, { title });
+          updated++;
+        }
+      }
+      return updated;
+    } finally {
+      setIsProcessing(false);
+    }
+  }, []);
+
+  /**
    * Generate a reflective question based on selected or all nodes
    */
   const reflect = useCallback(async (): Promise<AIReflection | null> => {
@@ -320,11 +385,16 @@ export const useIntelligence = () => {
     const cy = centerY ?? allNodes.reduce((sum, n) => sum + n.y, 0) / allNodes.length;
 
     // Använd angiven gravity eller från store
-    const g = gravity ?? currentState.graphGravity;
+    const g = Math.max(GRAVITY.MIN, Math.min(GRAVITY.MAX, gravity ?? currentState.graphGravity));
+
+    const visibleSynapses = currentState.synapses.filter(
+      s => (s.similarity || 1) >= currentState.synapseVisibilityThreshold
+    );
+    if (visibleSynapses.length === 0) return 0;
 
     const positions = calculateConnectedNodesLayout(
       allNodes,
-      currentState.synapses,
+      visibleSynapses,
       { centerX: cx, centerY: cy, iterations: 300, gravity: g }
     );
 
@@ -346,6 +416,8 @@ export const useIntelligence = () => {
     embedAllNodes,
     autoLinkSimilarNodes,
     generateTags,
+    summarizeToComment,
+    suggestTitle,
     reflect,
     analyzeSelectedCluster,
     semanticSearch,

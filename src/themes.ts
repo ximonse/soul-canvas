@@ -20,16 +20,22 @@ export interface ThemeNodeStyles {
   flippedText: string; // Text color for flipped side
 }
 
+export interface ThemeChatStyles {
+  userFont: string;      // Font for user messages
+  assistantFont: string; // Font for assistant messages
+}
+
 export interface Theme {
   name: string;
-  bg: string;      
-  text: string;    
+  bg: string;
+  text: string;
   node: ThemeNodeStyles;
   lineColor: string;
   lineOpacity: string;
-  button: string;  
+  button: string;
   bgType: 'stars' | 'grid' | 'dots' | 'none'; // Lade till 'none' för E-ink
   canvasColor: string; // Direct CSS color for Konva canvas
+  chat: ThemeChatStyles;
 }
 
 export const THEMES: Record<string, Theme> = {
@@ -61,9 +67,13 @@ export const THEMES: Record<string, Theme> = {
     },
     lineColor: "#6366f1",
     lineOpacity: "0.6",
-    button: "bg-white/10 hover:bg-white/20 border-white/10 text-gray-200"
+    button: "bg-white/10 hover:bg-white/20 border-white/10 text-gray-200",
+    chat: {
+      userFont: "'JetBrains Mono', 'SF Mono', monospace",
+      assistantFont: "'Inter', 'SF Pro', system-ui, sans-serif",
+    }
   },
-  
+
   // --- PAPPER ---
   paper: {
     name: "Papper",
@@ -92,7 +102,11 @@ export const THEMES: Record<string, Theme> = {
     },
     lineColor: "#9ca3af",
     lineOpacity: "1",
-    button: "bg-white border-gray-300 shadow-sm hover:shadow-md text-gray-700"
+    button: "bg-white border-gray-300 shadow-sm hover:shadow-md text-gray-700",
+    chat: {
+      userFont: "'Georgia', 'Times New Roman', serif",
+      assistantFont: "'Crimson Pro', 'Libre Baskerville', Georgia, serif",
+    }
   },
 
   // --- PAPPER MÖRK (inverterad) ---
@@ -123,7 +137,11 @@ export const THEMES: Record<string, Theme> = {
     },
     lineColor: "#6b7280",
     lineOpacity: "1",
-    button: "bg-gray-700 border-gray-600 shadow-sm hover:shadow-md text-gray-200"
+    button: "bg-gray-700 border-gray-600 shadow-sm hover:shadow-md text-gray-200",
+    chat: {
+      userFont: "'Georgia', 'Times New Roman', serif",
+      assistantFont: "'Crimson Pro', 'Libre Baskerville', Georgia, serif",
+    }
   },
 
   // --- E-INK ---
@@ -154,7 +172,11 @@ export const THEMES: Record<string, Theme> = {
     },
     lineColor: "#000000",
     lineOpacity: "1",
-    button: "bg-white border-2 border-black hover:bg-black hover:text-white text-black font-bold shadow-none"
+    button: "bg-white border-2 border-black hover:bg-black hover:text-white text-black font-bold shadow-none",
+    chat: {
+      userFont: "'IBM Plex Mono', 'Courier New', monospace",
+      assistantFont: "'IBM Plex Sans', 'Helvetica Neue', sans-serif",
+    }
   },
 
   // --- JORD ---
@@ -185,7 +207,11 @@ export const THEMES: Record<string, Theme> = {
     },
     lineColor: "#a59132",
     lineOpacity: "0.4",
-    button: "bg-[#625834] border-[#a59132] hover:bg-[#a59132] text-[#fffbdb]"
+    button: "bg-[#625834] border-[#a59132] hover:bg-[#a59132] text-[#fffbdb]",
+    chat: {
+      userFont: "'Fira Code', 'Source Code Pro', monospace",
+      assistantFont: "'Merriweather', 'Palatino', serif",
+    }
   },
 
   // --- MOLN ---
@@ -216,6 +242,10 @@ export const THEMES: Record<string, Theme> = {
     },
     lineColor: "#ABC4FF",
     lineOpacity: "0.8",
-    button: "bg-[#ABC4FF] hover:bg-[#90b0ff] text-white shadow-sm"
+    button: "bg-[#ABC4FF] hover:bg-[#90b0ff] text-white shadow-sm",
+    chat: {
+      userFont: "'Nunito', 'Avenir', sans-serif",
+      assistantFont: "'Lora', 'Cambria', serif",
+    }
   }
 };

@@ -5,6 +5,7 @@ import { APIKeyStatus } from './ai';
 
 interface AIPanelProps {
   onClose: () => void;
+  onDiscussReflection?: (reflection: string) => void;
 }
 
 // Steg-sektion med nummer och rubrik
@@ -30,7 +31,7 @@ const StepSection = ({
   </div>
 );
 
-export const AIPanel = ({ onClose }: AIPanelProps) => {
+export const AIPanel = ({ onClose, onDiscussReflection }: AIPanelProps) => {
   const {
     searchQuery,
     setSearchQuery,
@@ -38,7 +39,7 @@ export const AIPanel = ({ onClose }: AIPanelProps) => {
     clusterInsight,
     showReflection,
     setShowReflection,
-    status,
+    status: _status,
     selectedCount,
     embeddedCount,
     totalCount,
@@ -313,12 +314,25 @@ export const AIPanel = ({ onClose }: AIPanelProps) => {
           <div className="bg-gradient-to-br from-purple-900 to-pink-900 p-8 rounded-2xl shadow-2xl border border-purple-500/50 max-w-md">
             <h3 className="text-xl text-white font-bold mb-4">💭 Reflektion</h3>
             <p className="text-purple-100 text-lg leading-relaxed mb-6">{intelligence.lastReflection.question}</p>
-            <button
-              onClick={() => setShowReflection(false)}
-              className="w-full bg-white/20 hover:bg-white/30 text-white py-2 rounded transition"
-            >
-              Stäng
-            </button>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowReflection(false)}
+                className="flex-1 bg-white/20 hover:bg-white/30 text-white py-2 rounded transition"
+              >
+                Stäng
+              </button>
+              {onDiscussReflection && (
+                <button
+                  onClick={() => {
+                    onDiscussReflection(intelligence.lastReflection!.question);
+                    setShowReflection(false);
+                  }}
+                  className="flex-1 bg-white/30 hover:bg-white/40 text-white py-2 rounded transition font-medium"
+                >
+                  💬 Diskutera
+                </button>
+              )}
+            </div>
           </div>
         </div>
       )}

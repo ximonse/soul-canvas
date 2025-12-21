@@ -99,7 +99,16 @@ const KonvaNode: React.FC<KonvaNodeProps> = ({
       setImageObj(undefined);
       const textContent = node.ocrText || node.content || '';
       const estimatedLines = textContent.split('\n').length + textContent.length / 30 + 1;
-      setCardHeight(Math.max(CARD.MIN_HEIGHT, Math.min(CARD.MAX_HEIGHT, estimatedLines * CARD.LINE_HEIGHT_TEXT + CARD.PADDING * 2)));
+      let height = Math.max(CARD.MIN_HEIGHT, Math.min(CARD.MAX_HEIGHT, estimatedLines * CARD.LINE_HEIGHT_TEXT + CARD.PADDING * 2));
+      if (node.title) {
+        height += CARD.LINE_HEIGHT + CARD.PADDING / 2;
+      }
+      // Lägg till höjd för caption om den finns
+      if (node.caption?.trim()) {
+        const captionLines = Math.ceil(node.caption.length / 35) + 1;
+        height += captionLines * CARD.LINE_HEIGHT + CARD.PADDING;
+      }
+      setCardHeight(height);
     }
   }, [node.content, node.type, node.caption, isImage]);
 
@@ -239,24 +248,42 @@ const KonvaNode: React.FC<KonvaNodeProps> = ({
         />
       )}
 
+      {!isImage && !isFlipped && node.title && (
+        <Text
+          text={node.title}
+          x={node.accentColor ? CARD.PADDING + 8 : CARD.PADDING}
+          y={CARD.PADDING}
+          width={CARD.WIDTH - CARD.PADDING * 2 - (node.accentColor ? 8 : 0)}
+          fill={styles.text}
+          fontSize={CARD.FONT_SIZE}
+          fontFamily="Inter, sans-serif"
+          fontStyle="bold"
+          wrap="word"
+        />
+      )}
+
       {!isImage && !isFlipped && (
         <MarkdownText
           text={node.content}
-          x={node.accentColor ? CARD.PADDING + 8 : CARD.PADDING} y={CARD.PADDING}
+          x={node.accentColor ? CARD.PADDING + 8 : CARD.PADDING} y={CARD.PADDING + (node.title ? CARD.LINE_HEIGHT * 2 : 0)}
           width={CARD.WIDTH - CARD.PADDING * 2 - (node.accentColor ? 8 : 0)}
           fill={styles.text} fontSize={CARD.FONT_SIZE} fontFamily="Inter, sans-serif" align="left"
         />
       )}
 
-      {!isImage && !isFlipped && node.caption?.trim() && (
-        <Text text={node.caption}
-          x={node.accentColor ? CARD.PADDING + 8 : CARD.PADDING}
-          y={cardHeight - CARD.PADDING - CARD.FONT_SIZE_SMALL}
-          width={CARD.WIDTH - CARD.PADDING * 2 - (node.accentColor ? 8 : 0)}
-          fill={styles.text} fontSize={CARD.FONT_SIZE_SMALL}
-          fontFamily="'Noto Serif', Georgia, serif" fontStyle="italic" align="center" wrap="word"
-        />
-      )}
+      {!isImage && !isFlipped && node.caption?.trim() && (() => {
+        const captionLines = Math.ceil((node.caption?.length || 0) / 35) + 1;
+        const captionHeight = captionLines * CARD.LINE_HEIGHT;
+        return (
+          <Text text={node.caption}
+            x={node.accentColor ? CARD.PADDING + 8 : CARD.PADDING}
+            y={cardHeight - CARD.PADDING - captionHeight}
+            width={CARD.WIDTH - CARD.PADDING * 2 - (node.accentColor ? 8 : 0)}
+            fill={styles.text} fontSize={CARD.FONT_SIZE_SMALL}
+            fontFamily="'Noto Serif', Georgia, serif" fontStyle="italic" align="center" wrap="word"
+          />
+        );
+      })()}
 
       {isFlipped && (
         <>

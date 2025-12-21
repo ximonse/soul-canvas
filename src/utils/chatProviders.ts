@@ -36,8 +36,11 @@ export async function chatWithProvider(
           content: m.content,
         }));
 
-      // Extract system message if present
-      const systemMessage = messages.find(m => m.role === 'system')?.content;
+      // Combine ALL system messages (there may be multiple: base + context)
+      const systemMessages = messages.filter(m => m.role === 'system');
+      const systemMessage = systemMessages.length > 0
+        ? systemMessages.map(m => m.content).join('\n\n')
+        : undefined;
 
       const resp = await client.messages.create({
         model: modelToUse,

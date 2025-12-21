@@ -6,6 +6,7 @@ import { useBrainStore } from '../store/useBrainStore';
 import { type CanvasAPI } from './useCanvas';
 import { type SearchAPI } from './useSearch';
 import type { ContextMenuState } from '../components/overlays/ContextMenu';
+import { GRAVITY } from '../utils/constants';
 
 interface KeyboardHandlersProps {
   canvas: CanvasAPI;
@@ -28,17 +29,22 @@ interface KeyboardHandlersProps {
   arrangeGridHorizontal: () => void;
   arrangeCircle: () => void;
   arrangeKanban: () => void;
+  arrangeCentrality: () => void;
 
   // UI state setters
   setShowCommandPalette: (show: boolean | ((prev: boolean) => boolean)) => void;
   setShowAIPanel: (show: boolean | ((prev: boolean) => boolean)) => void;
   onOpenAIChat: () => void;
   onOpenMassImport: () => void;
+  onOpenQuoteExtractor: () => void;
   setZenMode: (value: boolean | ((prev: boolean) => boolean)) => void;
   setShowSettings: (show: boolean | ((prev: boolean) => boolean)) => void;
   setContextMenu: (menu: ContextMenuState | null) => void;
   setEditingCardId: (id: string | null) => void;
   onToggleScopePanel?: () => void;
+  onToggleSessionPanel?: () => void;
+  isSessionPanelOpen?: boolean;
+  onCloseSessionPanel?: () => void;
 }
 
 export function useKeyboardHandlers({
@@ -58,15 +64,20 @@ export function useKeyboardHandlers({
   arrangeGridHorizontal,
   arrangeCircle,
   arrangeKanban,
+  arrangeCentrality,
   setShowCommandPalette,
   setShowAIPanel,
   onOpenAIChat,
   onOpenMassImport,
+  onOpenQuoteExtractor,
   setZenMode,
   setShowSettings,
   setContextMenu,
   setEditingCardId,
   onToggleScopePanel,
+  onToggleSessionPanel,
+  isSessionPanelOpen,
+  onCloseSessionPanel,
 }: KeyboardHandlersProps) {
   const store = useBrainStore();
 
@@ -76,11 +87,30 @@ export function useKeyboardHandlers({
     onOpenSearch: () => search.openSearch(),
     onOpenAIChat: () => onOpenAIChat(),
     onDeleteSelected: deleteSelected,
-    onSelectAll: store.selectAll,
+    // Markera bara kort som är synliga (filtrerade efter session + taggar)
+    onSelectAll: () => {
+      const activeSession = store.activeSessionId
+        ? store.sessions.find(s => s.id === store.activeSessionId)
+        : null;
+
+      store.nodes.forEach((_, id) => {
+        // Om vi har en aktiv session, kolla om kortet är i den
+        const inSession = !activeSession || activeSession.cardIds.includes(id);
+        if (inSession) {
+          store.toggleSelection(id, true);
+        }
+      });
+    },
 
     onEscape: () => {
       if (search.isOpen) {
         search.closeSearch();
+        return;
+      }
+
+      // Stäng SessionPanel om den är öppen
+      if (isSessionPanelOpen) {
+        onCloseSessionPanel?.();
         return;
       }
 
@@ -132,7 +162,7 @@ export function useKeyboardHandlers({
 
     onAdjustGraphGravity: (delta: number) => {
       // Clampa gravity till giltigt range
-      const newGravity = Math.max(0.05, Math.min(5.0, store.graphGravity + delta));
+      const newGravity = Math.max(GRAVITY.MIN, Math.min(GRAVITY.MAX, store.graphGravity + delta));
       store.setGraphGravity(newGravity);
 
       // Kör om layouten live med färre iterationer för snabbare respons
@@ -199,6 +229,7 @@ export function useKeyboardHandlers({
     onArrangeGridHorizontal: arrangeGridHorizontal,
     onArrangeCircle: arrangeCircle,
     onArrangeKanban: arrangeKanban,
+    onArrangeCentrality: arrangeCentrality,
 
     onDuplicate: store.duplicateSelectedNodes,
 
@@ -250,6 +281,17 @@ export function useKeyboardHandlers({
     onMassImport: () => {
       if (!hasFile) return;
       onOpenMassImport();
+    },
+
+    // Session panel
+    onToggleSessionPanel: () => {
+      onToggleSessionPanel?.();
+    },
+
+    // Quote extractor (AI-driven)
+    onQuoteExtractor: () => {
+      if (!hasFile) return;
+      onOpenQuoteExtractor();
     },
 
     // Search focus

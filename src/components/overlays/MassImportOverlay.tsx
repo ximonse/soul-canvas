@@ -107,7 +107,7 @@ const MassImportOverlay: React.FC<MassImportOverlayProps> = ({
     >
       <div
         style={{
-          backgroundColor: theme.panelBg,
+          backgroundColor: theme.node.bg,
           borderRadius: 12,
           padding: 24,
           width: '600px',
@@ -122,7 +122,7 @@ const MassImportOverlay: React.FC<MassImportOverlayProps> = ({
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <h2 style={{
             margin: 0,
-            color: theme.textColor,
+            color: theme.node.text,
             fontFamily: "'Noto Serif', Georgia, serif",
             fontSize: 20
           }}>
@@ -133,7 +133,7 @@ const MassImportOverlay: React.FC<MassImportOverlayProps> = ({
             style={{
               background: 'none',
               border: 'none',
-              color: theme.textColor,
+              color: theme.node.text,
               fontSize: 24,
               cursor: 'pointer',
               opacity: 0.6
@@ -145,7 +145,7 @@ const MassImportOverlay: React.FC<MassImportOverlayProps> = ({
 
         <p style={{
           margin: 0,
-          color: theme.textColor,
+          color: theme.node.text,
           opacity: 0.7,
           fontSize: 14,
           fontFamily: "'Noto Serif', Georgia, serif"
@@ -170,9 +170,9 @@ Tredje kortet...`}
             height: 300,
             padding: 12,
             borderRadius: 8,
-            border: `1px solid ${theme.textColor}33`,
+            border: `1px solid ${theme.node.border}`,
             backgroundColor: theme.node.bg,
-            color: theme.textColor,
+            color: theme.node.text,
             fontFamily: "'Noto Serif', Georgia, serif",
             fontSize: 15,
             resize: 'vertical',
@@ -186,7 +186,7 @@ Tredje kortet...`}
           alignItems: 'center'
         }}>
           <span style={{
-            color: theme.textColor,
+            color: theme.node.text,
             opacity: 0.6,
             fontSize: 14
           }}>
@@ -199,9 +199,9 @@ Tredje kortet...`}
               style={{
                 padding: '8px 16px',
                 borderRadius: 6,
-                border: `1px solid ${theme.textColor}33`,
+                border: `1px solid ${theme.node.border}`,
                 backgroundColor: 'transparent',
-                color: theme.textColor,
+                color: theme.node.text,
                 cursor: 'pointer',
                 fontFamily: "'Noto Serif', Georgia, serif"
               }}
@@ -215,8 +215,8 @@ Tredje kortet...`}
                 padding: '8px 16px',
                 borderRadius: 6,
                 border: 'none',
-                backgroundColor: cards.length > 0 ? theme.lineColor : theme.textColor + '33',
-                color: cards.length > 0 ? '#fff' : theme.textColor,
+                backgroundColor: cards.length > 0 ? theme.lineColor : theme.node.border,
+                color: cards.length > 0 ? '#fff' : theme.node.text,
                 cursor: cards.length > 0 ? 'pointer' : 'not-allowed',
                 fontFamily: "'Noto Serif', Georgia, serif",
                 fontWeight: 500
@@ -228,7 +228,7 @@ Tredje kortet...`}
         </div>
 
         <span style={{
-          color: theme.textColor,
+          color: theme.node.text,
           opacity: 0.4,
           fontSize: 12,
           textAlign: 'right'
