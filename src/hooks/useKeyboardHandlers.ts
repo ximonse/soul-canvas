@@ -13,6 +13,7 @@ interface KeyboardHandlersProps {
   search: SearchAPI;
   hasFile: boolean;
   selectedNodesCount: number;
+  visibleNodeIds: Set<string>;  // IDs av synliga kort (efter session + taggfilter)
 
   // Actions
   centerCamera: () => void;
@@ -52,6 +53,7 @@ export function useKeyboardHandlers({
   search,
   hasFile,
   selectedNodesCount,
+  visibleNodeIds,
   centerCamera,
   fitAllNodes,
   resetZoom,
@@ -89,16 +91,8 @@ export function useKeyboardHandlers({
     onDeleteSelected: deleteSelected,
     // Markera bara kort som är synliga (filtrerade efter session + taggar)
     onSelectAll: () => {
-      const activeSession = store.activeSessionId
-        ? store.sessions.find(s => s.id === store.activeSessionId)
-        : null;
-
-      store.nodes.forEach((_, id) => {
-        // Om vi har en aktiv session, kolla om kortet är i den
-        const inSession = !activeSession || activeSession.cardIds.includes(id);
-        if (inSession) {
-          store.toggleSelection(id, true);
-        }
+      visibleNodeIds.forEach(id => {
+        store.toggleSelection(id, true);
       });
     },
 

@@ -1,7 +1,11 @@
 import React, { useState, useMemo } from 'react';
 import type { Session, MindNode } from '../types/types';
+import type { Theme } from '../themes';
 
 interface SessionPanelProps {
+  // Theme
+  theme: Theme;
+
   // Sessions
   sessions: Session[];
   activeSessionId: string | null;
@@ -26,9 +30,13 @@ interface SessionPanelProps {
   onAddCardsToSession: (cardIds: string[]) => void;
 
   // Statistik
+  selectedCount: number;
   sessionCardCount: number;
   visibleCardCount: number;
   totalCardCount: number;
+
+  // Sökterm (för att visa i inforutan)
+  searchQuery?: string;
 
   // Extern kontroll av expanded-state
   isExpanded: boolean;
@@ -36,6 +44,7 @@ interface SessionPanelProps {
 }
 
 export const SessionPanel: React.FC<SessionPanelProps> = ({
+  theme,
   sessions,
   activeSessionId,
   onCreateSession,
@@ -51,29 +60,42 @@ export const SessionPanel: React.FC<SessionPanelProps> = ({
   outsideSearchResults,
   onOutsideSearchChange,
   onAddCardsToSession,
+  selectedCount,
   sessionCardCount,
   visibleCardCount,
   totalCardCount,
+  searchQuery,
   isExpanded,
   onToggleExpanded,
 }) => {
   const [newSessionName, setNewSessionName] = useState('');
   const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
+  const [tagSortMode, setTagSortMode] = useState<'alpha' | 'count'>('alpha');
 
   const activeSession = useMemo(
     () => sessions.find(s => s.id === activeSessionId) || null,
     [sessions, activeSessionId]
   );
 
-  // Samla alla unika taggar från synliga kort
-  const allTags = useMemo(() => {
-    const tagSet = new Set<string>();
+  // Samla alla unika taggar med antal från synliga kort
+  const tagCounts = useMemo(() => {
+    const counts = new Map<string, number>();
     allNodes.forEach(node => {
-      node.tags?.forEach(t => tagSet.add(t));
+      node.tags?.forEach(t => {
+        counts.set(t, (counts.get(t) || 0) + 1);
+      });
     });
-    return Array.from(tagSet).sort();
+    return counts;
   }, [allNodes]);
+
+  const allTags = useMemo(() => {
+    const tags = Array.from(tagCounts.keys());
+    if (tagSortMode === 'count') {
+      return tags.sort((a, b) => (tagCounts.get(b) || 0) - (tagCounts.get(a) || 0));
+    }
+    return tags.sort();
+  }, [tagCounts, tagSortMode]);
 
   // Hjälpfunktion för tagg-status
   const getTagStatus = (tag: string): 'neutral' | 'include' | 'exclude' => {
@@ -101,63 +123,99 @@ export const SessionPanel: React.FC<SessionPanelProps> = ({
     setEditName('');
   };
 
-  // Kompakt läge - bara en rad
-  if (!isExpanded) {
-    return (
-      <div
-        className="absolute top-4 left-1/2 -translate-x-1/2 z-40 flex items-center gap-3 bg-gray-900/90 text-gray-100 px-4 py-2 rounded-xl border border-gray-700 shadow-lg backdrop-blur cursor-pointer hover:bg-gray-800/90 transition-colors"
-        onClick={onToggleExpanded}
-        onMouseDown={(e) => e.stopPropagation()}
-      >
-        <span className="text-sm font-medium">
-          {activeSession ? activeSession.name : 'Alla kort'}
-        </span>
-
-        {(includeTags.length > 0 || excludeTags.length > 0) && (
-          <div className="flex items-center gap-1">
-            {includeTags.slice(0, 2).map(t => (
-              <span key={t} className="px-2 py-0.5 text-xs bg-green-600/50 rounded-full">
-                +{t}
-              </span>
-            ))}
-            {excludeTags.slice(0, 2).map(t => (
-              <span key={t} className="px-2 py-0.5 text-xs bg-red-600/50 rounded-full">
-                -{t}
-              </span>
-            ))}
-            {(includeTags.length + excludeTags.length) > 4 && (
-              <span className="text-xs text-gray-400">+{includeTags.length + excludeTags.length - 4}</span>
-            )}
-          </div>
-        )}
-
-        <span className="text-xs text-gray-400">
-          {visibleCardCount} / {activeSession ? sessionCardCount : totalCardCount} kort
-        </span>
-
-        <span className="text-gray-500">▼</span>
-      </div>
-    );
-  }
-
-  // Expanderat läge
-  return (
+  // Inforuta (alltid synlig i toppen)
+  const infoBar = (
     <div
-      className="absolute top-4 left-1/2 -translate-x-1/2 z-40 w-[500px] bg-gray-900/95 text-gray-100 rounded-xl border border-gray-700 shadow-2xl backdrop-blur"
+      className="absolute top-4 left-1/2 -translate-x-1/2 z-40 flex items-center gap-3 px-4 py-2 rounded-xl border shadow-lg backdrop-blur cursor-pointer transition-colors"
+      style={{
+        backgroundColor: theme.node.bg + 'e6',
+        borderColor: theme.node.border,
+        color: theme.node.text,
+      }}
+      onClick={onToggleExpanded}
       onMouseDown={(e) => e.stopPropagation()}
     >
+      {/* Session */}
+      <span className="text-sm font-medium">
+        {activeSession ? activeSession.name : 'Alla kort'}
+      </span>
+
+      {/* Markerade kort */}
+      {selectedCount > 0 && (
+        <span className="px-2 py-0.5 text-xs bg-blue-600/50 rounded-full">
+          {selectedCount} markerade
+        </span>
+      )}
+
+      {/* Sökterm */}
+      {searchQuery && (
+        <span className="px-2 py-0.5 text-xs bg-yellow-600/50 rounded-full">
+          🔍 {searchQuery.length > 15 ? searchQuery.slice(0, 15) + '...' : searchQuery}
+        </span>
+      )}
+
+      {/* Taggfilter */}
+      {(includeTags.length > 0 || excludeTags.length > 0) && (
+        <div className="flex items-center gap-1">
+          {includeTags.slice(0, 2).map(t => (
+            <span key={t} className="px-2 py-0.5 text-xs bg-green-600/50 rounded-full">
+              +{t}
+            </span>
+          ))}
+          {excludeTags.slice(0, 2).map(t => (
+            <span key={t} className="px-2 py-0.5 text-xs bg-red-600/50 rounded-full">
+              -{t}
+            </span>
+          ))}
+          {(includeTags.length + excludeTags.length) > 4 && (
+            <span className="text-xs opacity-50">+{includeTags.length + excludeTags.length - 4}</span>
+          )}
+        </div>
+      )}
+
+      {/* Antal kort */}
+      <span className="text-xs opacity-50">
+        {visibleCardCount} / {activeSession ? sessionCardCount : totalCardCount} kort
+      </span>
+
+      <span className="opacity-40">{isExpanded ? '◀' : '▼'}</span>
+    </div>
+  );
+
+  // Bara inforutan om inte expanderat
+  if (!isExpanded) {
+    return infoBar;
+  }
+
+  // Expanderat läge - panel till vänster + inforutan i toppen
+  return (
+    <>
+      {infoBar}
+      <div
+        className="fixed left-0 top-0 h-full w-80 z-50 border-r shadow-2xl backdrop-blur overflow-hidden flex flex-col"
+        style={{
+          backgroundColor: theme.node.bg + 'f2',
+          borderColor: theme.node.border,
+          color: theme.node.text,
+        }}
+        onMouseDown={(e) => e.stopPropagation()}
+      >
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-700">
-        <span className="font-semibold">Session <span className="text-xs text-gray-500 font-normal">(S)</span></span>
+      <div
+        className="flex items-center justify-between px-4 py-3 border-b"
+        style={{ borderColor: theme.node.border }}
+      >
+        <span className="font-semibold">Session <span className="text-xs opacity-50 font-normal">(S)</span></span>
         <button
           onClick={onToggleExpanded}
-          className="text-gray-400 hover:text-white text-lg"
+          className="opacity-60 hover:opacity-100 text-sm"
+          title="Stäng"
         >
-          ▲
+          ✕
         </button>
       </div>
 
-      <div className="p-4 space-y-4 max-h-[70vh] overflow-y-auto">
+      <div className="p-4 space-y-4 flex-1 overflow-y-auto">
         {/* Session-lista */}
         <div className="space-y-2">
           <div className="flex items-center gap-2">
@@ -166,11 +224,16 @@ export const SessionPanel: React.FC<SessionPanelProps> = ({
               onChange={(e) => setNewSessionName(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleCreateSession()}
               placeholder="Ny session..."
-              className="flex-1 bg-gray-800 text-sm px-3 py-2 rounded border border-gray-700 outline-none focus:border-blue-500"
+              className="flex-1 text-sm px-3 py-2 rounded border outline-none focus:border-blue-500"
+              style={{
+                backgroundColor: theme.node.bg,
+                borderColor: theme.node.border,
+                color: theme.node.text,
+              }}
             />
             <button
               onClick={handleCreateSession}
-              className="px-3 py-2 text-sm bg-blue-600 hover:bg-blue-500 rounded"
+              className="px-3 py-2 text-sm bg-blue-600 hover:bg-blue-500 rounded text-white"
             >
               + Skapa
             </button>
@@ -181,11 +244,15 @@ export const SessionPanel: React.FC<SessionPanelProps> = ({
             <button
               onClick={() => onSwitchSession(null)}
               className={`w-full text-left px-3 py-2 rounded text-sm flex items-center justify-between ${
-                !activeSessionId ? 'bg-blue-600' : 'bg-gray-800 hover:bg-gray-700'
+                !activeSessionId ? 'bg-blue-600 text-white' : 'hover:opacity-80'
               }`}
+              style={activeSessionId ? {
+                backgroundColor: theme.node.bg,
+                color: theme.node.text,
+              } : undefined}
             >
               <span>Alla kort</span>
-              <span className="text-xs text-gray-400">{totalCardCount} kort</span>
+              <span className="text-xs opacity-60">{totalCardCount} kort</span>
             </button>
 
             {/* Sessioner */}
@@ -193,8 +260,12 @@ export const SessionPanel: React.FC<SessionPanelProps> = ({
               <div
                 key={session.id}
                 className={`flex items-center gap-2 px-3 py-2 rounded text-sm ${
-                  activeSessionId === session.id ? 'bg-blue-600' : 'bg-gray-800 hover:bg-gray-700'
+                  activeSessionId === session.id ? 'bg-blue-600 text-white' : 'hover:opacity-80'
                 }`}
+                style={activeSessionId !== session.id ? {
+                  backgroundColor: theme.node.bg,
+                  color: theme.node.text,
+                } : undefined}
               >
                 {editingSessionId === session.id ? (
                   <input
@@ -202,7 +273,11 @@ export const SessionPanel: React.FC<SessionPanelProps> = ({
                     onChange={(e) => setEditName(e.target.value)}
                     onBlur={handleFinishRename}
                     onKeyDown={(e) => e.key === 'Enter' && handleFinishRename()}
-                    className="flex-1 bg-gray-700 px-2 py-1 rounded outline-none"
+                    className="flex-1 px-2 py-1 rounded outline-none"
+                    style={{
+                      backgroundColor: theme.node.border,
+                      color: theme.node.text,
+                    }}
                     autoFocus
                   />
                 ) : (
@@ -213,17 +288,17 @@ export const SessionPanel: React.FC<SessionPanelProps> = ({
                     >
                       {session.name}
                     </button>
-                    <span className="text-xs text-gray-400">{session.cardIds.length} kort</span>
+                    <span className="text-xs opacity-60">{session.cardIds.length} kort</span>
                     <button
                       onClick={() => handleStartRename(session)}
-                      className="text-gray-400 hover:text-white px-1"
+                      className="opacity-60 hover:opacity-100 px-1"
                       title="Byt namn"
                     >
                       ✏️
                     </button>
                     <button
                       onClick={() => onDeleteSession(session.id)}
-                      className="text-gray-400 hover:text-red-400 px-1"
+                      className="opacity-60 hover:opacity-100 px-1"
                       title="Ta bort session"
                     >
                       🗑️
@@ -235,53 +310,13 @@ export const SessionPanel: React.FC<SessionPanelProps> = ({
           </div>
         </div>
 
-        {/* Taggfilter - klicka för att växla: neutral → inkludera → exkludera → neutral */}
-        <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <div className="text-xs text-gray-400 uppercase tracking-wide">
-              Taggfilter <span className="normal-case">(klicka för att växla)</span>
-            </div>
-            {(includeTags.length > 0 || excludeTags.length > 0) && (
-              <button
-                onClick={onClearTagFilter}
-                className="text-xs text-gray-500 hover:text-gray-300"
-              >
-                Rensa
-              </button>
-            )}
-          </div>
-
-          {allTags.length === 0 ? (
-            <div className="text-xs text-gray-500">Inga taggar i sessionen</div>
-          ) : (
-            <div className="flex flex-wrap gap-1">
-              {allTags.map(tag => {
-                const status = getTagStatus(tag);
-                const bgClass = status === 'include'
-                  ? 'bg-green-600/40 border-green-500/60'
-                  : status === 'exclude'
-                    ? 'bg-red-600/40 border-red-500/60'
-                    : 'bg-gray-800 border-gray-700 hover:border-gray-600';
-                const prefix = status === 'include' ? '+' : status === 'exclude' ? '-' : '';
-
-                return (
-                  <button
-                    key={tag}
-                    onClick={() => onToggleTagFilter(tag)}
-                    className={`px-2 py-1 rounded-full text-xs border transition-colors ${bgClass}`}
-                  >
-                    {prefix}{tag}
-                  </button>
-                );
-              })}
-            </div>
-          )}
-        </div>
-
         {/* Sök utanför session (bara om i en session) */}
         {activeSession && (
-          <div className="space-y-2 border-t border-gray-700 pt-4">
-            <div className="text-xs text-gray-400 uppercase tracking-wide">
+          <div
+            className="space-y-2 border-t pt-4"
+            style={{ borderColor: theme.node.border }}
+          >
+            <div className="text-xs opacity-60 uppercase tracking-wide">
               Lägg till kort (söker utanför session)
             </div>
 
@@ -289,7 +324,12 @@ export const SessionPanel: React.FC<SessionPanelProps> = ({
               value={outsideSearchQuery}
               onChange={(e) => onOutsideSearchChange(e.target.value)}
               placeholder="Sök AND/OR/NOT/wildcards*..."
-              className="w-full bg-gray-800 text-sm px-3 py-2 rounded border border-gray-700 outline-none focus:border-blue-500"
+              className="w-full text-sm px-3 py-2 rounded border outline-none focus:border-blue-500"
+              style={{
+                backgroundColor: theme.node.bg,
+                borderColor: theme.node.border,
+                color: theme.node.text,
+              }}
             />
 
             {outsideSearchResults.length > 0 && (
@@ -306,7 +346,11 @@ export const SessionPanel: React.FC<SessionPanelProps> = ({
                   {outsideSearchResults.slice(0, 10).map(node => (
                     <div
                       key={node.id}
-                      className="flex items-center gap-2 px-3 py-2 bg-gray-800 rounded hover:bg-gray-700 cursor-pointer"
+                      className="flex items-center gap-2 px-3 py-2 rounded hover:opacity-80 cursor-pointer"
+                      style={{
+                        backgroundColor: theme.node.bg,
+                        color: theme.node.text,
+                      }}
                       onClick={() => onAddCardsToSession([node.id])}
                     >
                       <span className="text-sm truncate flex-1">
@@ -316,7 +360,7 @@ export const SessionPanel: React.FC<SessionPanelProps> = ({
                     </div>
                   ))}
                   {outsideSearchResults.length > 10 && (
-                    <div className="text-xs text-gray-400 text-center py-1">
+                    <div className="text-xs opacity-50 text-center py-1">
                       ...och {outsideSearchResults.length - 10} till
                     </div>
                   )}
@@ -326,13 +370,106 @@ export const SessionPanel: React.FC<SessionPanelProps> = ({
           </div>
         )}
 
+        {/* Taggfilter - klicka för att växla: neutral → inkludera → exkludera → neutral */}
+        <div
+          className="space-y-2 border-t pt-4"
+          style={{ borderColor: theme.node.border }}
+        >
+          <div className="flex items-center justify-between">
+            <div className="text-xs opacity-60 uppercase tracking-wide">
+              Taggfilter
+            </div>
+            <div className="flex items-center gap-2">
+              {/* Sortering */}
+              <div className="flex text-xs">
+                <button
+                  onClick={() => setTagSortMode('alpha')}
+                  className="px-2 py-0.5 rounded-l border"
+                  style={{
+                    borderColor: theme.node.border,
+                    backgroundColor: tagSortMode === 'alpha' ? theme.node.border : 'transparent',
+                    color: theme.node.text,
+                    opacity: tagSortMode === 'alpha' ? 1 : 0.6,
+                  }}
+                  title="Alfabetisk"
+                >
+                  A-Ö
+                </button>
+                <button
+                  onClick={() => setTagSortMode('count')}
+                  className="px-2 py-0.5 rounded-r border border-l-0"
+                  style={{
+                    borderColor: theme.node.border,
+                    backgroundColor: tagSortMode === 'count' ? theme.node.border : 'transparent',
+                    color: theme.node.text,
+                    opacity: tagSortMode === 'count' ? 1 : 0.6,
+                  }}
+                  title="Antal"
+                >
+                  #
+                </button>
+              </div>
+              {(includeTags.length > 0 || excludeTags.length > 0) && (
+                <button
+                  onClick={onClearTagFilter}
+                  className="text-xs opacity-50 hover:opacity-100"
+                >
+                  Rensa
+                </button>
+              )}
+            </div>
+          </div>
+
+          {allTags.length === 0 ? (
+            <div className="text-xs opacity-50">Inga taggar i sessionen</div>
+          ) : (
+            <div className="flex flex-wrap gap-1">
+              {allTags.map(tag => {
+                const status = getTagStatus(tag);
+                const prefix = status === 'include' ? '+' : status === 'exclude' ? '-' : '';
+
+                return (
+                  <button
+                    type="button"
+                    key={tag}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onToggleTagFilter(tag);
+                    }}
+                    className="px-2 py-1 rounded-full text-xs border transition-colors"
+                    style={{
+                      backgroundColor: status === 'include'
+                        ? 'rgba(34, 197, 94, 0.3)'
+                        : status === 'exclude'
+                          ? 'rgba(239, 68, 68, 0.3)'
+                          : theme.node.bg,
+                      borderColor: status === 'include'
+                        ? 'rgba(34, 197, 94, 0.6)'
+                        : status === 'exclude'
+                          ? 'rgba(239, 68, 68, 0.6)'
+                          : theme.node.border,
+                      color: theme.node.text,
+                    }}
+                  >
+                    {prefix}{tag} <span className="opacity-50">{tagCounts.get(tag)}</span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
         {/* Statistik */}
-        <div className="text-xs text-gray-500 text-center pt-2 border-t border-gray-700">
+        <div
+          className="text-xs opacity-50 text-center pt-2 border-t"
+          style={{ borderColor: theme.node.border }}
+        >
           Visar: {visibleCardCount} |
           {activeSession ? ` Session: ${sessionCardCount} |` : ''}
           Totalt: {totalCardCount} kort
         </div>
       </div>
-    </div>
+      </div>
+    </>
   );
 };

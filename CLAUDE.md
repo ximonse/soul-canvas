@@ -316,3 +316,58 @@ src/
 | `G+C` | Centralitet (16:9 rektangel, mest kopplade i mitten) |
 | `G+scroll` | Justera graph gravity (markerade eller alla) |
 | `D` (håll) + klick | Skapa sekvenskedja |
+
+---
+
+## Sessionslogg 2025-12-21
+
+### Implementerat idag:
+
+**1. Sessions-funktion (arbetsytor)**
+- Skapa namngivna sessioner för att gruppera kort
+- "Alla kort" som all-inclusive alternativ
+- Byta mellan sessioner med dropdown
+- Byt namn och ta bort sessioner
+- Nya kort läggs automatiskt till i aktiv session
+- Högerklick → "Ta bort från session"
+- Persistens: sessions sparas med filen
+
+**Filer:**
+- `src/types/types.ts` - Session interface
+- `src/store/useBrainStore.ts` - sessions state och actions
+- `src/components/SessionPanel.tsx` - **NY** huvudkomponent
+- `src/hooks/useSessionSearch.ts` - **NY** sök utanför session
+- `src/utils/nodeFilters.ts` - filterNodesBySession, filterNodesOutsideSession
+- `src/hooks/useFileSystem.ts` - sessions persistens
+
+**2. Granulär taggfiltrering**
+- Klicka på tagg för att cykla: neutral → inkludera (+grön) → exkludera (-röd) → neutral
+- Visa antal kort per tagg
+- Sortera taggar: A-Ö eller efter antal (#)
+- Oberoende include/exclude per tagg (inte globalt läge)
+
+**3. Sök utanför session**
+- Booleansk sökning (AND/OR/NOT, wildcards, parenteser)
+- Söker bland kort som INTE är i aktiv session
+- "Lägg till alla" knapp för sökresultat
+- Klicka på enskilt kort för att lägga till
+
+**4. SessionPanel UI**
+- Inforuta i toppen (alltid synlig): session, markerade, sökterm, taggar, antal kort
+- Expanderad panel till vänster (som AIPanel) med `S`-tangent
+- Följer aktuellt tema (alla paneler: SessionPanel, AIPanel)
+
+**5. Förbättringar för session-filtrering**
+- `Ctrl+A` markerar endast synliga kort (session + taggfilter)
+- `-` (fit all) zoomar för synliga kort, inte dolda
+- Arrangemang påverkar endast synliga/markerade kort
+
+**Filer ändrade:**
+- `src/App.tsx` - session-filtrering pipeline, visibleNodeIds
+- `src/hooks/useKeyboardHandlers.ts` - visibleNodeIds för Ctrl+A
+- `src/hooks/useNodeActions.ts` - visibleNodes för fitAllNodes
+- `src/components/AIPanel.tsx` - theme-stöd
+- `src/components/ModalManager.tsx` - theme till AIPanel
+
+**Borttagna filer:**
+- `src/components/TagFilterBar.tsx` - ersatt av SessionPanel

@@ -2,8 +2,10 @@
 import { useState } from 'react';
 import { useAIPanelActions } from '../hooks/useAIPanelActions';
 import { APIKeyStatus } from './ai';
+import type { Theme } from '../themes';
 
 interface AIPanelProps {
+  theme: Theme;
   onClose: () => void;
   onDiscussReflection?: (reflection: string) => void;
 }
@@ -31,7 +33,7 @@ const StepSection = ({
   </div>
 );
 
-export const AIPanel = ({ onClose, onDiscussReflection }: AIPanelProps) => {
+export const AIPanel = ({ theme, onClose, onDiscussReflection }: AIPanelProps) => {
   const {
     searchQuery,
     setSearchQuery,
@@ -63,19 +65,30 @@ export const AIPanel = ({ onClose, onDiscussReflection }: AIPanelProps) => {
 
   return (
     <div
-      className="fixed left-0 top-0 h-full w-80 z-50 bg-gradient-to-b from-gray-900 to-gray-800 border-r border-purple-500/30 shadow-2xl overflow-y-auto"
+      className="fixed left-0 top-0 h-full w-80 z-50 border-r shadow-2xl overflow-y-auto"
+      style={{
+        backgroundColor: theme.node.bg + 'f2',
+        borderColor: theme.node.border,
+        color: theme.node.text,
+      }}
       role="dialog"
       aria-modal="false"
       aria-labelledby="ai-panel-title"
     >
       {/* Header */}
-      <header className="sticky top-0 bg-gray-900/95 backdrop-blur-sm p-4 border-b border-purple-500/20 flex items-center justify-between">
-        <h2 id="ai-panel-title" className="text-lg text-white font-bold flex items-center gap-2">
+      <header
+        className="sticky top-0 backdrop-blur-sm p-4 border-b flex items-center justify-between"
+        style={{
+          backgroundColor: theme.node.bg + 'f0',
+          borderColor: theme.node.border,
+        }}
+      >
+        <h2 id="ai-panel-title" className="text-lg font-bold flex items-center gap-2">
           🧠 Intelligent Motor
         </h2>
         <button
           onClick={onClose}
-          className="text-gray-400 hover:text-white text-xl w-8 h-8 flex items-center justify-center rounded hover:bg-white/10"
+          className="opacity-60 hover:opacity-100 text-xl w-8 h-8 flex items-center justify-center rounded hover:bg-white/10"
           aria-label="Close AI panel"
         >
           ×

@@ -12,9 +12,10 @@ interface NodeActionsProps {
   stageRef: React.RefObject<Konva.Stage | null>;
   setShowSettings: (show: boolean) => void;
   setContextMenu: (menu: ContextMenuState | null) => void;
+  visibleNodes?: import('../types/types').MindNode[];
 }
 
-export function useNodeActions({ stageRef, setShowSettings, setContextMenu }: NodeActionsProps) {
+export function useNodeActions({ stageRef, setShowSettings, setContextMenu, visibleNodes }: NodeActionsProps) {
   const store = useBrainStore();
 
   // Center camera on selected nodes (or all if none selected)
@@ -44,14 +45,17 @@ export function useNodeActions({ stageRef, setShowSettings, setContextMenu }: No
     stageRef.current.batchDraw();
   }, [store.nodes, stageRef]);
 
-  // Fit all nodes in view (zoom out to show everything)
+  // Fit all visible nodes in view (zoom to show everything, as large as possible)
   const fitAllNodes = useCallback(() => {
-    const allNodes = Array.from(store.nodes.values());
-    if (!stageRef.current || allNodes.length === 0) return;
+    // Använd synliga noder om tillgängliga, annars alla
+    const nodes = visibleNodes && visibleNodes.length > 0
+      ? visibleNodes
+      : Array.from(store.nodes.values());
+    if (!stageRef.current || nodes.length === 0) return;
 
-    // Beräkna bounding box för alla kort
+    // Beräkna bounding box för synliga kort
     let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-    allNodes.forEach(n => {
+    nodes.forEach(n => {
       const w = n.width || 200;
       const h = n.height || 100;
       minX = Math.min(minX, n.x);
@@ -62,12 +66,12 @@ export function useNodeActions({ stageRef, setShowSettings, setContextMenu }: No
 
     const contentWidth = maxX - minX;
     const contentHeight = maxY - minY;
-    const padding = 100; // Marginal runt innehållet
+    const padding = 50; // Marginal runt innehållet
 
-    // Beräkna zoom för att passa allt (minst 10% zoom för att undvika oändligt liten)
+    // Beräkna zoom för att passa allt (min per constant, max 100%)
     const scaleX = (window.innerWidth - padding * 2) / contentWidth;
     const scaleY = (window.innerHeight - padding * 2) / contentHeight;
-    const newScale = Math.max(ZOOM.MIN, Math.min(scaleX, scaleY, 1)); // Min zoom per constant, max 100%
+    const newScale = Math.max(ZOOM.MIN, Math.min(scaleX, scaleY, 1));
 
     // Centrera innehållet
     const centerX = minX + contentWidth / 2;
@@ -79,7 +83,7 @@ export function useNodeActions({ stageRef, setShowSettings, setContextMenu }: No
       y: (window.innerHeight / 2) - (centerY * newScale),
     });
     stageRef.current.batchDraw();
-  }, [store.nodes, stageRef]);
+  }, [store.nodes, stageRef, visibleNodes]);
 
   // Reset zoom to 100% and center
   const resetZoom = useCallback(() => {

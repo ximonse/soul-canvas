@@ -101,6 +101,10 @@ function App() {
     Array.from(store.nodes.values()).filter(n => n.selected).length,
     [store.nodes]
   );
+  const visibleNodeIds = useMemo(() =>
+    new Set(filteredNodesArray.map(n => n.id)),
+    [filteredNodesArray]
+  );
 
   // Import handlers
   const { handleDrop } = useImportHandlers({ canvas, hasFile, saveAsset });
@@ -110,6 +114,7 @@ function App() {
     stageRef,
     setShowSettings,
     setContextMenu,
+    visibleNodes: filteredNodesArray,
   });
 
   const handleAutoTag = useCallback(async (id: string) => {
@@ -215,6 +220,7 @@ function App() {
     search,
     hasFile,
     selectedNodesCount,
+    visibleNodeIds,
     centerCamera,
     fitAllNodes,
     resetZoom,
@@ -307,6 +313,7 @@ function App() {
       />
 
       <SessionPanel
+        theme={theme}
         sessions={store.sessions}
         activeSessionId={store.activeSessionId}
         onCreateSession={store.createSession}
@@ -326,9 +333,11 @@ function App() {
             store.addCardsToSession(store.activeSessionId, cardIds);
           }
         }}
+        selectedCount={selectedNodesCount}
         sessionCardCount={activeSession?.cardIds.length ?? 0}
         visibleCardCount={filteredNodesArray.length}
         totalCardCount={allNodesArray.length}
+        searchQuery={search.query}
         isExpanded={showSessionPanel}
         onToggleExpanded={() => setShowSessionPanel(prev => !prev)}
       />

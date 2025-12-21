@@ -1,6 +1,7 @@
 // src/components/overlays/SettingsModal.tsx
 // Tema-aware settings modal with serif font and larger text
 
+import { useState } from 'react';
 import { useBrainStore } from '../../store/useBrainStore';
 import type { Theme } from '../../themes';
 
@@ -11,6 +12,7 @@ interface SettingsModalProps {
 
 export function SettingsModal({ onClose, theme }: SettingsModalProps) {
   const store = useBrainStore();
+  const [showKeys, setShowKeys] = useState(false);
 
   return (
     <div
@@ -29,47 +31,60 @@ export function SettingsModal({ onClose, theme }: SettingsModalProps) {
         <h2 className="text-2xl mb-6 font-bold">Inställningar</h2>
 
         <div className="space-y-4">
-          <div>
-            <label className="block text-sm mb-2 opacity-80">
-              Gemini API Key (OCR & Bildanalys)
-            </label>
-            <input
-              type="password"
-              value={store.geminiKey || ''}
-              onChange={e => store.setApiKey('gemini', e.target.value)}
-              className="w-full bg-black/20 border rounded p-3"
-              style={{ borderColor: theme.node.border, color: theme.node.text }}
-              placeholder="AIza..."
-            />
-          </div>
+          <button
+            onClick={() => setShowKeys(!showKeys)}
+            className="flex items-center justify-between w-full p-3 rounded text-left font-semibold transition-colors hover:bg-black/10"
+            style={{ border: `1px solid ${theme.node.border}` }}
+          >
+            <span>API-nycklar</span>
+            <span className={`transform transition-transform ${showKeys ? 'rotate-180' : ''}`}>▼</span>
+          </button>
+          
+          {showKeys && (
+            <div className="space-y-4 p-4 rounded bg-black/5">
+              <div>
+                <label className="block text-sm mb-2 opacity-80">
+                  Gemini API Key (OCR & Bildanalys)
+                </label>
+                <input
+                  type="password"
+                  value={store.geminiKey || ''}
+                  onChange={e => store.setApiKey('gemini', e.target.value)}
+                  className="w-full bg-black/20 border rounded p-3"
+                  style={{ borderColor: theme.node.border, color: theme.node.text }}
+                  placeholder="AIza..."
+                />
+              </div>
 
-          <div>
-            <label className="block text-sm mb-2 opacity-80">
-              OpenAI API Key (Embeddings & Semantisk sökning)
-            </label>
-            <input
-              type="password"
-              value={store.openaiKey || ''}
-              onChange={e => store.setApiKey('openai', e.target.value)}
-              className="w-full bg-black/20 border rounded p-3"
-              style={{ borderColor: theme.node.border, color: theme.node.text }}
-              placeholder="sk-..."
-            />
-          </div>
+              <div>
+                <label className="block text-sm mb-2 opacity-80">
+                  OpenAI API Key (Embeddings & Semantisk sökning)
+                </label>
+                <input
+                  type="password"
+                  value={store.openaiKey || ''}
+                  onChange={e => store.setApiKey('openai', e.target.value)}
+                  className="w-full bg-black/20 border rounded p-3"
+                  style={{ borderColor: theme.node.border, color: theme.node.text }}
+                  placeholder="sk-..."
+                />
+              </div>
 
-          <div>
-            <label className="block text-sm mb-2 opacity-80">
-              Claude API Key (AI Reflektion & Frågor)
-            </label>
-            <input
-              type="password"
-              value={store.claudeKey || ''}
-              onChange={e => store.setApiKey('claude', e.target.value)}
-              className="w-full bg-black/20 border rounded p-3"
-              style={{ borderColor: theme.node.border, color: theme.node.text }}
-              placeholder="sk-ant-..."
-            />
-          </div>
+              <div>
+                <label className="block text-sm mb-2 opacity-80">
+                  Claude API Key (AI Reflektion & Frågor)
+                </label>
+                <input
+                  type="password"
+                  value={store.claudeKey || ''}
+                  onChange={e => store.setApiKey('claude', e.target.value)}
+                  className="w-full bg-black/20 border rounded p-3"
+                  style={{ borderColor: theme.node.border, color: theme.node.text }}
+                  placeholder="sk-ant-..."
+                />
+              </div>
+            </div>
+          )}
         </div>
 
         <button

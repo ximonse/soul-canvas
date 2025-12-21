@@ -187,6 +187,7 @@ export const ModalManager: React.FC<ModalManagerProps> = ({
 
       {showAIPanel && (
         <AIPanel
+          theme={theme}
           onClose={() => setShowAIPanel(false)}
           onDiscussReflection={onDiscussReflection}
         />
