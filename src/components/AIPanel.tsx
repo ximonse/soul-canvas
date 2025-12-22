@@ -70,7 +70,7 @@ export const AIPanel = ({ theme, onClose, onDiscussReflection }: AIPanelProps) =
   const panelBg = isDarkTheme ? 'rgba(0,0,0,0.3)' : 'rgba(0,0,0,0.05)';
   const inputBg = isDarkTheme ? 'rgba(0,0,0,0.5)' : 'rgba(255,255,255,0.8)';
   const inputBorder = isDarkTheme ? 'border-gray-600' : 'border-gray-300';
-  const subTextColor = isDarkTheme ? 'text-gray-400' : 'text-gray-600';
+  const subTextColor = isDarkTheme ? '#e5e7eb' : '#1f2937';
 
   return (
     <div
@@ -108,7 +108,7 @@ export const AIPanel = ({ theme, onClose, onDiscussReflection }: AIPanelProps) =
         {/* Status */}
         <div className="rounded-lg p-3 mb-4" style={{ backgroundColor: panelBg }}>
           <div className="flex justify-between text-sm mb-1">
-            <span className={subTextColor}>Vektorer:</span>
+            <span className="text-sm" style={{ color: subTextColor }}>Vektorer:</span>
             <span className="font-mono" style={{ color: theme.node.text }}>{embeddedCount}/{totalCount}</span>
           </div>
           <div className="w-full h-2 bg-gray-300 dark:bg-gray-700 rounded-full overflow-hidden">
@@ -151,8 +151,8 @@ export const AIPanel = ({ theme, onClose, onDiscussReflection }: AIPanelProps) =
         <StepSection step={2} title="Visa kopplingar" textColor={theme.node.text}>
           {/* Slider: Kopplingsstryka (minsta likhet för att skapa koppling) */}
           <div className="mb-3">
-            <div className="flex justify-between text-xs mb-1" style={{ color: subTextColor.replace('text-', '') /* Hacky but works if using tailwind classes in JS logic */ }}>
-              <span className={subTextColor}>Kopplingsstryka</span>
+            <div className="flex justify-between text-xs mb-1" style={{ color: subTextColor }}>
+              <span style={{ color: subTextColor }}>Kopplingsstryka</span>
               <span className="font-mono" style={{ color: theme.node.text }}>{Math.round((store.autoLinkThreshold || 0.75) * 100)}%</span>
             </div>
             <input
@@ -164,13 +164,13 @@ export const AIPanel = ({ theme, onClose, onDiscussReflection }: AIPanelProps) =
               onChange={e => store.setAutoLinkThreshold(parseFloat(e.target.value))}
               className="w-full h-2 rounded-lg appearance-none cursor-pointer accent-purple-500 bg-gray-300 dark:bg-gray-700"
             />
-            <p className={`text-xs mt-1 ${subTextColor}`}>Lägre = fler kopplingar</p>
+            <p className="text-xs mt-1" style={{ color: subTextColor }}>Lägre = fler kopplingar</p>
           </div>
 
           {/* Slider: Synlighet (filtrera befintliga kopplingar) */}
           <div className="mb-3">
             <div className="flex justify-between text-xs mb-1">
-              <span className={subTextColor}>Synlighet</span>
+              <span style={{ color: subTextColor }}>Synlighet</span>
               <span className="font-mono" style={{ color: theme.node.text }}>≥{Math.round((store.synapseVisibilityThreshold || 0) * 100)}%</span>
             </div>
             <input
@@ -182,7 +182,7 @@ export const AIPanel = ({ theme, onClose, onDiscussReflection }: AIPanelProps) =
               onChange={e => store.setSynapseVisibilityThreshold(parseFloat(e.target.value))}
               className="w-full h-2 rounded-lg appearance-none cursor-pointer accent-purple-500 bg-gray-300 dark:bg-gray-700"
             />
-            <p className={`text-xs mt-1 ${subTextColor}`}>
+            <p className="text-xs mt-1" style={{ color: subTextColor }}>
               {totalSynapseCount > 0
                 ? `Visar ${visibleSynapseCount} av ${totalSynapseCount} kopplingar`
                 : 'Inga kopplingar ännu'
@@ -226,7 +226,7 @@ export const AIPanel = ({ theme, onClose, onDiscussReflection }: AIPanelProps) =
             <div className="mt-3 space-y-3">
               {/* Semantisk sökning */}
               <div>
-                <label className={`block text-xs mb-1 ${subTextColor}`}>🔍 Konceptuell sökning</label>
+                <label className="block text-xs mb-1" style={{ color: subTextColor }}>🔍 Konceptuell sökning</label>
                 <div className="flex gap-2">
                   <input
                     type="text"
@@ -253,7 +253,7 @@ export const AIPanel = ({ theme, onClose, onDiscussReflection }: AIPanelProps) =
 
               {/* Auto-tagga */}
               <div>
-                <label className={`block text-xs mb-1 ${subTextColor}`}>🏷️ Semantiska taggar</label>
+                <label className="block text-xs mb-1" style={{ color: subTextColor }}>🏷️ Semantiska taggar</label>
                 <button
                   onClick={handleGenerateTags}
                   disabled={intelligence.isProcessing || selectedCount === 0 || !store.claudeKey}
@@ -266,7 +266,7 @@ export const AIPanel = ({ theme, onClose, onDiscussReflection }: AIPanelProps) =
 
               {/* Reflektion */}
               <div>
-                <label className={`block text-xs mb-1 ${subTextColor}`}>💭 AI Reflektion</label>
+                <label className="block text-xs mb-1" style={{ color: subTextColor }}>💭 AI Reflektion</label>
                 <button
                   onClick={handleReflect}
                   disabled={intelligence.isProcessing || totalCount === 0 || !store.claudeKey}
@@ -279,7 +279,7 @@ export const AIPanel = ({ theme, onClose, onDiscussReflection }: AIPanelProps) =
               {/* Kluster-analys */}
               {selectedCount >= 2 && (
                 <div>
-                  <label className={`block text-xs mb-1 ${subTextColor}`}>🌌 Kluster-analys</label>
+                  <label className="block text-xs mb-1" style={{ color: subTextColor }}>🌌 Kluster-analys</label>
                   <button
                     onClick={handleAnalyzeCluster}
                     disabled={intelligence.isProcessing || !store.claudeKey}
