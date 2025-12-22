@@ -36,18 +36,20 @@ export function useAIPanelActions() {
       if (count > 0) {
         notify(`Skapade embeddings för ${count} noder!`, 'success');
 
-        if (store.enableAutoLink) {
-          const links = await intelligence.autoLinkSimilarNodes();
-          if (links > 0) {
-            notify(`Skapade ${links} automatiska länkar!`, 'success');
-          }
+        // Aktivera auto-länkning och länka alla efter vektorisering
+        if (!store.enableAutoLink) {
+          store.toggleAutoLink(); // Aktivera för nya kort
+        }
+        const links = await intelligence.autoLinkSimilarNodes();
+        if (links > 0) {
+          notify(`Skapade ${links} kopplingar!`, 'success');
         }
       }
     } catch (error) {
       console.error('Fel vid skapande av embeddings', error);
       notify(`Fel vid skapande av embeddings: ${error instanceof Error ? error.message : 'Okänt fel'}`, 'error');
     }
-  }, [store.openaiKey, store.enableAutoLink, intelligence]);
+  }, [store, intelligence]);
 
   const handleAutoLink = useCallback(async () => {
     if (embeddedCount < 2) {

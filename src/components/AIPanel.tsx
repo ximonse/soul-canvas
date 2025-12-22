@@ -14,10 +14,12 @@ interface AIPanelProps {
 const StepSection = ({
   step,
   title,
+  textColor,
   children
 }: {
   step: number;
   title: string;
+  textColor: string;
   children: React.ReactNode;
 }) => (
   <div className="mb-4">
@@ -25,7 +27,7 @@ const StepSection = ({
       <span className="w-6 h-6 rounded-full bg-purple-600 text-white text-xs flex items-center justify-center font-bold">
         {step}
       </span>
-      <span className="text-white font-medium text-sm">{title}</span>
+      <span className="font-medium text-sm" style={{ color: textColor }}>{title}</span>
     </div>
     <div className="pl-8">
       {children}
@@ -46,7 +48,6 @@ export const AIPanel = ({ theme, onClose, onDiscussReflection }: AIPanelProps) =
     embeddedCount,
     totalCount,
     handleEmbedAll,
-    handleAutoLink,
     handleReflect,
     handleAnalyzeCluster,
     handleSearch,
@@ -63,11 +64,19 @@ export const AIPanel = ({ theme, onClose, onDiscussReflection }: AIPanelProps) =
   ).length;
   const totalSynapseCount = store.synapses.length;
 
+  // Helper styles for inputs/panels based on theme darkness
+  const isDarkTheme = theme.bg.includes('black') || theme.bg.includes('gray-9') || theme.bg.includes('#050505') || theme.bg.includes('#30362f') || theme.bg.includes('#1f2937');
+  
+  const panelBg = isDarkTheme ? 'rgba(0,0,0,0.3)' : 'rgba(0,0,0,0.05)';
+  const inputBg = isDarkTheme ? 'rgba(0,0,0,0.5)' : 'rgba(255,255,255,0.8)';
+  const inputBorder = isDarkTheme ? 'border-gray-600' : 'border-gray-300';
+  const subTextColor = isDarkTheme ? 'text-gray-400' : 'text-gray-600';
+
   return (
     <div
       className="fixed left-0 top-0 h-full w-80 z-50 border-r shadow-2xl overflow-y-auto"
       style={{
-        backgroundColor: theme.node.bg + 'f2',
+        backgroundColor: theme.node.bg, // Removed transparency for better contrast consistency
         borderColor: theme.node.border,
         color: theme.node.text,
       }}
@@ -79,7 +88,7 @@ export const AIPanel = ({ theme, onClose, onDiscussReflection }: AIPanelProps) =
       <header
         className="sticky top-0 backdrop-blur-sm p-4 border-b flex items-center justify-between"
         style={{
-          backgroundColor: theme.node.bg + 'f0',
+          backgroundColor: theme.node.bg, // Match panel bg
           borderColor: theme.node.border,
         }}
       >
@@ -88,7 +97,7 @@ export const AIPanel = ({ theme, onClose, onDiscussReflection }: AIPanelProps) =
         </h2>
         <button
           onClick={onClose}
-          className="opacity-60 hover:opacity-100 text-xl w-8 h-8 flex items-center justify-center rounded hover:bg-white/10"
+          className="opacity-60 hover:opacity-100 text-xl w-8 h-8 flex items-center justify-center rounded hover:bg-black/10 dark:hover:bg-white/10"
           aria-label="Close AI panel"
         >
           ×
@@ -97,45 +106,54 @@ export const AIPanel = ({ theme, onClose, onDiscussReflection }: AIPanelProps) =
 
       <div className="p-4">
         {/* Status */}
-        <div className="bg-black/30 rounded-lg p-3 mb-4">
+        <div className="rounded-lg p-3 mb-4" style={{ backgroundColor: panelBg }}>
           <div className="flex justify-between text-sm mb-1">
-            <span className="text-gray-400">Vektorer:</span>
-            <span className="text-white font-mono">{embeddedCount}/{totalCount}</span>
+            <span className={subTextColor}>Vektorer:</span>
+            <span className="font-mono" style={{ color: theme.node.text }}>{embeddedCount}/{totalCount}</span>
           </div>
-          <div className="w-full h-2 bg-gray-700 rounded-full overflow-hidden">
+          <div className="w-full h-2 bg-gray-300 dark:bg-gray-700 rounded-full overflow-hidden">
             <div
               className="h-full bg-gradient-to-r from-purple-500 to-blue-500 transition-all duration-300"
               style={{ width: `${totalCount > 0 ? (embeddedCount / totalCount) * 100 : 0}%` }}
             />
           </div>
           {intelligence.isProcessing && (
-            <div className="mt-2 text-xs text-purple-400 animate-pulse">
+            <div className="mt-2 text-xs text-purple-500 font-medium animate-pulse">
               Bearbetar... {intelligence.progress.current}/{intelligence.progress.total}
             </div>
           )}
           <APIKeyStatus openaiKey={!!store.openaiKey} claudeKey={!!store.claudeKey} />
         </div>
 
-        {/* STEG 1: FÖRBERED */}
-        <StepSection step={1} title="Förbered">
+        {/* STEG 1: VEKTORISERA */}
+        <StepSection step={1} title="Vektorisera" textColor={theme.node.text}>
           <button
             onClick={handleEmbedAll}
             disabled={intelligence.isProcessing || !store.openaiKey || embeddedCount === totalCount}
-            className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-700 disabled:cursor-not-allowed text-white py-2 rounded text-sm transition"
+            className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white py-2 rounded text-sm transition font-medium"
           >
-            {embeddedCount === totalCount ? '✓ Alla har vektorer' : `Skapa vektorer (${totalCount - embeddedCount} kvar)`}
+            {embeddedCount === totalCount && totalCount > 0
+              ? '✓ Alla har vektorer'
+              : `Skapa vektorer (${totalCount - embeddedCount} kvar)`}
           </button>
           {!store.openaiKey && (
-            <p className="text-xs text-yellow-400 mt-1">⚠️ OpenAI-nyckel saknas</p>
+            <p className="text-xs text-amber-600 dark:text-yellow-400 mt-1 font-medium">⚠️ OpenAI-nyckel saknas</p>
+          )}
+          {store.enableAutoLink && (
+            <p className="text-xs text-green-600 dark:text-green-400 mt-1">✓ Nya kort länkas automatiskt</p>
+          )}
+          {totalSynapseCount > 0 && (
+            <p className="text-xs text-purple-600 dark:text-purple-400 mt-1">🔗 {totalSynapseCount} kopplingar</p>
           )}
         </StepSection>
 
-        {/* STEG 2: KOPPLA */}
-        <StepSection step={2} title="Koppla">
+        {/* STEG 2: VISA */}
+        <StepSection step={2} title="Visa kopplingar" textColor={theme.node.text}>
+          {/* Slider: Kopplingsstryka (minsta likhet för att skapa koppling) */}
           <div className="mb-3">
-            <div className="flex justify-between text-xs text-gray-400 mb-1">
-              <span>Minsta likhet</span>
-              <span className="text-white font-mono">{Math.round((store.autoLinkThreshold || 0.75) * 100)}%</span>
+            <div className="flex justify-between text-xs mb-1" style={{ color: subTextColor.replace('text-', '') /* Hacky but works if using tailwind classes in JS logic */ }}>
+              <span className={subTextColor}>Kopplingsstryka</span>
+              <span className="font-mono" style={{ color: theme.node.text }}>{Math.round((store.autoLinkThreshold || 0.75) * 100)}%</span>
             </div>
             <input
               type="range"
@@ -144,54 +162,16 @@ export const AIPanel = ({ theme, onClose, onDiscussReflection }: AIPanelProps) =
               step="0.05"
               value={store.autoLinkThreshold || 0.75}
               onChange={e => store.setAutoLinkThreshold(parseFloat(e.target.value))}
-              className="w-full h-2 rounded-lg appearance-none cursor-pointer accent-purple-500"
+              className="w-full h-2 rounded-lg appearance-none cursor-pointer accent-purple-500 bg-gray-300 dark:bg-gray-700"
             />
-            <p className="text-xs text-gray-500 mt-1">Lägre = fler kopplingar</p>
+            <p className={`text-xs mt-1 ${subTextColor}`}>Lägre = fler kopplingar</p>
           </div>
 
-          <div className="flex items-center justify-between mb-3 p-2 bg-black/20 rounded">
-            <span className="text-gray-300 text-sm">Auto-länkning</span>
-            <div className="flex gap-1">
-              <button
-                onClick={() => store.enableAutoLink && store.toggleAutoLink()}
-                className={`px-2 py-1 rounded text-xs transition ${
-                  !store.enableAutoLink ? 'bg-gray-600 text-white' : 'bg-gray-800 text-gray-400'
-                }`}
-              >
-                Manuellt
-              </button>
-              <button
-                onClick={() => !store.enableAutoLink && store.toggleAutoLink()}
-                className={`px-2 py-1 rounded text-xs transition ${
-                  store.enableAutoLink ? 'bg-green-600 text-white' : 'bg-gray-800 text-gray-400'
-                }`}
-              >
-                Auto
-              </button>
-            </div>
-          </div>
-
-          <button
-            onClick={handleAutoLink}
-            disabled={intelligence.isProcessing || embeddedCount < 2}
-            className="w-full bg-purple-600 hover:bg-purple-700 disabled:bg-gray-700 disabled:cursor-not-allowed text-white py-2 rounded text-sm transition"
-          >
-            Hitta & Länka nu
-          </button>
-          {embeddedCount < 2 && (
-            <p className="text-xs text-yellow-400 mt-1">ℹ️ Skapa vektorer först</p>
-          )}
-          {totalSynapseCount > 0 && (
-            <p className="text-xs text-green-400 mt-1">✓ {totalSynapseCount} kopplingar skapade</p>
-          )}
-        </StepSection>
-
-        {/* STEG 3: VISA */}
-        <StepSection step={3} title="Visa">
+          {/* Slider: Synlighet (filtrera befintliga kopplingar) */}
           <div className="mb-3">
-            <div className="flex justify-between text-xs text-gray-400 mb-1">
-              <span>Filtrera</span>
-              <span className="text-white font-mono">{Math.round((store.synapseVisibilityThreshold || 0) * 100)}%</span>
+            <div className="flex justify-between text-xs mb-1">
+              <span className={subTextColor}>Synlighet</span>
+              <span className="font-mono" style={{ color: theme.node.text }}>≥{Math.round((store.synapseVisibilityThreshold || 0) * 100)}%</span>
             </div>
             <input
               type="range"
@@ -200,9 +180,9 @@ export const AIPanel = ({ theme, onClose, onDiscussReflection }: AIPanelProps) =
               step="0.05"
               value={store.synapseVisibilityThreshold || 0}
               onChange={e => store.setSynapseVisibilityThreshold(parseFloat(e.target.value))}
-              className="w-full h-2 rounded-lg appearance-none cursor-pointer accent-purple-500"
+              className="w-full h-2 rounded-lg appearance-none cursor-pointer accent-purple-500 bg-gray-300 dark:bg-gray-700"
             />
-            <p className="text-xs text-gray-500 mt-1">
+            <p className={`text-xs mt-1 ${subTextColor}`}>
               {totalSynapseCount > 0
                 ? `Visar ${visibleSynapseCount} av ${totalSynapseCount} kopplingar`
                 : 'Inga kopplingar ännu'
@@ -217,14 +197,14 @@ export const AIPanel = ({ theme, onClose, onDiscussReflection }: AIPanelProps) =
                 if (count === 0) alert('Inga kopplingar att visa som graf');
               }}
               disabled={intelligence.isProcessing || totalSynapseCount === 0}
-              className="flex-1 bg-violet-600 hover:bg-violet-700 disabled:bg-gray-700 disabled:cursor-not-allowed text-white py-2 rounded text-sm transition"
+              className="flex-1 bg-violet-600 hover:bg-violet-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white py-2 rounded text-sm transition font-medium"
             >
               📊 Graf
             </button>
             <button
               onClick={() => store.setSynapseVisibilityThreshold(0)}
               disabled={store.synapseVisibilityThreshold === 0}
-              className="flex-1 bg-gray-600 hover:bg-gray-500 disabled:bg-gray-700 disabled:cursor-not-allowed text-white py-2 rounded text-sm transition"
+              className="flex-1 bg-gray-500 hover:bg-gray-600 disabled:bg-gray-300 disabled:text-gray-500 disabled:cursor-not-allowed text-white py-2 rounded text-sm transition font-medium"
             >
               Visa alla
             </button>
@@ -232,10 +212,11 @@ export const AIPanel = ({ theme, onClose, onDiscussReflection }: AIPanelProps) =
         </StepSection>
 
         {/* VERKTYG (hopfällbar) */}
-        <div className="mt-4 border-t border-gray-700 pt-4">
+        <div className="mt-4 border-t pt-4" style={{ borderColor: theme.node.border }}>
           <button
             onClick={() => setShowTools(!showTools)}
-            className="w-full flex items-center justify-between text-gray-300 hover:text-white text-sm py-2"
+            className="w-full flex items-center justify-between hover:opacity-80 text-sm py-2"
+            style={{ color: theme.node.text }}
           >
             <span>🛠️ Verktyg</span>
             <span className="text-xs">{showTools ? '▼' : '▸'}</span>
@@ -245,7 +226,7 @@ export const AIPanel = ({ theme, onClose, onDiscussReflection }: AIPanelProps) =
             <div className="mt-3 space-y-3">
               {/* Semantisk sökning */}
               <div>
-                <label className="block text-xs text-gray-400 mb-1">🔍 Konceptuell sökning</label>
+                <label className={`block text-xs mb-1 ${subTextColor}`}>🔍 Konceptuell sökning</label>
                 <div className="flex gap-2">
                   <input
                     type="text"
@@ -253,42 +234,43 @@ export const AIPanel = ({ theme, onClose, onDiscussReflection }: AIPanelProps) =
                     onChange={e => setSearchQuery(e.target.value)}
                     onKeyDown={e => e.key === 'Enter' && handleSearch()}
                     placeholder="t.ex. 'existentiell ångest'"
-                    className="flex-1 bg-black/50 border border-gray-600 rounded p-2 text-white text-xs"
+                    className={`flex-1 rounded p-2 text-xs border ${inputBorder}`}
+                    style={{ backgroundColor: inputBg, color: theme.node.text }}
                     disabled={intelligence.isProcessing || embeddedCount === 0}
                   />
                   <button
                     onClick={handleSearch}
                     disabled={intelligence.isProcessing || !searchQuery.trim() || embeddedCount === 0}
-                    className="bg-green-600 hover:bg-green-700 disabled:bg-gray-700 text-white px-3 py-1 rounded text-xs"
+                    className="bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white px-3 py-1 rounded text-xs font-medium"
                   >
                     Sök
                   </button>
                 </div>
                 {searchResults.length > 0 && (
-                  <p className="text-xs text-green-400 mt-1">✓ {searchResults.length} resultat markerade</p>
+                  <p className="text-xs text-green-600 dark:text-green-400 mt-1">✓ {searchResults.length} resultat markerade</p>
                 )}
               </div>
 
               {/* Auto-tagga */}
               <div>
-                <label className="block text-xs text-gray-400 mb-1">🏷️ Semantiska taggar</label>
+                <label className={`block text-xs mb-1 ${subTextColor}`}>🏷️ Semantiska taggar</label>
                 <button
                   onClick={handleGenerateTags}
                   disabled={intelligence.isProcessing || selectedCount === 0 || !store.claudeKey}
-                  className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-700 text-white py-2 rounded text-xs"
+                  className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-400 text-white py-2 rounded text-xs font-medium"
                 >
                   {selectedCount > 0 ? `Tagga ${selectedCount} valda` : 'Välj kort först'}
                 </button>
-                {!store.claudeKey && <p className="text-xs text-yellow-400 mt-1">⚠️ Claude-nyckel saknas</p>}
+                {!store.claudeKey && <p className="text-xs text-amber-600 dark:text-yellow-400 mt-1">⚠️ Claude-nyckel saknas</p>}
               </div>
 
               {/* Reflektion */}
               <div>
-                <label className="block text-xs text-gray-400 mb-1">💭 AI Reflektion</label>
+                <label className={`block text-xs mb-1 ${subTextColor}`}>💭 AI Reflektion</label>
                 <button
                   onClick={handleReflect}
                   disabled={intelligence.isProcessing || totalCount === 0 || !store.claudeKey}
-                  className="w-full bg-pink-600 hover:bg-pink-700 disabled:bg-gray-700 text-white py-2 rounded text-xs"
+                  className="w-full bg-pink-600 hover:bg-pink-700 disabled:bg-gray-400 text-white py-2 rounded text-xs font-medium"
                 >
                   {selectedCount > 0 ? `Reflektera (${selectedCount} valda)` : 'Reflektera över allt'}
                 </button>
@@ -297,16 +279,16 @@ export const AIPanel = ({ theme, onClose, onDiscussReflection }: AIPanelProps) =
               {/* Kluster-analys */}
               {selectedCount >= 2 && (
                 <div>
-                  <label className="block text-xs text-gray-400 mb-1">🌌 Kluster-analys</label>
+                  <label className={`block text-xs mb-1 ${subTextColor}`}>🌌 Kluster-analys</label>
                   <button
                     onClick={handleAnalyzeCluster}
                     disabled={intelligence.isProcessing || !store.claudeKey}
-                    className="w-full bg-orange-600 hover:bg-orange-700 disabled:bg-gray-700 text-white py-2 rounded text-xs"
+                    className="w-full bg-orange-600 hover:bg-orange-700 disabled:bg-gray-400 text-white py-2 rounded text-xs font-medium"
                   >
                     Analysera {selectedCount} kort
                   </button>
                   {clusterInsight && (
-                    <div className="mt-2 p-2 bg-orange-500/10 border border-orange-500/30 rounded text-xs text-orange-200">
+                    <div className="mt-2 p-2 bg-orange-100 dark:bg-orange-500/10 border border-orange-200 dark:border-orange-500/30 rounded text-xs text-orange-800 dark:text-orange-200">
                       {clusterInsight}
                     </div>
                   )}

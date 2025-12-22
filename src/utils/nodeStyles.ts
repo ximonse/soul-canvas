@@ -84,10 +84,16 @@ export function getNodeStyles(
     currentBg = customBgColor;
   }
 
-  // Override for selected state - only change border, not background
+  // Override for selected state - change border, shadow, text AND background if specified in theme
   if (isSelected) {
+    // Only override background if the theme has a specific selectedBg different from the base node bg
+    // This allows themes like E-Ink to invert colors, while others keep the original background
+    if (theme.node.selectedBg !== theme.node.bg) {
+        currentBg = theme.node.selectedBg;
+    }
     currentBorder = theme.node.selectedBorder;
     currentShadow = theme.node.selectedShadow;
+    currentText = theme.node.selectedText;
   }
 
   return {

@@ -8,6 +8,7 @@ export interface ThemeNodeStyles {
   selectedBg: string; // Background color when selected
   selectedBorder: string; // Border color when selected
   selectedShadow: string; // Shadow color when selected
+  selectedText: string; // Text color when selected
   hotBg: string; // Background for 'hot' node
   hotBorder: string; // Border for 'hot' node
   hotShadow: string; // Shadow for 'hot' node
@@ -54,6 +55,7 @@ export const THEMES: Record<string, Theme> = {
       selectedBg: "#1a1a2e",
       selectedBorder: "#ffffff",
       selectedShadow: "#ffffff",
+      selectedText: "#ffffff",
       hotBg: "#fde047",
       hotBorder: "#fde047",
       hotShadow: "#fde047",
@@ -89,6 +91,7 @@ export const THEMES: Record<string, Theme> = {
       selectedBg: "#ffffff",
       selectedBorder: "#2563eb",
       selectedShadow: "#2563eb",
+      selectedText: "#1f2937",
       hotBg: "#fef08a",
       hotBorder: "#fcd34d",
       hotShadow: "#fde047",
@@ -124,6 +127,7 @@ export const THEMES: Record<string, Theme> = {
       selectedBg: "#374151",
       selectedBorder: "#60a5fa",
       selectedShadow: "#60a5fa",
+      selectedText: "#f3f4f6",
       hotBg: "#854d0e",
       hotBorder: "#a16207",
       hotShadow: "#a16207",
@@ -159,6 +163,7 @@ export const THEMES: Record<string, Theme> = {
       selectedBg: "#000000",
       selectedBorder: "#000000",
       selectedShadow: "rgba(0,0,0,0.5)",
+      selectedText: "#ffffff",
       hotBg: "#ffffff",
       hotBorder: "#000000",
       hotShadow: "rgba(0,0,0,0.2)",
@@ -194,10 +199,11 @@ export const THEMES: Record<string, Theme> = {
       selectedBg: "#625834",
       selectedBorder: "#fffbdb",
       selectedShadow: "#fffbdb",
+      selectedText: "#fffbdb",
       hotBg: "#da7422",
       hotBorder: "#da7422",
       hotShadow: "#da7422",
-      hotText: "#ffffff",
+      hotText: "#30362f",
       activeBg: "#a59132",
       activeBorder: "#a59132",
       activeShadow: "#a59132",
@@ -229,6 +235,7 @@ export const THEMES: Record<string, Theme> = {
       selectedBg: "#ffffff",
       selectedBorder: "#abc4ff",
       selectedShadow: "#abc4ff",
+      selectedText: "#334155",
       hotBg: "#ABC4FF",
       hotBorder: "#ABC4FF",
       hotShadow: "#ABC4FF",
@@ -242,7 +249,7 @@ export const THEMES: Record<string, Theme> = {
     },
     lineColor: "#ABC4FF",
     lineOpacity: "0.8",
-    button: "bg-[#ABC4FF] hover:bg-[#90b0ff] text-white shadow-sm",
+    button: "bg-[#ABC4FF] hover:bg-[#90b0ff] text-[#1e3a5f] shadow-sm",
     chat: {
       userFont: "'Nunito', 'Avenir', sans-serif",
       assistantFont: "'Lora', 'Cambria', serif",
