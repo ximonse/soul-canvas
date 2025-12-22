@@ -15,6 +15,37 @@ export const getScopeColor = (degree: number | undefined): string => {
   }
 };
 
+// Färger för graviterade kort baserat på similarity (gradient mode)
+export const getGravitatingColor = (similarity: number): string => {
+  // Interpolera från dämpad grön (låg) till ljus cyan (hög)
+  const hue = 160 + (similarity * 20); // 160-180 (grön till cyan)
+  const saturation = 60 + (similarity * 30); // 60-90%
+  const lightness = 40 + (similarity * 20); // 40-60%
+  return `hsl(${hue}, ${saturation}%, ${lightness}%)`;
+};
+
+// Färger för semantiska teman (AI-klassade)
+export const SEMANTIC_THEME_COLORS: Record<string, string> = {
+  existential: '#9b59b6',   // Lila - existentiellt/filosofiskt
+  practical: '#27ae60',     // Grön - praktiskt/handling
+  creative: '#e74c3c',      // Röd - kreativt/konstnärligt
+  analytical: '#3498db',    // Blå - analytiskt/logiskt
+  emotional: '#f39c12',     // Orange - emotionellt/personligt
+  neutral: '#95a5a6',       // Grå - neutralt/informativt
+};
+
+// Hämta färg för semantiskt tema
+export const getSemanticThemeColor = (theme?: string): string => {
+  if (!theme) return SEMANTIC_THEME_COLORS.neutral;
+  return SEMANTIC_THEME_COLORS[theme.toLowerCase()] || SEMANTIC_THEME_COLORS.neutral;
+};
+
+// Beräkna glow-opacitet baserat på similarity
+export const getGravitatingGlowOpacity = (similarity: number): number => {
+  // 0.3 - 0.8 opacity baserat på similarity
+  return 0.3 + (similarity * 0.5);
+};
+
 interface NodeStyleResult {
   bg: string;
   border: string;

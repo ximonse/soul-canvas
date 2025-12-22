@@ -49,18 +49,19 @@ const sortBySequence = (nodes: MindNode[], sequence: Sequence): MindNode[] => {
 };
 
 export const useArrangement = (defaultCenter?: {x: number, y: number}) => {
-  const updateNodePositions = useBrainStore((state) => state.updateNodePositions);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const updateNodePositions = useBrainStore((state: any) => state.updateNodePositions);
 
   const applyArrangement = useCallback((arranger: (nodes: MindNode[], center?: {x: number, y: number}) => Map<string, { x: number; y: number }>, center?: {x: number, y: number}, useSequenceOrder: boolean = false) => {
     // Always get fresh nodes from store to avoid stale closures
     const store = useBrainStore.getState();
     const currentNodes = store.nodes;
-    let selected = Array.from(currentNodes.values()).filter((n) => n.selected);
+    let selected = (Array.from(currentNodes.values()) as MindNode[]).filter((n: MindNode) => n.selected);
     if (selected.length < 2) return; // Need at least 2 nodes to arrange
 
     // Om sekvensordning ska användas, sortera efter sekvens
     if (useSequenceOrder) {
-      const selectedIds = new Set(selected.map(n => n.id));
+      const selectedIds = new Set(selected.map((n: MindNode) => n.id));
       const sequence = findSequenceForNodes(selectedIds, store.sequences);
       if (sequence) {
         selected = sortBySequence(selected, sequence);
@@ -79,7 +80,7 @@ export const useArrangement = (defaultCenter?: {x: number, y: number}) => {
     const store = useBrainStore.getState();
     const currentNodes = store.nodes;
     const synapses = store.synapses;
-    const selected = Array.from(currentNodes.values()).filter((n) => n.selected);
+    const selected = (Array.from(currentNodes.values()) as MindNode[]).filter((n: MindNode) => n.selected);
     if (selected.length < 2) return;
 
     const targetCenter = center || defaultCenter;

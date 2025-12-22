@@ -4,6 +4,7 @@ import { useBrainStore } from '../store/useBrainStore';
 import { useIntelligence } from '../hooks/useIntelligence';
 import { exportToCytoscape, exportToCSV } from '../utils/cytoscapeExport';
 import type { Theme } from '../themes';
+import type { MindNode } from '../types/types';
 
 interface Command {
   id: string;
@@ -76,7 +77,7 @@ export const CommandPalette = ({
     { id: 'embed', name: 'Generate Embeddings', shortcut: 'emb', action: async () => { await intelligence.embedAllNodes(); onClose(); }, category: 'ai', icon: '🧬' },
     { id: 'link', name: 'Auto-Link Similar', shortcut: 'link', action: async () => { await intelligence.autoLinkSimilarNodes(); onClose(); }, category: 'ai', icon: '🔗' },
     { id: 'reflect', name: 'AI Reflection', shortcut: 'ref', action: async () => { await intelligence.reflect(); onClose(); }, category: 'ai', icon: '💭' },
-    { id: 'tags', name: 'Generate Tags', shortcut: 'tag', action: async () => { const selected = Array.from(store.nodes.values()).filter(n => n.selected); for (const n of selected) await intelligence.generateTags(n.id); onClose(); }, category: 'ai', icon: '🏷️' },
+    { id: 'tags', name: 'Generate Tags', shortcut: 'tag', action: async () => { const selected = (Array.from(store.nodes.values()) as MindNode[]).filter((n: MindNode) => n.selected); for (const n of selected) await intelligence.generateTags(n.id); onClose(); }, category: 'ai', icon: '🏷️' },
 
     // View Commands
     { id: 'center', name: 'Center Camera', shortcut: '-', action: () => { onCenterCamera(); onClose(); }, category: 'view', icon: '🎯' },
@@ -103,18 +104,18 @@ export const CommandPalette = ({
     { id: 'redo', name: 'Redo', shortcut: 'ctrl+y', action: () => { onRedo(); onClose(); }, category: 'edit', icon: '↪️' },
     { id: 'select-all', name: 'Select All', shortcut: 'ctrl+a', action: () => { store.selectAll(); onClose(); }, category: 'edit', icon: '✨' },
     { id: 'clear', name: 'Clear Selection', shortcut: 'esc', action: () => { store.clearSelection(); onClose(); }, category: 'edit', icon: '❌' },
-    { id: 'delete', name: 'Delete Selected', shortcut: 'del', action: () => { Array.from(store.nodes.values()).filter(n => n.selected).forEach(n => store.removeNode(n.id)); onClose(); }, category: 'edit', icon: '🗑️' },
+    { id: 'delete', name: 'Delete Selected', shortcut: 'del', action: () => { (Array.from(store.nodes.values()) as MindNode[]).filter((n: MindNode) => n.selected).forEach((n: MindNode) => store.removeNode(n.id)); onClose(); }, category: 'edit', icon: '🗑️' },
 
     // File Commands
     { id: 'save', name: 'Save', shortcut: 'ctrl+enter', action: () => { onSave(); onClose(); }, category: 'file', icon: '💾' },
     { id: 'export-sif', name: 'Export to Cytoscape (SIF)', shortcut: 'sif', action: () => {
-      const nodes = Array.from(store.nodes.values());
+      const nodes = Array.from(store.nodes.values()) as MindNode[];
       const synapses = store.synapses;
       exportToCytoscape(nodes, synapses);
       onClose();
     }, category: 'file', icon: '🕸️' },
     { id: 'export-csv', name: 'Export to Cytoscape (CSV)', shortcut: 'csv', action: () => {
-      const nodes = Array.from(store.nodes.values());
+      const nodes = Array.from(store.nodes.values()) as MindNode[];
       const synapses = store.synapses;
       exportToCSV(nodes, synapses);
       onClose();

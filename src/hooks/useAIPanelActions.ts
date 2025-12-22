@@ -21,8 +21,8 @@ export function useAIPanelActions() {
   };
 
   // Counts
-  const selectedCount = Array.from(store.nodes.values()).filter(n => n.selected).length;
-  const embeddedCount = Array.from(store.nodes.values()).filter(n => n.embedding).length;
+  const selectedCount = (Array.from(store.nodes.values()) as MindNode[]).filter((n: MindNode) => n.selected).length;
+  const embeddedCount = (Array.from(store.nodes.values()) as MindNode[]).filter((n: MindNode) => n.embedding).length;
   const totalCount = store.nodes.size;
 
   const handleEmbedAll = useCallback(async () => {
@@ -152,7 +152,7 @@ export function useAIPanelActions() {
       return;
     }
 
-    const selectedNodes = Array.from(store.nodes.values()).filter(n => n.selected);
+    const selectedNodes = (Array.from(store.nodes.values()) as MindNode[]).filter((n: MindNode) => n.selected);
     if (selectedNodes.length === 0) {
       notify('Välj minst en nod först!', 'info');
       return;
@@ -160,7 +160,7 @@ export function useAIPanelActions() {
 
     try {
       let totalTags = 0;
-      for (const node of selectedNodes) {
+      for (const node of selectedNodes as MindNode[]) {
         const tags = await intelligence.generateTags(node.id);
         totalTags += tags.practical.length + tags.hidden.length;
       }

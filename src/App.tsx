@@ -1,6 +1,6 @@
 // src/App.tsx
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
-import type { MindNode } from './types/types';
+import type { MindNode, Session } from './types/types';
 import type Konva from 'konva';
 import { useFileSystem } from './hooks/useFileSystem';
 import { useBrainStore } from './store/useBrainStore';
@@ -14,6 +14,7 @@ import { useNodeActions } from './hooks/useNodeActions';
 import { useKeyboardHandlers } from './hooks/useKeyboardHandlers';
 import { useSelectionScope } from './hooks/useSelectionScope';
 import { useSessionSearch } from './hooks/useSessionSearch';
+import { useWandering } from './hooks/useWandering';
 import { THEMES } from './themes';
 import { AUTOSAVE_DELAY_MS } from './utils/constants';
 
@@ -21,9 +22,11 @@ import { AUTOSAVE_DELAY_MS } from './utils/constants';
 import { AppMenu } from './components/AppMenu';
 import { ModalManager } from './components/ModalManager';
 import KonvaCanvas from './components/KonvaCanvas';
+import { ColumnView } from './components/ColumnView';
 import { SelectionScopePanel } from './components/overlays/SelectionScopePanel';
 import MassImportOverlay from './components/overlays/MassImportOverlay';
 import { QuoteExtractorOverlay } from './components/overlays/QuoteExtractorOverlay';
+import { TrailPanel } from './components/overlays/TrailPanel';
 import { SessionPanel } from './components/SessionPanel';
 import type { ContextMenuState } from './components/overlays/ContextMenu';
 import { filterNodesByTags, filterNodesBySession } from './utils/nodeFilters';
@@ -42,9 +45,9 @@ function App() {
   const stageRef = useRef<Konva.Stage>(null);
 
   // Session-filtrering: först session, sedan taggar
-  const allNodesArray = useMemo(() => Array.from(store.nodes.values()), [store.nodes]);
+  const allNodesArray = useMemo(() => Array.from(store.nodes.values()) as MindNode[], [store.nodes]);
   const activeSession = useMemo(
-    () => store.activeSessionId ? store.sessions.find(s => s.id === store.activeSessionId) || null : null,
+    () => store.activeSessionId ? store.sessions.find((s: Session) => s.id === store.activeSessionId) || null : null,
     [store.activeSessionId, store.sessions]
   );
   const sessionFilteredNodes = useMemo(
@@ -56,7 +59,7 @@ function App() {
     [sessionFilteredNodes, store.includeTags, store.excludeTags]
   );
   const filteredNodesMap = useMemo(
-    () => new Map<string, MindNode>(filteredNodesArray.map((n) => [n.id, n] as const)),
+    () => new Map<string, MindNode>(filteredNodesArray.map((n: MindNode) => [n.id, n] as const)),
     [filteredNodesArray]
   );
   const search = useSearch({ nodes: filteredNodesMap });
@@ -65,6 +68,7 @@ function App() {
   const sessionSearch = useSessionSearch({ allNodes: allNodesArray, activeSession });
   const { arrangeVertical, arrangeHorizontal, arrangeGridHorizontal, arrangeGridVertical, arrangeCircle, arrangeKanban, arrangeCentrality } = useArrangement(canvas.cursorPos);
   const selectionScope = useSelectionScope();
+  const wandering = useWandering();
 
   // UI State
   const [themeIndex, setThemeIndex] = useState(() => {
@@ -90,6 +94,7 @@ function App() {
   const [showMassImport, setShowMassImport] = useState(false);
   const [showQuoteExtractor, setShowQuoteExtractor] = useState(false);
   const [showSessionPanel, setShowSessionPanel] = useState(false);
+  const [showTrailPanel, setShowTrailPanel] = useState(false);
   const [editingCardId, setEditingCardId] = useState<string | null>(null);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'waiting' | 'saving' | 'saved'>('idle');
   const [zenMode, setZenMode] = useState(false);
@@ -98,13 +103,17 @@ function App() {
 
   // Computed
   const selectedNodesCount = useMemo(() =>
-    Array.from(store.nodes.values()).filter(n => n.selected).length,
+    (Array.from(store.nodes.values()) as MindNode[]).filter((n: MindNode) => n.selected).length,
     [store.nodes]
   );
   const visibleNodeIds = useMemo(() =>
-    new Set(filteredNodesArray.map(n => n.id)),
+    new Set(filteredNodesArray.map((n: MindNode) => n.id)),
     [filteredNodesArray]
   );
+  const firstSelectedNodeId = useMemo(() => {
+    const selected = (Array.from(store.nodes.values()) as MindNode[]).find((n: MindNode) => n.selected);
+    return selected?.id || null;
+  }, [store.nodes]);
 
   // Import handlers
   const { handleDrop } = useImportHandlers({ canvas, hasFile, saveAsset });
@@ -118,8 +127,8 @@ function App() {
   });
 
   const handleAutoTag = useCallback(async (id: string) => {
-    const selected = Array.from(store.nodes.values()).filter(n => n.selected);
-    const targets = selected.length > 0 ? selected : [store.nodes.get(id)].filter(Boolean) as typeof selected;
+    const selected = (Array.from(store.nodes.values()) as MindNode[]).filter((n: MindNode) => n.selected);
+    const targets = selected.length > 0 ? selected : [store.nodes.get(id)].filter(Boolean) as MindNode[];
     if (targets.length === 0) return;
     store.saveStateForUndo();
     for (const node of targets) {
@@ -242,11 +251,25 @@ function App() {
     onToggleSessionPanel: () => setShowSessionPanel(prev => !prev),
     isSessionPanelOpen: showSessionPanel,
     onCloseSessionPanel: () => setShowSessionPanel(false),
+    onToggleViewMode: store.toggleViewMode,
     setZenMode,
     setShowSettings,
     setContextMenu,
     setEditingCardId,
     onToggleScopePanel: selectionScope.toggleVisibility,
+    onToggleWandering: () => {
+      if (wandering.isWandering) {
+        wandering.stopWandering();
+        setShowTrailPanel(false);
+      } else if (firstSelectedNodeId) {
+        wandering.startWandering(firstSelectedNodeId);
+        setShowTrailPanel(true);
+      } else {
+        setShowTrailPanel(prev => !prev);
+      }
+    },
+    onBacktrackTrail: wandering.backtrack,
+    onForwardTrail: () => {}, // Not implemented yet
   });
 
   // Auto-save effect
@@ -266,8 +289,8 @@ function App() {
   // Auto-link effect
   useEffect(() => {
     if (store.enableAutoLink) {
-      const nodesWithNewEmbeddings = Array.from(store.nodes.values()).filter(
-        n => n.embedding && n.lastEmbedded && new Date(n.lastEmbedded).getTime() > Date.now() - 5000
+      const nodesWithNewEmbeddings = (Array.from(store.nodes.values()) as MindNode[]).filter(
+        (n: MindNode) => n.embedding && n.lastEmbedded && new Date(n.lastEmbedded).getTime() > Date.now() - 5000
       );
       if (nodesWithNewEmbeddings.length > 0) intelligence.autoLinkSimilarNodes();
     }
@@ -280,15 +303,25 @@ function App() {
       onDragLeave={() => setIsDraggingFile(false)}
       onDrop={(e) => { setIsDraggingFile(false); handleDrop(e); }}
     >
-      <KonvaCanvas
-        currentThemeKey={currentThemeKey}
-        onEditCard={setEditingCardId}
-        canvas={canvas}
-        stageRef={stageRef}
-        nodes={filteredNodesArray}
-        onContextMenu={(nodeId, pos) => setContextMenu({ nodeId, x: pos.x, y: pos.y })}
-        onZoomChange={setCurrentZoom}
-      />
+      {store.viewMode === 'canvas' ? (
+        <KonvaCanvas
+          currentThemeKey={currentThemeKey}
+          onEditCard={setEditingCardId}
+          canvas={canvas}
+          stageRef={stageRef}
+          nodes={filteredNodesArray}
+          onContextMenu={(nodeId, pos) => setContextMenu({ nodeId, x: pos.x, y: pos.y })}
+          onZoomChange={setCurrentZoom}
+        />
+      ) : (
+        <ColumnView
+          nodes={filteredNodesArray}
+          synapses={store.synapses}
+          theme={theme}
+          onEditCard={setEditingCardId}
+          onContextMenu={(nodeId, pos) => setContextMenu({ nodeId, x: pos.x, y: pos.y })}
+        />
+      )}
 
       {isDraggingFile && hasFile && (
         <div className="absolute inset-0 z-50 bg-blue-500/20 backdrop-blur-sm border-4 border-blue-400 border-dashed m-4 rounded-3xl flex items-center justify-center pointer-events-none">
@@ -300,20 +333,19 @@ function App() {
         hasFile={hasFile}
         saveStatus={saveStatus}
         theme={theme}
-        themeName={theme.name}
         zenMode={zenMode}
         onConnect={openFile}
         onSave={handleManualSave}
+      />
+
+      <SessionPanel
+        theme={theme}
+        themeName={theme.name}
         onToggleTheme={() => setThemeIndex((i) => {
           const newIndex = (i + 1) % THEME_KEYS.length;
           localStorage.setItem('soul-canvas-theme', THEME_KEYS[newIndex]);
           return newIndex;
         })}
-        onOpenSettings={() => setShowSettings(true)}
-      />
-
-      <SessionPanel
-        theme={theme}
         sessions={store.sessions}
         activeSessionId={store.activeSessionId}
         onCreateSession={store.createSession}
@@ -373,6 +405,33 @@ function App() {
           onClose={selectionScope.close}
         />
       )}
+
+      {/* Trail Panel - vandring */}
+      <TrailPanel
+        theme={theme}
+        isOpen={showTrailPanel}
+        onClose={() => setShowTrailPanel(false)}
+        isWandering={wandering.isWandering}
+        currentNodeId={wandering.currentNodeId}
+        gravitatingNodes={wandering.gravitatingNodes}
+        visitedNodeIds={wandering.visitedNodeIds}
+        activeTrail={wandering.activeTrail}
+        trailHistory={wandering.trailHistory}
+        minSimilarityThreshold={wandering.minSimilarityThreshold}
+        showOnlyDifferentWords={wandering.showOnlyDifferentWords}
+        onStartWandering={wandering.startWandering}
+        onStopWandering={wandering.stopWandering}
+        onStepTo={wandering.stepTo}
+        onBacktrack={wandering.backtrack}
+        onSaveTrail={wandering.saveCurrentTrail}
+        onBranchHere={wandering.branchHere}
+        onResumeTrail={wandering.resumeTrail}
+        onDeleteTrail={wandering.deleteTrail}
+        onSetThreshold={wandering.setThreshold}
+        onToggleSurfaceDifference={wandering.toggleSurfaceDifference}
+        getNode={(id) => store.nodes.get(id)}
+        selectedNodeId={firstSelectedNodeId}
+      />
 
       {/* Mass Import Overlay */}
       {showMassImport && (

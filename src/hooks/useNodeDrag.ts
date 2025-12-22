@@ -4,6 +4,7 @@
 import { useState, useCallback } from 'react';
 import type Konva from 'konva';
 import { useBrainStore } from '../store/useBrainStore';
+import type { MindNode } from '../types/types';
 
 interface UseNodeDragOptions {
   nodeId: string;
@@ -22,10 +23,14 @@ export function useNodeDrag({
   onDragStart: onDragStartCallback,
   onDragEnd: onDragEndCallback,
 }: UseNodeDragOptions) {
-  const updateNodePosition = useBrainStore((state) => state.updateNodePosition);
-  const toggleSelection = useBrainStore((state) => state.toggleSelection);
-  const clearSelection = useBrainStore((state) => state.clearSelection);
-  const dragSelectedNodes = useBrainStore((state) => state.dragSelectedNodes);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const updateNodePosition = useBrainStore((state: any) => state.updateNodePosition);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const toggleSelection = useBrainStore((state: any) => state.toggleSelection);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const clearSelection = useBrainStore((state: any) => state.clearSelection);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const dragSelectedNodes = useBrainStore((state: any) => state.dragSelectedNodes);
 
   const [initialX, setInitialX] = useState(0);
   const [initialY, setInitialY] = useState(0);
@@ -33,7 +38,7 @@ export function useNodeDrag({
   const getSelectedCount = useCallback(() => {
     const nodes = useBrainStore.getState().nodes;
     let count = 0;
-    nodes.forEach(n => { if (n.selected) count++; });
+    nodes.forEach((n: MindNode) => { if (n.selected) count++; });
     return count;
   }, []);
 
@@ -55,10 +60,10 @@ export function useNodeDrag({
       const dx = currentX - initialX;
       const dy = currentY - initialY;
 
-      const selectedNodes = Array.from(useBrainStore.getState().nodes.values())
-        .filter(n => n.selected && n.id !== nodeId);
+      const selectedNodes = (Array.from(useBrainStore.getState().nodes.values()) as MindNode[])
+        .filter((n: MindNode) => n.selected && n.id !== nodeId);
 
-      selectedNodes.forEach(selectedNode => {
+      selectedNodes.forEach((selectedNode: MindNode) => {
         const stage = e.target.getStage();
         if (!stage) return;
         const otherGroup = stage.findOne(`#konva-node-${selectedNode.id}`) as Konva.Group;

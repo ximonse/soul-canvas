@@ -1,8 +1,9 @@
 // src/store/useBrainStore.ts
 import { create } from 'zustand';
-import type { AIProvider, MindNode, Synapse, Sequence, Conversation, ConversationMessage, Session } from '../types/types';
+import type { AIProvider, MindNode, Synapse, Sequence, Conversation, ConversationMessage, Session, ViewMode, SortOption } from '../types/types';
 import { createSelectionSlice, type SelectionActions } from './slices/selectionSlice';
 import { createHistorySlice, historyInitialState, type HistoryState, type HistoryActions } from './slices/historySlice';
+import { createTrailSlice, initialTrailState, type TrailState, type TrailActions } from './slices/trailSlice';
 import { GRAVITY } from '../utils/constants';
 
 // Core state interface
@@ -39,6 +40,12 @@ interface CoreState {
   // Sessions (arbetsytor/projekt)
   sessions: Session[];
   activeSessionId: string | null;  // null = "all-inclusive" (visa alla kort)
+
+  // View mode (canvas vs column)
+  viewMode: ViewMode;
+  columnSort: SortOption;
+  columnShowComments: boolean;
+  columnShowTags: boolean;
 }
 
 // Core actions interface
@@ -93,6 +100,13 @@ interface CoreActions {
   addCardsToSession: (sessionId: string, cardIds: string[]) => void;
   removeCardsFromSession: (sessionId: string, cardIds: string[]) => void;
   saveSessionViewState: (sessionId: string, viewState: { x: number; y: number; zoom: number }) => void;
+
+  // View mode actions
+  setViewMode: (mode: ViewMode) => void;
+  toggleViewMode: () => void;
+  setColumnSort: (sort: SortOption) => void;
+  toggleColumnShowComments: () => void;
+  toggleColumnShowTags: () => void;
 }
 
 const PROVIDER_STORAGE_KEYS: Record<AIProvider, string> = {
@@ -111,7 +125,7 @@ const getInitialApiKey = (provider: AIProvider) =>
   localStorage.getItem(PROVIDER_STORAGE_KEYS[provider]) || '';
 
 // Combined store type
-type BrainStore = CoreState & HistoryState & CoreActions & SelectionActions & HistoryActions;
+type BrainStore = CoreState & HistoryState & TrailState & CoreActions & SelectionActions & HistoryActions & TrailActions;
 
 export const useBrainStore = create<BrainStore>()((set) => ({
   // Initial state
@@ -132,7 +146,12 @@ export const useBrainStore = create<BrainStore>()((set) => ({
   activeSessionId: null,
   includeTags: [],
   excludeTags: [],
+  viewMode: 'canvas',
+  columnSort: 'newest',
+  columnShowComments: false,
+  columnShowTags: true,
   ...historyInitialState,
+  ...initialTrailState,
 
   // AI Keys & Settings
   geminiKey: getInitialApiKey('gemini'),
@@ -260,7 +279,11 @@ export const useBrainStore = create<BrainStore>()((set) => ({
   updateNode: (id, updates) => set((state) => {
     const existingNode = state.nodes.get(id);
     if (!existingNode) return {};
-    const updatedNode = { ...existingNode, ...updates };
+    const updatedNode = {
+      ...existingNode,
+      ...updates,
+      updatedAt: new Date().toISOString()
+    };
     const newNodes = new Map(state.nodes);
     newNodes.set(id, updatedNode);
     return { nodes: newNodes, pendingSave: true };
@@ -404,7 +427,7 @@ export const useBrainStore = create<BrainStore>()((set) => ({
       contextNodeIds,
       provider,
     };
-    useBrainStore.setState((state) => ({
+    useBrainStore.setState((state: BrainStore) => ({
       conversations: [newConversation, ...state.conversations],
       activeConversationId: id,
     }));
@@ -482,7 +505,7 @@ export const useBrainStore = create<BrainStore>()((set) => ({
       createdAt: now,
       lastOpened: now,
     };
-    useBrainStore.setState((state) => ({
+    useBrainStore.setState((state: BrainStore) => ({
       sessions: [...state.sessions, newSession],
       activeSessionId: id,
     }));
@@ -534,9 +557,21 @@ export const useBrainStore = create<BrainStore>()((set) => ({
     ),
   })),
 
+  // View mode actions
+  setViewMode: (mode) => set({ viewMode: mode }),
+  toggleViewMode: () => set((state) => ({
+    viewMode: state.viewMode === 'canvas' ? 'column' : 'canvas'
+  })),
+  setColumnSort: (sort) => set({ columnSort: sort }),
+  toggleColumnShowComments: () => set((state) => ({ columnShowComments: !state.columnShowComments })),
+  toggleColumnShowTags: () => set((state) => ({ columnShowTags: !state.columnShowTags })),
+
   // Selection slice
   ...createSelectionSlice(set as any),
 
   // History slice
   ...createHistorySlice(set as any),
+
+  // Trail slice
+  ...createTrailSlice(set as any, (): BrainStore => useBrainStore.getState()),
 }));

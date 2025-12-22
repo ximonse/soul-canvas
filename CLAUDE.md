@@ -371,3 +371,27 @@ src/
 
 **Borttagna filer:**
 - `src/components/TagFilterBar.tsx` - ersatt av SessionPanel
+
+---
+
+## Sessionslogg 2025-12-22
+
+### Implementerat (lokalt, ej i repo):
+
+**Wandering System (Trail Navigation)**
+- Automatisk "vandring" genom kort baserat på kopplingar
+- TrailPanel visar nuvarande trail/stig av kort
+- Pathfinding-algoritm för att hitta vägar mellan kort via synapser
+- Möjlighet att följa semantiska kopplingar som en stig
+
+**Filer (lokala, i .gitignore):**
+- `src/hooks/useWandering.ts` - Hook för wandering-logik
+- `src/components/overlays/TrailPanel.tsx` - UI för trail-visning
+- `src/store/slices/trailSlice.ts` - State slice för trails
+- `src/utils/trailPathfinding.ts` - Pathfinding mellan kort
+
+### Övrigt:
+- ColumnView komponent tillagd
+- sortNodes utility tillagd
+- Diverse förbättringar i hooks och komponenter
+- Personlig data (`my_eternal_mind/`, `.claude/`) borttagen från git-tracking

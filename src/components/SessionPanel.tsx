@@ -1,10 +1,14 @@
 import React, { useState, useMemo } from 'react';
-import type { Session, MindNode } from '../types/types';
+import type { Session, MindNode, SortOption } from '../types/types';
 import type { Theme } from '../themes';
+import { useBrainStore } from '../store/useBrainStore';
+import { SORT_LABELS } from '../utils/sortNodes';
 
 interface SessionPanelProps {
   // Theme
   theme: Theme;
+  themeName: string;
+  onToggleTheme: () => void;
 
   // Sessions
   sessions: Session[];
@@ -45,6 +49,8 @@ interface SessionPanelProps {
 
 export const SessionPanel: React.FC<SessionPanelProps> = ({
   theme,
+  themeName,
+  onToggleTheme,
   sessions,
   activeSessionId,
   onCreateSession,
@@ -72,6 +78,7 @@ export const SessionPanel: React.FC<SessionPanelProps> = ({
   const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
   const [tagSortMode, setTagSortMode] = useState<'alpha' | 'count'>('alpha');
+  const { viewMode, columnSort, setColumnSort, columnShowComments, columnShowTags, toggleColumnShowComments, toggleColumnShowTags } = useBrainStore();
 
   const activeSession = useMemo(
     () => sessions.find(s => s.id === activeSessionId) || null,
@@ -139,6 +146,89 @@ export const SessionPanel: React.FC<SessionPanelProps> = ({
       <span className="text-sm font-medium">
         {activeSession ? activeSession.name : 'Alla kort'}
       </span>
+
+      {/* Vy-indikator + sortering i kolumn-vy */}
+      {viewMode === 'canvas' ? (
+        <span
+          className="px-2 py-0.5 text-xs rounded-full opacity-60"
+          title="Canvas-vy (K för att byta)"
+        >
+          ⊞
+        </span>
+      ) : (
+        <select
+          value={columnSort}
+          onChange={(e) => {
+            e.stopPropagation();
+            setColumnSort(e.target.value as SortOption);
+          }}
+          onClick={(e) => e.stopPropagation()}
+          className="px-2 py-0.5 text-xs rounded cursor-pointer"
+          style={{
+            backgroundColor: theme.canvasColor,
+            color: theme.node.text,
+            border: `1px solid ${theme.node.border}`,
+          }}
+          title="Sortering (K för canvas-vy)"
+        >
+          {Object.entries(SORT_LABELS).map(([value, label]) => (
+            <option key={value} value={value}>{label}</option>
+          ))}
+        </select>
+      )}
+
+      {/* Kolumn-vy toggles */}
+      {viewMode === 'column' && (
+        <>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              toggleColumnShowComments();
+            }}
+            className={`px-2 py-0.5 text-xs rounded transition-opacity ${columnShowComments ? 'opacity-100' : 'opacity-40'}`}
+            style={{
+              backgroundColor: columnShowComments ? theme.node.selectedBorder : theme.canvasColor,
+              color: columnShowComments ? theme.node.bg : theme.node.text,
+              border: `1px solid ${theme.node.border}`,
+            }}
+            title="Visa/dölj kommentarer"
+          >
+            💬
+          </button>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              toggleColumnShowTags();
+            }}
+            className={`px-2 py-0.5 text-xs rounded transition-opacity ${columnShowTags ? 'opacity-100' : 'opacity-40'}`}
+            style={{
+              backgroundColor: columnShowTags ? theme.node.selectedBorder : theme.canvasColor,
+              color: columnShowTags ? theme.node.bg : theme.node.text,
+              border: `1px solid ${theme.node.border}`,
+            }}
+            title="Visa/dölj taggar"
+          >
+            🏷️
+          </button>
+        </>
+      )}
+
+      {/* Tema-väljare */}
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          onToggleTheme();
+        }}
+        className="px-2 py-0.5 text-xs rounded opacity-70 hover:opacity-100 transition-opacity"
+        style={{
+          backgroundColor: theme.canvasColor,
+          color: theme.node.text,
+          border: `1px solid ${theme.node.border}`,
+        }}
+        title="Byt tema"
+      >
+        {themeName}
+      </button>
 
       {/* Markerade kort */}
       {selectedCount > 0 && (

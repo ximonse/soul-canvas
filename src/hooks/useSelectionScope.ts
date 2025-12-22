@@ -9,6 +9,7 @@ import {
   hasAnyConnections,
   getMaxAvailableDegree,
 } from '../utils/graphTraversal';
+import type { MindNode } from '../types/types';
 
 export interface ScopeData {
   byDegree: Map<number, string[]>;  // grad -> nodeIds
@@ -17,10 +18,14 @@ export interface ScopeData {
 }
 
 export function useSelectionScope() {
-  const nodes = useBrainStore((state) => state.nodes);
-  const synapses = useBrainStore((state) => state.synapses);
-  const selectNodes = useBrainStore((state) => state.selectNodes);
-  const setScopeDegreeOnNodes = useBrainStore((state) => state.setScopeDegreeOnNodes);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const nodes = useBrainStore((state: any) => state.nodes);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const synapses = useBrainStore((state: any) => state.synapses);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const selectNodes = useBrainStore((state: any) => state.selectNodes);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const setScopeDegreeOnNodes = useBrainStore((state: any) => state.setScopeDegreeOnNodes);
 
   // UI state
   const [isVisible, setIsVisible] = useState(false);
@@ -31,7 +36,7 @@ export function useSelectionScope() {
   // Bas-markerade noder (användaren har klickat på dessa)
   const baseSelected = useMemo(() => {
     const selected = new Set<string>();
-    nodes.forEach((node, id) => {
+    nodes.forEach((node: MindNode, id: string) => {
       if (node.selected && !node.scopeDegree) {
         selected.add(id);
       }

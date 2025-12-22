@@ -7,6 +7,7 @@ import { useBrainStore } from '../store/useBrainStore';
 import { performOCR } from '../utils/gemini';
 import type { ContextMenuState } from '../components/overlays/ContextMenu';
 import { ZOOM } from '../utils/constants';
+import type { MindNode } from '../types/types';
 
 interface NodeActionsProps {
   stageRef: React.RefObject<Konva.Stage | null>;
@@ -20,16 +21,16 @@ export function useNodeActions({ stageRef, setShowSettings, setContextMenu, visi
 
   // Center camera on selected nodes (or all if none selected)
   const centerCamera = useCallback(() => {
-    const allNodes = Array.from(store.nodes.values());
-    const targetNodes = allNodes.filter(n => n.selected).length > 0
-      ? allNodes.filter(n => n.selected)
+    const allNodes = Array.from(store.nodes.values()) as MindNode[];
+    const targetNodes = allNodes.filter((n: MindNode) => n.selected).length > 0
+      ? allNodes.filter((n: MindNode) => n.selected)
       : allNodes;
 
     // Update stage directly instead of via canvas.view
     if (!stageRef.current || targetNodes.length === 0) return;
 
     let sumX = 0, sumY = 0;
-    targetNodes.forEach(n => {
+    targetNodes.forEach((n: MindNode) => {
       sumX += n.x;
       sumY += n.y;
     });
@@ -48,14 +49,14 @@ export function useNodeActions({ stageRef, setShowSettings, setContextMenu, visi
   // Fit all visible nodes in view (zoom to show everything, as large as possible)
   const fitAllNodes = useCallback(() => {
     // Använd synliga noder om tillgängliga, annars alla
-    const nodes = visibleNodes && visibleNodes.length > 0
+    const nodes: MindNode[] = visibleNodes && visibleNodes.length > 0
       ? visibleNodes
-      : Array.from(store.nodes.values());
+      : Array.from(store.nodes.values()) as MindNode[];
     if (!stageRef.current || nodes.length === 0) return;
 
     // Beräkna bounding box för synliga kort
     let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-    nodes.forEach(n => {
+    nodes.forEach((n: MindNode) => {
       const w = n.width || 200;
       const h = n.height || 100;
       minX = Math.min(minX, n.x);
@@ -87,13 +88,13 @@ export function useNodeActions({ stageRef, setShowSettings, setContextMenu, visi
 
   // Reset zoom to 100% and center
   const resetZoom = useCallback(() => {
-    const allNodes = Array.from(store.nodes.values());
+    const allNodes = Array.from(store.nodes.values()) as MindNode[];
     if (!stageRef.current) return;
 
     // Beräkna center av alla kort
     let centerX = 0, centerY = 0;
     if (allNodes.length > 0) {
-      allNodes.forEach(n => {
+      allNodes.forEach((n: MindNode) => {
         centerX += n.x + (n.width || 200) / 2;
         centerY += n.y + (n.height || 100) / 2;
       });
@@ -160,8 +161,8 @@ export function useNodeActions({ stageRef, setShowSettings, setContextMenu, visi
 
   // Run OCR on all selected image nodes
   const runOCROnSelected = useCallback(async () => {
-    const selectedImages = Array.from(store.nodes.values())
-      .filter(n => n.selected && n.type === 'image');
+    const selectedImages = (Array.from(store.nodes.values()) as MindNode[])
+      .filter((n: MindNode) => n.selected && n.type === 'image');
 
     if (selectedImages.length === 0) return;
 
@@ -180,12 +181,12 @@ export function useNodeActions({ stageRef, setShowSettings, setContextMenu, visi
 
   // Delete selected nodes
   const deleteSelected = useCallback(() => {
-    const selectedNodes = Array.from(store.nodes.values()).filter(n => n.selected);
+    const selectedNodes = (Array.from(store.nodes.values()) as MindNode[]).filter((n: MindNode) => n.selected);
     if (selectedNodes.length === 0) return;
     const requiresConfirm = selectedNodes.length >= 10;
     if (requiresConfirm && !confirm(`Radera ${selectedNodes.length} valda kort?`)) return;
     store.saveStateForUndo();
-    selectedNodes.forEach(node => store.removeNode(node.id));
+    selectedNodes.forEach((node: MindNode) => store.removeNode(node.id));
   }, [store]);
 
   // Add tag to all selected nodes

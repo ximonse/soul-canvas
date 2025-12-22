@@ -2,6 +2,7 @@
 // Högerklicksmeny för kort
 
 import { useBrainStore } from '../../store/useBrainStore';
+import type { MindNode } from '../../types/types';
 
 export interface ContextMenuState {
   x: number;
@@ -36,9 +37,9 @@ export function ContextMenu({
 }: ContextMenuProps) {
   const store = useBrainStore();
   const node = store.nodes.get(menu.nodeId);
-  const selectedNodes = Array.from(store.nodes.values()).filter(n => n.selected);
+  const selectedNodes = (Array.from(store.nodes.values()) as MindNode[]).filter((n: MindNode) => n.selected);
   const selectedCount = selectedNodes.length;
-  const selectedImageCount = selectedNodes.filter(n => n.type === 'image').length;
+  const selectedImageCount = selectedNodes.filter((n: MindNode) => n.type === 'image').length;
 
   // Early return if node was deleted while menu was open
   if (!node) {
@@ -94,7 +95,7 @@ export function ContextMenu({
   const handleAddToChat = () => {
     // Lägg till markerade kort om flera är markerade, annars bara aktuellt kort
     if (selectedCount > 1) {
-      selectedNodes.forEach(n => onAddToChat?.(n.id));
+      selectedNodes.forEach((n: MindNode) => onAddToChat?.(n.id));
     } else {
       onAddToChat?.(menu.nodeId);
     }
@@ -103,7 +104,7 @@ export function ContextMenu({
 
   // Check if current node or any selected node has embedding
   const hasEmbedding = node.embedding ||
-    Array.from(store.nodes.values()).some(n => n.selected && n.embedding);
+    (Array.from(store.nodes.values()) as MindNode[]).some((n: MindNode) => n.selected && n.embedding);
 
   // Session-relaterat
   const isInSession = store.activeSessionId !== null;
@@ -111,7 +112,7 @@ export function ContextMenu({
   const handleRemoveFromSession = () => {
     if (!store.activeSessionId) return;
     const cardIdsToRemove = selectedCount > 1
-      ? selectedNodes.map(n => n.id)
+      ? selectedNodes.map((n: MindNode) => n.id)
       : [menu.nodeId];
     store.removeCardsFromSession(store.activeSessionId, cardIdsToRemove);
     onClose();

@@ -13,7 +13,7 @@ function revokeAssetUrls(assets: Record<string, string>) {
 }
 
 export function useFileSystem() {
-  const { setFileHandle, loadNodes, loadAssets, loadConversations, loadSessions, fileHandle } = useBrainStore();
+  const { setFileHandle, loadNodes, loadAssets, loadConversations, loadSessions, loadTrails, fileHandle } = useBrainStore();
   // Track current blob URLs for cleanup
   const currentAssetsRef = useRef<Record<string, string>>({});
   const [isReady, setIsReady] = useState(false);
@@ -31,7 +31,7 @@ export function useFileSystem() {
       await setDb('soul-folder-handle', dirHandle);
 
       // 2. Leta efter data.json
-      let data = { nodes: [], synapses: [], conversations: [], sessions: [], activeSessionId: null as string | null };
+      let data = { nodes: [], synapses: [], conversations: [], sessions: [], trails: [], activeSessionId: null as string | null };
       try {
         const fileHandle = await dirHandle.getFileHandle('data.json');
         const file = await fileHandle.getFile();
@@ -50,6 +50,7 @@ export function useFileSystem() {
           synapses: parsed.synapses || [],
           conversations: parsed.conversations || [],
           sessions: parsed.sessions || [],
+          trails: parsed.trails || [],
           activeSessionId: parsed.activeSessionId || null
         };
       } catch {
@@ -80,6 +81,7 @@ export function useFileSystem() {
       loadAssets(assetsMap);
       loadConversations(data.conversations || []);
       loadSessions(data.sessions || []);
+      loadTrails(data.trails || []);
       if (data.activeSessionId) {
         useBrainStore.getState().switchSession(data.activeSessionId);
       }
@@ -87,7 +89,7 @@ export function useFileSystem() {
       console.error('Kunde inte läsa mapp:', err);
       setFileHandle(null!);
     }
-  }, [setFileHandle, loadNodes, loadAssets, loadConversations]);
+  }, [setFileHandle, loadNodes, loadAssets, loadConversations, loadTrails]);
 
   // Cleanup blob URLs on unmount
   useEffect(() => {
@@ -133,6 +135,7 @@ export function useFileSystem() {
         synapses: state.synapses,
         conversations: state.conversations,
         sessions: state.sessions,
+        trails: state.trails,
         activeSessionId: state.activeSessionId
       };
       

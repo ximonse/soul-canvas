@@ -206,10 +206,10 @@ const KonvaCanvas: React.FC<KonvaCanvasProps> = ({
     const x2 = Math.max(selectionRect.x1, selectionRect.x2);
     const y2 = Math.max(selectionRect.y1, selectionRect.y2);
 
-    const allNodes = Array.from(store.nodes.values());
+    const allNodes = Array.from(store.nodes.values()) as MindNode[];
     const idsToSelect = allNodes
-      .filter((node) => node.x >= x1 && node.x <= x2 && node.y >= y1 && node.y <= y2)
-      .map((node) => node.id);
+      .filter((node: MindNode) => node.x >= x1 && node.x <= x2 && node.y >= y1 && node.y <= y2)
+      .map((node: MindNode) => node.id);
 
     if (idsToSelect.length > 0) {
       store.selectNodes(idsToSelect);

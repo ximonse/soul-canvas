@@ -41,16 +41,21 @@ const KonvaNode: React.FC<KonvaNodeProps> = ({
 
   // Extract link URL from comment field
   const linkUrl = useMemo(() => extractLinkUrl(node.comment), [node.comment]);
-  const updateNodePosition = useBrainStore((state) => state.updateNodePosition);
-  const toggleSelection = useBrainStore((state) => state.toggleSelection);
-  const clearSelection = useBrainStore((state) => state.clearSelection);
-  const dragSelectedNodes = useBrainStore((state) => state.dragSelectedNodes);
-  const isTagging = useBrainStore((state) => state.taggingNodes.has(node.id));
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const updateNodePosition = useBrainStore((state: any) => state.updateNodePosition);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const toggleSelection = useBrainStore((state: any) => state.toggleSelection);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const clearSelection = useBrainStore((state: any) => state.clearSelection);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const dragSelectedNodes = useBrainStore((state: any) => state.dragSelectedNodes);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const isTagging = useBrainStore((state: any) => state.taggingNodes.has(node.id));
 
   const getSelectedCount = useCallback(() => {
     const nodes = useBrainStore.getState().nodes;
     let count = 0;
-    nodes.forEach(n => { if (n.selected) count++; });
+    nodes.forEach((n: MindNode) => { if (n.selected) count++; });
     return count;
   }, []);
 
@@ -125,9 +130,9 @@ const KonvaNode: React.FC<KonvaNodeProps> = ({
     if (getSelectedCount() > 1) {
       const dx = e.target.x() - initialX;
       const dy = e.target.y() - initialY;
-      Array.from(useBrainStore.getState().nodes.values())
-        .filter(n => n.selected && n.id !== node.id)
-        .forEach(n => {
+      (Array.from(useBrainStore.getState().nodes.values()) as MindNode[])
+        .filter((n: MindNode) => n.selected && n.id !== node.id)
+        .forEach((n: MindNode) => {
           const stage = e.target.getStage();
           const otherGroup = stage?.findOne(`#konva-node-${n.id}`) as Konva.Group;
           otherGroup?.position({ x: n.x + dx, y: n.y + dy });

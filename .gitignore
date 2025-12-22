@@ -26,3 +26,13 @@ dist-ssr
 # Local temp/bulk files
 .tmp.driveupload/
 nul
+
+# Personal data and local config
+my_eternal_mind/
+.claude/
+
+# WIP features (local only)
+src/hooks/useWandering.ts
+src/components/overlays/TrailPanel.tsx
+src/store/slices/trailSlice.ts
+src/utils/trailPathfinding.ts

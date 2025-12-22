@@ -38,9 +38,9 @@ export function useChatContext() {
 
   // Lägg till alla markerade kort i chatten
   const addSelectedNodesToContext = useCallback(() => {
-    const selected = Array.from(store.nodes.values())
-      .filter(n => n.selected)
-      .map(n => n.id);
+    const selected = (Array.from(store.nodes.values()) as MindNode[])
+      .filter((n: MindNode) => n.selected)
+      .map((n: MindNode) => n.id);
     if (selected.length === 0) return;
     setPinnedNodeIds(prev => [...new Set([...prev, ...selected])]);
   }, [store.nodes]);
@@ -53,15 +53,15 @@ export function useChatContext() {
   // Hämta nuvarande kontext-nod-IDs
   const getContextNodeIds = useCallback(() => {
     if (pinnedNodeIds.length > 0) return pinnedNodeIds;
-    const allNodes = Array.from(store.nodes.values());
-    const selected = allNodes.filter(n => n.selected);
-    return selected.length > 0 ? selected.map(n => n.id) : [];
+    const allNodes = Array.from(store.nodes.values()) as MindNode[];
+    const selected = allNodes.filter((n: MindNode) => n.selected);
+    return selected.length > 0 ? selected.map((n: MindNode) => n.id) : [];
   }, [store.nodes, pinnedNodeIds]);
 
   // Bygg kontext-snippet - LAZY: anropas bara när det behövs
   const buildContextSnippet = useCallback((): ChatContext => {
-    const allNodes = Array.from(store.nodes.values());
-    const selected = allNodes.filter(n => n.selected);
+    const allNodes = Array.from(store.nodes.values()) as MindNode[];
+    const selected = allNodes.filter((n: MindNode) => n.selected);
 
     // Om vi har pinnade noder, använd dem
     if (pinnedNodes.length > 0) {
@@ -80,13 +80,13 @@ export function useChatContext() {
     }
 
     // Använd markerade om det finns, annars 30 senaste
-    const baseNodes = selected.length > 0
+    const baseNodes: MindNode[] = selected.length > 0
       ? selected
       : allNodes
-          .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+          .sort((a: MindNode, b: MindNode) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
           .slice(0, 30);
 
-    const snippet = baseNodes.map((n, i) => {
+    const snippet = baseNodes.map((n: MindNode, i: number) => {
       const base = (n.ocrText || n.content || '').replace(/\s+/g, ' ').slice(0, 180);
       const tags = n.tags?.length ? ` [tags: ${n.tags.join(', ')}]` : '';
       return `[${i + 1}] (${n.type}) ${base}${tags}`;

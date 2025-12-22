@@ -59,7 +59,7 @@ export const AIPanel = ({ theme, onClose, onDiscussReflection }: AIPanelProps) =
 
   // Beräkna synliga kopplingar baserat på threshold
   const visibleSynapseCount = store.synapses.filter(
-    s => (s.similarity || 1) >= (store.synapseVisibilityThreshold || 0)
+    (s: { similarity?: number }) => (s.similarity || 1) >= (store.synapseVisibilityThreshold || 0)
   ).length;
   const totalSynapseCount = store.synapses.length;
 

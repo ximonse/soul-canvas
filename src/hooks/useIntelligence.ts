@@ -17,7 +17,7 @@ import {
   generateNodeTitle 
 } from '../utils/claude';
 import { GRAVITY } from '../utils/constants';
-import type { MindNode, AIReflection } from '../types/types';
+import type { MindNode, AIReflection, Synapse } from '../types/types';
 
 export const useIntelligence = () => {
   const store = useBrainStore();
@@ -56,7 +56,7 @@ export const useIntelligence = () => {
   const embedAllNodes = useCallback(async (): Promise<number> => {
     if (!store.openaiKey) return 0;
 
-    const nodesToEmbed = Array.from(store.nodes.values()).filter(n => !n.embedding);
+    const nodesToEmbed = (Array.from(store.nodes.values()) as MindNode[]).filter((n: MindNode) => !n.embedding);
     if (nodesToEmbed.length === 0) return 0;
 
     try {
@@ -64,7 +64,7 @@ export const useIntelligence = () => {
       setProgress({ current: 0, total: nodesToEmbed.length });
 
       const embeddings = await batchGenerateEmbeddings(
-        nodesToEmbed,
+        nodesToEmbed as MindNode[],
         store.openaiKey,
         (current, total) => setProgress({ current, total })
       );
@@ -99,10 +99,10 @@ export const useIntelligence = () => {
     if (isProcessing) return 0;
 
     const threshold = currentState.autoLinkThreshold || 0.75;
-    const allNodes = Array.from(currentState.nodes.values());
-    const nodesToCheck = nodeId
+    const allNodes = Array.from(currentState.nodes.values()) as MindNode[];
+    const nodesToCheck: MindNode[] = nodeId
       ? [currentState.nodes.get(nodeId)].filter(Boolean) as MindNode[]
-      : allNodes.filter(n => n.embedding);
+      : allNodes.filter((n: MindNode) => n.embedding);
 
     let linksCreated = 0;
 
@@ -111,13 +111,13 @@ export const useIntelligence = () => {
       for (const node of nodesToCheck) {
         if (!node.embedding) continue;
 
-        const similarNodes = findSimilarNodes(node, allNodes, threshold);
+        const similarNodes = findSimilarNodes(node as MindNode, allNodes as MindNode[], threshold);
 
         for (const { nodeId: targetId, similarity } of similarNodes) {
           // Get fresh synapses state to check for existing links
           const freshState = useBrainStore.getState();
           const linkExists = freshState.synapses.some(
-            s => (s.sourceId === node.id && s.targetId === targetId) ||
+            (s: Synapse) => (s.sourceId === node.id && s.targetId === targetId) ||
                  (s.sourceId === targetId && s.targetId === node.id)
           );
 
@@ -154,7 +154,7 @@ export const useIntelligence = () => {
       // Merge practical tags with existing tags (avoid duplicates)
       const existingTags = node.tags || [];
       const newPracticalTags = result.practicalTags.filter(
-        tag => !existingTags.some(existing => existing.toLowerCase() === tag.toLowerCase())
+        (tag: string) => !existingTags.some((existing: string) => existing.toLowerCase() === tag.toLowerCase())
       );
       const mergedTags = [...existingTags, ...newPracticalTags];
 
@@ -181,8 +181,8 @@ export const useIntelligence = () => {
     const key = currentState.claudeKey;
     if (!key) return 0;
 
-    const selected = Array.from(currentState.nodes.values()).filter(n => n.selected);
-    const targets = nodeId
+    const selected = (Array.from(currentState.nodes.values()) as MindNode[]).filter((n: MindNode) => n.selected);
+    const targets: MindNode[] = nodeId
       ? [currentState.nodes.get(nodeId)].filter(Boolean) as MindNode[]
       : (selected.length > 0 ? selected : []);
     if (targets.length === 0) return 0;
@@ -191,8 +191,8 @@ export const useIntelligence = () => {
     let updated = 0;
     setIsProcessing(true);
     try {
-      for (const node of targets) {
-        const summary = await generateNodeSummaryComment(node, key);
+      for (const node of targets as MindNode[]) {
+        const summary = await generateNodeSummaryComment(node as MindNode, key);
         if (summary) {
           currentState.updateNode(node.id, { comment: summary });
           updated++;
@@ -212,8 +212,8 @@ export const useIntelligence = () => {
     const key = currentState.claudeKey;
     if (!key) return 0;
 
-    const selected = Array.from(currentState.nodes.values()).filter(n => n.selected);
-    const targets = nodeId
+    const selected = (Array.from(currentState.nodes.values()) as MindNode[]).filter((n: MindNode) => n.selected);
+    const targets: MindNode[] = nodeId
       ? [currentState.nodes.get(nodeId)].filter(Boolean) as MindNode[]
       : (selected.length > 0 ? selected : []);
     if (targets.length === 0) return 0;
@@ -222,8 +222,8 @@ export const useIntelligence = () => {
     let updated = 0;
     setIsProcessing(true);
     try {
-      for (const node of targets) {
-        const title = await generateNodeTitle(node, key);
+      for (const node of targets as MindNode[]) {
+        const title = await generateNodeTitle(node as MindNode, key);
         if (title) {
           currentState.updateNode(node.id, { title });
           updated++;
@@ -241,14 +241,14 @@ export const useIntelligence = () => {
   const reflect = useCallback(async (): Promise<AIReflection | null> => {
     if (!store.claudeKey) return null;
 
-    const selectedNodes = Array.from(store.nodes.values()).filter(n => n.selected);
-    const nodesToAnalyze = selectedNodes.length > 0 ? selectedNodes : Array.from(store.nodes.values());
+    const selectedNodes = (Array.from(store.nodes.values()) as MindNode[]).filter((n: MindNode) => n.selected);
+    const nodesToAnalyze: MindNode[] = selectedNodes.length > 0 ? selectedNodes : Array.from(store.nodes.values()) as MindNode[];
 
     if (nodesToAnalyze.length === 0) return null;
 
     try {
       setIsProcessing(true);
-      const reflection = await generateReflection(nodesToAnalyze, store.claudeKey);
+      const reflection = await generateReflection(nodesToAnalyze as MindNode[], store.claudeKey);
       setLastReflection(reflection);
       return reflection;
     } catch (error) {
@@ -265,12 +265,12 @@ export const useIntelligence = () => {
   const analyzeSelectedCluster = useCallback(async (): Promise<string | null> => {
     if (!store.claudeKey) return null;
 
-    const selectedNodes = Array.from(store.nodes.values()).filter(n => n.selected);
+    const selectedNodes = (Array.from(store.nodes.values()) as MindNode[]).filter((n: MindNode) => n.selected);
     if (selectedNodes.length < 2) return null;
 
     try {
       setIsProcessing(true);
-      const insight = await analyzeCluster(selectedNodes, store.claudeKey);
+      const insight = await analyzeCluster(selectedNodes as MindNode[], store.claudeKey);
       return insight;
     } catch (error) {
       console.error('Cluster analysis error:', error);
@@ -306,9 +306,9 @@ export const useIntelligence = () => {
       };
 
       // Find similar nodes
-      const nodesWithEmbeddings = Array.from(store.nodes.values()).filter(n => n.embedding);
-      
-      const results = findSimilarNodes(queryMindNode, nodesWithEmbeddings, 0); // Find similar nodes
+      const nodesWithEmbeddings = (Array.from(store.nodes.values()) as MindNode[]).filter((n: MindNode) => n.embedding);
+
+      const results = findSimilarNodes(queryMindNode, nodesWithEmbeddings as MindNode[], 0); // Find similar nodes
 
       return results
         .filter(r => r.similarity > 0.5) // Threshold for search
@@ -330,20 +330,20 @@ export const useIntelligence = () => {
    */
   const attractSimilarNodes = useCallback((): number => {
     const currentState = useBrainStore.getState();
-    const allNodes = Array.from(currentState.nodes.values());
-    const selectedNodes = allNodes.filter(n => n.selected);
+    const allNodes = Array.from(currentState.nodes.values()) as MindNode[];
+    const selectedNodes = allNodes.filter((n: MindNode) => n.selected);
 
     if (selectedNodes.length === 0) return 0;
 
     // Hitta liknande noder
     const threshold = currentState.autoLinkThreshold || 0.6;
-    const similarResults = findNodesSimilarToGroup(selectedNodes, allNodes, threshold);
+    const similarResults = findNodesSimilarToGroup(selectedNodes as MindNode[], allNodes as MindNode[], threshold);
 
     if (similarResults.length === 0) return 0;
 
     // Beräkna centroid av markerade kort
-    const centerX = selectedNodes.reduce((sum, n) => sum + n.x, 0) / selectedNodes.length;
-    const centerY = selectedNodes.reduce((sum, n) => sum + n.y, 0) / selectedNodes.length;
+    const centerX = selectedNodes.reduce((sum: number, n: MindNode) => sum + n.x, 0) / selectedNodes.length;
+    const centerY = selectedNodes.reduce((sum: number, n: MindNode) => sum + n.y, 0) / selectedNodes.length;
 
     // Flytta liknande kort i en cirkel runt centroiden
     const positions = new Map<string, { x: number; y: number }>();
@@ -376,24 +376,24 @@ export const useIntelligence = () => {
    */
   const arrangeAsGraph = useCallback((centerX?: number, centerY?: number, gravity?: number): number => {
     const currentState = useBrainStore.getState();
-    const allNodes = Array.from(currentState.nodes.values());
+    const allNodes = Array.from(currentState.nodes.values()) as MindNode[];
 
     if (currentState.synapses.length === 0) return 0;
 
     // Beräkna center om inte angivet
-    const cx = centerX ?? allNodes.reduce((sum, n) => sum + n.x, 0) / allNodes.length;
-    const cy = centerY ?? allNodes.reduce((sum, n) => sum + n.y, 0) / allNodes.length;
+    const cx = centerX ?? allNodes.reduce((sum: number, n: MindNode) => sum + n.x, 0) / allNodes.length;
+    const cy = centerY ?? allNodes.reduce((sum: number, n: MindNode) => sum + n.y, 0) / allNodes.length;
 
     // Använd angiven gravity eller från store
     const g = Math.max(GRAVITY.MIN, Math.min(GRAVITY.MAX, gravity ?? currentState.graphGravity));
 
     const visibleSynapses = currentState.synapses.filter(
-      s => (s.similarity || 1) >= currentState.synapseVisibilityThreshold
+      (s: Synapse) => (s.similarity || 1) >= currentState.synapseVisibilityThreshold
     );
     if (visibleSynapses.length === 0) return 0;
 
     const positions = calculateConnectedNodesLayout(
-      allNodes,
+      allNodes as MindNode[],
       visibleSynapses,
       { centerX: cx, centerY: cy, iterations: 300, gravity: g }
     );

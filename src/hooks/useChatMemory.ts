@@ -5,6 +5,7 @@ import { useCallback, useMemo, useRef } from 'react';
 import { useBrainStore } from '../store/useBrainStore';
 import { generateConversationSummary } from '../utils/claude';
 import type { ChatMessage } from '../utils/chatProviders';
+import type { Conversation, ConversationMessage } from '../types/types';
 
 export function useChatMemory(currentConversationId: string | null) {
   const store = useBrainStore();
@@ -18,10 +19,10 @@ export function useChatMemory(currentConversationId: string | null) {
     // Förhindra dubbla sammanfattningar
     if (summarizingRef.current.has(convId)) return;
 
-    const conv = store.conversations.find(c => c.id === convId);
+    const conv = store.conversations.find((c: Conversation) => c.id === convId);
     if (!conv || conv.summary) return; // Redan sammanfattat
 
-    const visibleMessages = conv.messages.filter(m => m.role !== 'system');
+    const visibleMessages = conv.messages.filter((m: ConversationMessage) => m.role !== 'system');
     if (visibleMessages.length < 2) return; // För kort
 
     summarizingRef.current.add(convId);
@@ -41,13 +42,13 @@ export function useChatMemory(currentConversationId: string | null) {
   // Bygg minnes-kontext från tidigare samtal
   const buildMemoryContext = useCallback(() => {
     const recentConversations = store.conversations
-      .filter(c => !c.isArchived && c.summary && c.id !== currentConversationId)
-      .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+      .filter((c: Conversation) => !c.isArchived && c.summary && c.id !== currentConversationId)
+      .sort((a: Conversation, b: Conversation) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
       .slice(0, 5);
 
     if (recentConversations.length === 0) return '';
 
-    const summaries = recentConversations.map(c => {
+    const summaries = recentConversations.map((c: Conversation) => {
       const date = new Date(c.updatedAt).toLocaleDateString('sv-SE', { day: 'numeric', month: 'short' });
       const themes = c.themes?.length ? ` [${c.themes.join(', ')}]` : '';
       return `- ${date}: ${c.summary}${themes}`;
@@ -58,11 +59,11 @@ export function useChatMemory(currentConversationId: string | null) {
 
   // Ladda ett tidigare samtal - returnerar messages om lyckat
   const loadConversationMessages = useCallback((convId: string): ChatMessage[] | null => {
-    const conv = store.conversations.find(c => c.id === convId);
+    const conv = store.conversations.find((c: Conversation) => c.id === convId);
     if (!conv) return null;
 
     // Konvertera Conversation messages till ChatMessage format
-    const loadedMessages: ChatMessage[] = conv.messages.map(m => ({
+    const loadedMessages: ChatMessage[] = conv.messages.map((m: ConversationMessage) => ({
       role: m.role,
       content: m.content
     }));
@@ -73,13 +74,13 @@ export function useChatMemory(currentConversationId: string | null) {
   // Lista alla samtal (senaste först, exkludera arkiverade)
   const listConversations = useMemo(() => {
     return store.conversations
-      .filter(c => !c.isArchived)
-      .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+      .filter((c: Conversation) => !c.isArchived)
+      .sort((a: Conversation, b: Conversation) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
   }, [store.conversations]);
 
   // Hämta ett specifikt samtal
   const getConversation = useCallback((convId: string) => {
-    return store.conversations.find(c => c.id === convId);
+    return store.conversations.find((c: Conversation) => c.id === convId);
   }, [store.conversations]);
 
   return {

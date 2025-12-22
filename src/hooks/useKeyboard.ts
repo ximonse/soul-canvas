@@ -3,6 +3,7 @@
 
 import { useEffect, useCallback, useRef } from 'react';
 import { useBrainStore } from '../store/useBrainStore';
+import type { MindNode } from '../types/types';
 
 interface KeyboardActions {
   onOpenCommandPalette: () => void;
@@ -22,6 +23,11 @@ interface KeyboardActions {
   onAdjustGraphGravity: (delta: number) => void;
   onToggleScopePanel?: () => void;
   onToggleSessionPanel?: () => void;
+  onToggleViewMode?: () => void;
+  // Trail/Wandering
+  onToggleWandering?: () => void;
+  onBacktrackTrail?: () => void;
+  onForwardTrail?: () => void;
   // Arrangemang
   onArrangeVertical: () => void;
   onArrangeHorizontal: () => void;
@@ -241,6 +247,34 @@ export function useKeyboard(
         return;
       }
 
+      // K = toggle view mode (canvas/column)
+      if (key === 'k' && !e.ctrlKey) {
+        e.preventDefault();
+        actions.onToggleViewMode?.();
+        return;
+      }
+
+      // W = toggle wandering mode + trail panel
+      if (key === 'w' && !e.ctrlKey) {
+        e.preventDefault();
+        actions.onToggleWandering?.();
+        return;
+      }
+
+      // [ = backtrack trail
+      if (e.key === '[' && !e.ctrlKey) {
+        e.preventDefault();
+        actions.onBacktrackTrail?.();
+        return;
+      }
+
+      // ] = forward trail
+      if (e.key === ']' && !e.ctrlKey) {
+        e.preventDefault();
+        actions.onForwardTrail?.();
+        return;
+      }
+
       // C = kopiera/duplicera
       if (key === 'c' && !e.ctrlKey && hasSelection) {
         e.preventDefault();
@@ -284,7 +318,7 @@ export function useKeyboard(
 
         // Check for g+v, g+h, g+t, g+c combos OR standalone v/h
         if (['v', 'h', 't', 'c'].includes(key)) {
-          const currentHasSelection = Array.from(useBrainStore.getState().nodes.values()).some(n => n.selected);
+          const currentHasSelection = (Array.from(useBrainStore.getState().nodes.values()) as MindNode[]).some((n: MindNode) => n.selected);
 
           if (gComboState.pressed && currentHasSelection) {
             // g+key combos: grid arrangements

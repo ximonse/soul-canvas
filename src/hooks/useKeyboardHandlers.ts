@@ -7,6 +7,7 @@ import { type CanvasAPI } from './useCanvas';
 import { type SearchAPI } from './useSearch';
 import type { ContextMenuState } from '../components/overlays/ContextMenu';
 import { GRAVITY } from '../utils/constants';
+import type { MindNode, Sequence } from '../types/types';
 
 interface KeyboardHandlersProps {
   canvas: CanvasAPI;
@@ -46,6 +47,12 @@ interface KeyboardHandlersProps {
   onToggleSessionPanel?: () => void;
   isSessionPanelOpen?: boolean;
   onCloseSessionPanel?: () => void;
+  onToggleViewMode?: () => void;
+
+  // Trail/Wandering
+  onToggleWandering?: () => void;
+  onBacktrackTrail?: () => void;
+  onForwardTrail?: () => void;
 }
 
 export function useKeyboardHandlers({
@@ -80,6 +87,10 @@ export function useKeyboardHandlers({
   onToggleSessionPanel,
   isSessionPanelOpen,
   onCloseSessionPanel,
+  onToggleViewMode,
+  onToggleWandering,
+  onBacktrackTrail,
+  onForwardTrail,
 }: KeyboardHandlersProps) {
   const store = useBrainStore();
 
@@ -109,12 +120,12 @@ export function useKeyboardHandlers({
       }
 
       // Kolla om valda kort är del av en sekvens - ta bort dem från sekvensen
-      const selected = Array.from(store.nodes.values()).filter(n => n.selected);
+      const selected = (Array.from(store.nodes.values()) as MindNode[]).filter((n: MindNode) => n.selected);
       if (selected.length > 0) {
         let removedFromSequence = false;
-        selected.forEach(node => {
+        selected.forEach((node: MindNode) => {
           // Kolla om noden är i någon sekvens
-          const inSequence = store.sequences.some(seq => seq.nodeIds.includes(node.id));
+          const inSequence = store.sequences.some((seq: Sequence) => seq.nodeIds.includes(node.id));
           if (inSequence) {
             store.removeFromSequence(node.id);
             removedFromSequence = true;
@@ -143,8 +154,8 @@ export function useKeyboardHandlers({
     onToggleAIPanel: () => setShowAIPanel((prev: boolean) => !prev),
 
     onPin: () => {
-      const selected = Array.from(store.nodes.values()).filter(n => n.selected);
-      if (selected.some(n => n.pinned)) {
+      const selected = (Array.from(store.nodes.values()) as MindNode[]).filter((n: MindNode) => n.selected);
+      if (selected.some((n: MindNode) => n.pinned)) {
         store.unpinSelected();
       } else {
         store.pinSelected();
@@ -160,29 +171,29 @@ export function useKeyboardHandlers({
       store.setGraphGravity(newGravity);
 
       // Kör om layouten live med färre iterationer för snabbare respons
-      const allNodes = Array.from(store.nodes.values());
-      const selectedNodes = allNodes.filter(n => n.selected);
+      const allNodes = Array.from(store.nodes.values()) as MindNode[];
+      const selectedNodes = allNodes.filter((n: MindNode) => n.selected);
 
       // Filtrera synapser baserat på visibility threshold först
-      const visibleSynapses = store.synapses.filter(s =>
+      const visibleSynapses = store.synapses.filter((s: { similarity?: number }) =>
         (s.similarity || 1) >= store.synapseVisibilityThreshold
       );
 
       // Om kort är markerade, använd bara dem och deras kopplingar
       const hasSelection = selectedNodes.length > 0;
-      const selectedIds = new Set(selectedNodes.map(n => n.id));
+      const selectedIds = new Set(selectedNodes.map((n: MindNode) => n.id));
 
       // Filtrera till bara de som berör relevanta noder
       const relevantSynapses = hasSelection
-        ? visibleSynapses.filter(s => selectedIds.has(s.sourceId) || selectedIds.has(s.targetId))
+        ? visibleSynapses.filter((s: { sourceId: string; targetId: string }) => selectedIds.has(s.sourceId) || selectedIds.has(s.targetId))
         : visibleSynapses;
 
       // Noder att layouta: markerade + deras kopplade grannar, eller alla
-      const nodesToLayout = hasSelection
-        ? allNodes.filter(n => {
+      const nodesToLayout: MindNode[] = hasSelection
+        ? allNodes.filter((n: MindNode) => {
             if (selectedIds.has(n.id)) return true;
             // Inkludera grannar som är kopplade till markerade
-            return relevantSynapses.some(s =>
+            return relevantSynapses.some((s: { sourceId: string; targetId: string }) =>
               (s.sourceId === n.id && selectedIds.has(s.targetId)) ||
               (s.targetId === n.id && selectedIds.has(s.sourceId))
             );
@@ -193,19 +204,19 @@ export function useKeyboardHandlers({
         import('../utils/forceLayout').then(({ calculateConnectedNodesLayout }) => {
           // Hitta noder som har kopplingar för bättre center-beräkning
           const connectedIds = new Set<string>();
-          relevantSynapses.forEach(s => {
+          relevantSynapses.forEach((s: { sourceId: string; targetId: string }) => {
             connectedIds.add(s.sourceId);
             connectedIds.add(s.targetId);
           });
-          const connectedNodes = nodesToLayout.filter(n => connectedIds.has(n.id));
+          const connectedNodes = nodesToLayout.filter((n: MindNode) => connectedIds.has(n.id));
 
           if (connectedNodes.length === 0) return;
 
-          const cx = connectedNodes.reduce((sum, n) => sum + n.x, 0) / connectedNodes.length;
-          const cy = connectedNodes.reduce((sum, n) => sum + n.y, 0) / connectedNodes.length;
+          const cx = connectedNodes.reduce((sum: number, n: MindNode) => sum + n.x, 0) / connectedNodes.length;
+          const cy = connectedNodes.reduce((sum: number, n: MindNode) => sum + n.y, 0) / connectedNodes.length;
 
           const positions = calculateConnectedNodesLayout(
-            nodesToLayout,
+            nodesToLayout as MindNode[],
             relevantSynapses,
             { centerX: cx, centerY: cy, iterations: 50, gravity: newGravity }
           );
@@ -281,6 +292,14 @@ export function useKeyboardHandlers({
     onToggleSessionPanel: () => {
       onToggleSessionPanel?.();
     },
+
+    // View mode (canvas/column)
+    onToggleViewMode,
+
+    // Trail/Wandering
+    onToggleWandering,
+    onBacktrackTrail,
+    onForwardTrail,
 
     // Quote extractor (AI-driven)
     onQuoteExtractor: () => {
