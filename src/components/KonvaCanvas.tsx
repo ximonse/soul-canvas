@@ -1,6 +1,6 @@
 // src/components/KonvaCanvas.tsx
 import React, { useRef, useEffect, useState, useMemo } from 'react';
-import { Stage, Layer, Rect } from 'react-konva';
+import { Stage, Layer, Rect, Line } from 'react-konva';
 import type Konva from 'konva';
 import type { KonvaEventObject } from 'konva/lib/Node';
 import { useBrainStore } from '../store/useBrainStore';
@@ -11,7 +11,8 @@ import KonvaNode from './KonvaNode';
 import { SynapseLines, SequenceArrows } from './canvas';
 import { THEMES } from '../themes';
 import { ZOOM } from '../utils/constants';
-import type { MindNode } from '../types/types';
+import type { MindNode, GravitatingNode, GravitatingColorMode, Trail } from '../types/types';
+import { getGravitatingColor, getSemanticThemeColor } from '../utils/nodeStyles';
 
 interface KonvaCanvasProps {
   currentThemeKey: string;
@@ -19,6 +20,11 @@ interface KonvaCanvasProps {
   canvas: CanvasAPI;
   stageRef?: React.RefObject<Konva.Stage | null>;
   nodes: MindNode[];
+  gravitatingNodes?: GravitatingNode[];
+  gravitatingColorMode?: GravitatingColorMode;
+  wanderingCurrentNodeId?: string | null;
+  activeTrail?: Trail | null;
+  selectedTrails?: Trail[];
   onContextMenu?: (nodeId: string, screenPos: { x: number; y: number }) => void;
   onZoomChange?: (zoom: number) => void;
 }
@@ -37,6 +43,11 @@ const KonvaCanvas: React.FC<KonvaCanvasProps> = ({
   canvas,
   stageRef: externalStageRef,
   nodes,
+  gravitatingNodes = [],
+  gravitatingColorMode = 'similarity',
+  wanderingCurrentNodeId,
+  activeTrail,
+  selectedTrails = [],
   onContextMenu,
   onZoomChange,
 }) => {
@@ -72,6 +83,16 @@ const KonvaCanvas: React.FC<KonvaCanvasProps> = ({
     nodes.forEach((n) => map.set(n.id, n));
     return map;
   }, [nodes]);
+
+  // Map för snabb uppslag av gravitating info per nodeId
+  const gravitatingMap = useMemo(() => {
+    const map = new Map<string, { similarity: number; semanticTheme?: string }>();
+    gravitatingNodes.forEach((g) => map.set(g.nodeId, {
+      similarity: g.similarity,
+      semanticTheme: g.semanticTheme
+    }));
+    return map;
+  }, [gravitatingNodes]);
 
   // Viewport culling for performance with many cards
   const { visibleNodes } = useViewportCulling({
@@ -243,18 +264,109 @@ const KonvaCanvas: React.FC<KonvaCanvasProps> = ({
           />
         )}
 
+        {/* Gravitating lines - från current wandering node till gravitating nodes */}
+        {wanderingCurrentNodeId && gravitatingNodes.length > 0 && (() => {
+          const currentNode = filteredNodesMap.get(wanderingCurrentNodeId);
+          if (!currentNode) return null;
+
+          const currentX = currentNode.x + (currentNode.width || 200) / 2;
+          const currentY = currentNode.y + (currentNode.height || 100) / 2;
+
+          return gravitatingNodes.map((gn) => {
+            const targetNode = filteredNodesMap.get(gn.nodeId);
+            if (!targetNode) return null;
+
+            const targetX = targetNode.x + (targetNode.width || 200) / 2;
+            const targetY = targetNode.y + (targetNode.height || 100) / 2;
+
+            const lineColor = gravitatingColorMode === 'semantic'
+              ? getSemanticThemeColor(gn.semanticTheme)
+              : getGravitatingColor(gn.similarity);
+
+            return (
+              <Line
+                key={`grav-${gn.nodeId}`}
+                points={[currentX, currentY, targetX, targetY]}
+                stroke={lineColor}
+                strokeWidth={4 / canvas.view.k}
+                opacity={0.7 + gn.similarity * 0.3}
+                lineCap="round"
+                shadowColor={lineColor}
+                shadowBlur={8}
+                shadowOpacity={0.5}
+              />
+            );
+          });
+        })()}
+
+        {/* Trail lines - stig genom besökta kort */}
+        {(() => {
+          // Samla alla trails att rita (aktiv + valda)
+          const trailsToDraw: { trail: Trail; color: string; isActive: boolean }[] = [];
+
+          if (activeTrail && activeTrail.waypoints.length > 1) {
+            trailsToDraw.push({ trail: activeTrail, color: '#f59e0b', isActive: true }); // Orange för aktiv
+          }
+
+          // Valda trails (olika färger)
+          const trailColors = ['#8b5cf6', '#ec4899', '#06b6d4', '#10b981', '#f97316'];
+          selectedTrails.forEach((trail, idx) => {
+            if (trail.waypoints.length > 1 && trail.id !== activeTrail?.id) {
+              trailsToDraw.push({ trail, color: trailColors[idx % trailColors.length], isActive: false });
+            }
+          });
+
+          return trailsToDraw.flatMap(({ trail, color, isActive }) => {
+            const lines: React.ReactNode[] = [];
+
+            for (let i = 0; i < trail.waypoints.length - 1; i++) {
+              const fromNode = filteredNodesMap.get(trail.waypoints[i].nodeId);
+              const toNode = filteredNodesMap.get(trail.waypoints[i + 1].nodeId);
+              if (!fromNode || !toNode) continue;
+
+              const fromX = fromNode.x + (fromNode.width || 200) / 2;
+              const fromY = fromNode.y + (fromNode.height || 100) / 2;
+              const toX = toNode.x + (toNode.width || 200) / 2;
+              const toY = toNode.y + (toNode.height || 100) / 2;
+
+              lines.push(
+                <Line
+                  key={`trail-${trail.id}-${i}`}
+                  points={[fromX, fromY, toX, toY]}
+                  stroke={color}
+                  strokeWidth={(isActive ? 6 : 4) / canvas.view.k}
+                  opacity={isActive ? 0.9 : 0.7}
+                  lineCap="round"
+                  lineJoin="round"
+                  shadowColor={color}
+                  shadowBlur={isActive ? 12 : 6}
+                  shadowOpacity={0.6}
+                  dash={isActive ? undefined : [10 / canvas.view.k, 5 / canvas.view.k]}
+                />
+              );
+            }
+            return lines;
+          });
+        })()}
+
         {/* Visible nodes sorted by Y position */}
-        {[...visibleNodes].sort((a, b) => a.y - b.y).map((node: MindNode) => (
-          <KonvaNode
-            key={node.id}
-            node={node}
-            theme={theme}
-            onEditCard={onEditCard}
-            onDragStart={() => setIsDraggingNode(true)}
-            onDragEnd={() => setIsDraggingNode(false)}
-            onContextMenu={onContextMenu}
-          />
-        ))}
+        {[...visibleNodes].sort((a, b) => a.y - b.y).map((node: MindNode) => {
+          const gravitatingInfo = gravitatingMap.get(node.id);
+          return (
+            <KonvaNode
+              key={node.id}
+              node={node}
+              theme={theme}
+              gravitatingSimilarity={gravitatingInfo?.similarity}
+              gravitatingSemanticTheme={gravitatingInfo?.semanticTheme}
+              gravitatingColorMode={gravitatingColorMode}
+              onEditCard={onEditCard}
+              onDragStart={() => setIsDraggingNode(true)}
+              onDragEnd={() => setIsDraggingNode(false)}
+              onContextMenu={onContextMenu}
+            />
+          );
+        })}
 
         {/* Selection rectangle */}
         {selectionRect && selectionRect.visible && (

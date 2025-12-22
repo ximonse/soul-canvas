@@ -7,12 +7,16 @@ import { dKeyState } from '../hooks/useKeyboard';
 import type { MindNode } from '../types/types';
 import { type Theme } from '../themes';
 import { CARD } from '../utils/constants';
-import { getScopeColor, getNodeStyles } from '../utils/nodeStyles';
+import { getScopeColor, getNodeStyles, getGravitatingColor, getSemanticThemeColor } from '../utils/nodeStyles';
+import type { GravitatingColorMode } from '../types/types';
 import MarkdownText from './MarkdownText';
 
 interface KonvaNodeProps {
   node: MindNode;
   theme: Theme;
+  gravitatingSimilarity?: number;  // Om noden är en gravitating node, dess similarity (0-1)
+  gravitatingSemanticTheme?: string;  // Semantiskt tema (existential, practical, etc.)
+  gravitatingColorMode?: GravitatingColorMode;  // 'similarity' eller 'semantic'
   onEditCard: (cardId: string) => void;
   onDragStart?: () => void;
   onDragEnd?: () => void;
@@ -30,6 +34,9 @@ const extractLinkUrl = (markdown: string | undefined): string | null => {
 const KonvaNode: React.FC<KonvaNodeProps> = ({
   node,
   theme,
+  gravitatingSimilarity,
+  gravitatingSemanticTheme,
+  gravitatingColorMode = 'similarity',
   onEditCard,
   onDragStart: onDragStartProp,
   onDragEnd: onDragEndProp,
@@ -217,6 +224,28 @@ const KonvaNode: React.FC<KonvaNodeProps> = ({
     [theme, node.createdAt, isSelected, node.backgroundColor]
   );
 
+  // Är detta en gravitating node?
+  const isGravitating = gravitatingSimilarity !== undefined;
+
+  // Beräkna gravitating-färg baserat på colorMode
+  const gravitatingColor = useMemo(() => {
+    if (!isGravitating) return '#4a4a4a';
+    if (gravitatingColorMode === 'semantic') {
+      return getSemanticThemeColor(gravitatingSemanticTheme);
+    }
+    return getGravitatingColor(gravitatingSimilarity);
+  }, [isGravitating, gravitatingColorMode, gravitatingSemanticTheme, gravitatingSimilarity]);
+
+  // Beräkna stroke-färg med prioritet: selected > gravitating > scope > default
+  const strokeColor = useMemo(() => {
+    if (isSelected) return styles.border;
+    if (isGravitating) return gravitatingColor;
+    if (isScopeSelected) return getScopeColor(node.scopeDegree);
+    return '#4a4a4a';
+  }, [isSelected, styles.border, isGravitating, gravitatingColor, isScopeSelected, node.scopeDegree]);
+
+  const strokeWidth = isSelected ? 3 : isGravitating ? 3 : isScopeSelected ? 2 : 1;
+
   return (
     <Group
       x={node.x} y={node.y} draggable
@@ -225,11 +254,30 @@ const KonvaNode: React.FC<KonvaNodeProps> = ({
       onMouseEnter={handleMouseEnter} onMouseLeave={handleMouseLeave}
       ref={groupRef} id={`konva-node-${node.id}`}
     >
+      {/* Glow-effekt för gravitating nodes */}
+      {isGravitating && (
+        <Rect
+          x={-8} y={-8}
+          width={CARD.WIDTH + 16} height={cardHeight + 16}
+          fill="transparent"
+          stroke={gravitatingColor}
+          strokeWidth={6}
+          cornerRadius={CARD.CORNER_RADIUS + 6}
+          opacity={0.8}
+          shadowColor={gravitatingColor}
+          shadowBlur={20}
+          shadowOpacity={0.8}
+        />
+      )}
+
       <Rect
-        width={CARD.WIDTH} height={cardHeight} fill={styles.bg} cornerRadius={CARD.CORNER_RADIUS}
-        stroke={isSelected ? styles.border : isScopeSelected ? getScopeColor(node.scopeDegree) : '#4a4a4a'}
-        strokeWidth={isSelected ? 3 : isScopeSelected ? 2 : 1}
-        dash={isScopeSelected && !isSelected ? [8, 4] : undefined}
+        width={CARD.WIDTH} height={cardHeight}
+        fill={isGravitating ? gravitatingColor : styles.bg}
+        opacity={isGravitating ? 0.85 : 1}
+        cornerRadius={CARD.CORNER_RADIUS}
+        stroke={strokeColor}
+        strokeWidth={isGravitating ? 4 : strokeWidth}
+        dash={isScopeSelected && !isSelected && !isGravitating ? [8, 4] : undefined}
       />
 
       {node.accentColor && (

@@ -21,6 +21,7 @@ interface ContextMenuProps {
   onSummarize?: (nodeId: string) => void;
   onSuggestTitle?: (nodeId: string) => void;
   onAddToChat?: (nodeId: string) => void;
+  onTagSelected?: () => void;
 }
 
 export function ContextMenu({
@@ -34,6 +35,7 @@ export function ContextMenu({
   onSummarize,
   onSuggestTitle,
   onAddToChat,
+  onTagSelected,
 }: ContextMenuProps) {
   const store = useBrainStore();
   const node = store.nodes.get(menu.nodeId);
@@ -99,6 +101,11 @@ export function ContextMenu({
     } else {
       onAddToChat?.(menu.nodeId);
     }
+    onClose();
+  };
+
+  const handleTagSelected = () => {
+    onTagSelected?.();
     onClose();
   };
 
@@ -173,6 +180,18 @@ export function ContextMenu({
             role="menuitem"
           >
             🧠 Auto-tagga{selectedCount > 1 ? ` (${selectedCount})` : ''}
+          </button>
+        </li>
+      )}
+
+      {onTagSelected && selectedCount > 0 && (
+        <li role="none">
+          <button
+            onClick={handleTagSelected}
+            className="w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-amber-600"
+            role="menuitem"
+          >
+            🏷️ Tagga markerade ({selectedCount})
           </button>
         </li>
       )}

@@ -38,6 +38,7 @@ interface ModalManagerProps {
   onRunOCR: (id: string) => void;
   onRunOCROnSelected?: () => void;
   onAutoTag?: (id: string) => void;
+  onTagSelected?: () => void;
   onAttractSimilar?: () => void;
   handleManualSave: () => void;
   centerCamera: () => void;
@@ -116,6 +117,7 @@ export const ModalManager: React.FC<ModalManagerProps> = ({
   onRunOCR,
   onRunOCROnSelected,
   onAutoTag,
+  onTagSelected,
   onAttractSimilar,
   handleManualSave,
   centerCamera,
@@ -177,6 +179,7 @@ export const ModalManager: React.FC<ModalManagerProps> = ({
           onRunOCR={onRunOCR}
           onRunOCROnSelected={onRunOCROnSelected}
           onAutoTag={onAutoTag}
+          onTagSelected={onTagSelected}
           onAttractSimilar={onAttractSimilar}
           onOpenAIChat={() => setShowAIChat(true)}
           onSummarize={onSummarizeToComment}

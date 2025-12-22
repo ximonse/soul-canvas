@@ -152,6 +152,9 @@ export interface GravitatingNode {
   themeColor?: string;            // Temafärg för highlighting
 }
 
+// Färgläge för gravitating nodes
+export type GravitatingColorMode = 'similarity' | 'semantic';
+
 // Vandringslägets tillstånd
 export interface WanderingState {
   isActive: boolean;
@@ -159,6 +162,7 @@ export interface WanderingState {
   gravitatingNodes: GravitatingNode[];
   minSimilarityThreshold: number; // Filter för graviterade kort
   showOnlyDifferentWords: boolean; // "Surface difference" mode
+  colorMode: GravitatingColorMode; // 'similarity' = grön-cyan gradient, 'semantic' = temafärger
 }
 
 // Centralitet för hub-visualisering

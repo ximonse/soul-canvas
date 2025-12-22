@@ -144,6 +144,14 @@ function App() {
     intelligence.suggestTitle(id);
   }, [intelligence]);
 
+  const handleTagSelected = useCallback(() => {
+    const tag = window.prompt('Ange tagg att lägga till på markerade kort:');
+    if (tag && tag.trim()) {
+      store.saveStateForUndo();
+      store.addTagToSelected(tag.trim());
+    }
+  }, [store]);
+
   // Simple callbacks
   const handleManualSave = useCallback(() => {
     if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
@@ -310,6 +318,11 @@ function App() {
           canvas={canvas}
           stageRef={stageRef}
           nodes={filteredNodesArray}
+          gravitatingNodes={wandering.gravitatingNodes}
+          gravitatingColorMode={wandering.colorMode}
+          wanderingCurrentNodeId={wandering.currentNodeId}
+          activeTrail={wandering.activeTrail}
+          selectedTrails={wandering.selectedTrails}
           onContextMenu={(nodeId, pos) => setContextMenu({ nodeId, x: pos.x, y: pos.y })}
           onZoomChange={setCurrentZoom}
         />
@@ -419,6 +432,7 @@ function App() {
         trailHistory={wandering.trailHistory}
         minSimilarityThreshold={wandering.minSimilarityThreshold}
         showOnlyDifferentWords={wandering.showOnlyDifferentWords}
+        colorMode={wandering.colorMode}
         onStartWandering={wandering.startWandering}
         onStopWandering={wandering.stopWandering}
         onStepTo={wandering.stepTo}
@@ -429,6 +443,10 @@ function App() {
         onDeleteTrail={wandering.deleteTrail}
         onSetThreshold={wandering.setThreshold}
         onToggleSurfaceDifference={wandering.toggleSurfaceDifference}
+        onToggleColorMode={wandering.toggleColorMode}
+        selectedTrailIds={wandering.selectedTrailIds}
+        onSelectTrailNodes={wandering.selectTrailNodes}
+        onToggleTrailSelection={wandering.toggleTrailSelection}
         getNode={(id) => store.nodes.get(id)}
         selectedNodeId={firstSelectedNodeId}
       />
@@ -467,6 +485,7 @@ function App() {
         onRunOCR={runOCR}
         onRunOCROnSelected={runOCROnSelected}
         onAutoTag={handleAutoTag}
+        onTagSelected={handleTagSelected}
         onAttractSimilar={intelligence.attractSimilarNodes}
         onSummarizeToComment={handleSummarizeToComment}
         onSuggestTitle={handleSuggestTitle}
