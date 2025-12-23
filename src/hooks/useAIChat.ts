@@ -6,7 +6,7 @@ import { useBrainStore } from '../store/useBrainStore';
 import { useChatContext } from './useChatContext';
 import { useChatMemory } from './useChatMemory';
 import type { ChatProvider, ChatMessage } from '../utils/chatProviders';
-import { chatWithProvider, DEFAULT_CHAT_MODELS, OPENAI_CHAT_MODELS } from '../utils/chatProviders';
+import { chatWithProvider, DEFAULT_CHAT_MODELS, OPENAI_CHAT_MODELS, GEMINI_CHAT_MODELS } from '../utils/chatProviders';
 import { generateConversationTitle } from '../utils/claude';
 
 interface UseAIChatOptions {
@@ -29,6 +29,13 @@ export function useAIChat({ initialProvider = 'claude' }: UseAIChatOptions = {})
       return saved;
     }
     return DEFAULT_CHAT_MODELS.openai;
+  });
+  const [geminiModel, setGeminiModel] = useState<string>(() => {
+    const saved = localStorage.getItem('gemini_chat_model');
+    if (saved && GEMINI_CHAT_MODELS.some(model => model.id === saved)) {
+      return saved;
+    }
+    return DEFAULT_CHAT_MODELS.gemini;
   });
   const [isSending, setIsSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -61,7 +68,11 @@ export function useAIChat({ initialProvider = 'claude' }: UseAIChatOptions = {})
       selectedProvider === 'claude' ? store.claudeKey :
       selectedProvider === 'openai' ? store.openaiKey :
       store.geminiKey;
-    const modelOverride = selectedProvider === 'openai' ? openaiModel : undefined;
+    const modelOverride = selectedProvider === 'openai'
+      ? openaiModel
+      : selectedProvider === 'gemini'
+        ? geminiModel
+        : undefined;
 
     if (!apiKey) {
       setError(`API-nyckel saknas för ${selectedProvider}`);
@@ -224,6 +235,11 @@ ${ctx.contextSnippet || '(Inga kort tillgängliga)'}${memoryContext}`;
     setOpenaiModel: (model: string) => {
       setOpenaiModel(model);
       localStorage.setItem('openai_chat_model', model);
+    },
+    geminiModel,
+    setGeminiModel: (model: string) => {
+      setGeminiModel(model);
+      localStorage.setItem('gemini_chat_model', model);
     },
     // Messages
     messages,

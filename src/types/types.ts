@@ -8,7 +8,7 @@ export type SortOption = 'connections' | 'tags' | 'oldest' | 'newest' | 'modifie
 
 export interface MindNode {
   id: string;
-  content: string;         // Huvudinnehåll (Texten för textkort, HTML för Zotero, Bild-tagg för bilder)
+  content: string;         // Huvudinnehåll (Texten för textkort, OCR-text för bilder, HTML för Zotero)
   x: number;
   y: number;
   z: number;
@@ -19,6 +19,7 @@ export interface MindNode {
   copyRef?: string;        // Original card id if this is a copy
   copiedAt?: string;       // When this copy was created
   originalCreatedAt?: string; // When the original card was created
+  imageRef?: string;       // Bildens filreferens/URL (för bildkort)
   
   // NYA FÄLT
   type: 'text' | 'image' | 'zotero'; // För att veta hur vi ska rendera

@@ -4,6 +4,7 @@
 import { useState, useMemo, useCallback } from 'react';
 import { useBrainStore } from '../store/useBrainStore';
 import type { MindNode } from '../types/types';
+import { getImageText } from '../utils/imageRefs';
 
 interface ChatContext {
   contextSnippet: string;
@@ -66,7 +67,8 @@ export function useChatContext() {
     // Om vi har pinnade noder, använd dem
     if (pinnedNodes.length > 0) {
       const snippet = pinnedNodes.map((n, i) => {
-        const base = (n.ocrText || n.content || '').replace(/\s+/g, ' ').slice(0, 180);
+        const baseText = n.type === 'image' ? getImageText(n) : (n.ocrText || n.content || '');
+        const base = baseText.replace(/\s+/g, ' ').slice(0, 180);
         const tags = n.tags?.length ? ` [tags: ${n.tags.join(', ')}]` : '';
         return `[${i + 1}] (${n.type}) ${base}${tags}`;
       }).join('\n');
@@ -87,7 +89,8 @@ export function useChatContext() {
           .slice(0, 30);
 
     const snippet = baseNodes.map((n: MindNode, i: number) => {
-      const base = (n.ocrText || n.content || '').replace(/\s+/g, ' ').slice(0, 180);
+      const baseText = n.type === 'image' ? getImageText(n) : (n.ocrText || n.content || '');
+      const base = baseText.replace(/\s+/g, ' ').slice(0, 180);
       const tags = n.tags?.length ? ` [tags: ${n.tags.join(', ')}]` : '';
       return `[${i + 1}] (${n.type}) ${base}${tags}`;
     }).join('\n');

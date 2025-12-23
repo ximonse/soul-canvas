@@ -52,6 +52,8 @@ interface ModalManagerProps {
   setChatProvider: (p: ChatProvider) => void;
   openaiChatModel: string;
   setOpenaiChatModel: (model: string) => void;
+  geminiChatModel: string;
+  setGeminiChatModel: (model: string) => void;
   sendChat: (text: string, provider?: ChatProvider) => Promise<void>;
   isChatSending: boolean;
   chatError?: string | null;
@@ -136,6 +138,8 @@ export const ModalManager: React.FC<ModalManagerProps> = ({
   setChatProvider,
   openaiChatModel,
   setOpenaiChatModel,
+  geminiChatModel,
+  setGeminiChatModel,
   sendChat,
   isChatSending,
   chatError,
@@ -293,6 +297,8 @@ export const ModalManager: React.FC<ModalManagerProps> = ({
             setProvider={setChatProvider}
             openaiModel={openaiChatModel}
             setOpenaiModel={setOpenaiChatModel}
+            geminiModel={geminiChatModel}
+            setGeminiModel={setGeminiChatModel}
             onSend={sendChat}
             onClose={() => { setShowAIChat(false); setIsChatMinimized(false); }}
             onMinimize={() => setIsChatMinimized(true)}
@@ -307,6 +313,8 @@ export const ModalManager: React.FC<ModalManagerProps> = ({
             setProvider={setChatProvider}
             openaiModel={openaiChatModel}
             setOpenaiModel={setOpenaiChatModel}
+            geminiModel={geminiChatModel}
+            setGeminiModel={setGeminiChatModel}
             onSend={sendChat}
             onClose={() => { setShowAIChat(false); setIsChatMinimized(false); }}
             onMinimize={() => setIsChatMinimized(true)}

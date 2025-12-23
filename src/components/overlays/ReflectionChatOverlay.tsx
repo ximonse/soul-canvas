@@ -1,6 +1,6 @@
 // src/components/overlays/ReflectionChatOverlay.tsx
 import { useState, useEffect, useRef } from 'react';
-import { CHAT_PROVIDER_LABELS, OPENAI_CHAT_MODELS } from '../../utils/chatProviders';
+import { CHAT_PROVIDER_LABELS, OPENAI_CHAT_MODELS, GEMINI_CHAT_MODELS } from '../../utils/chatProviders';
 import type { ChatProvider, ChatMessage } from '../../utils/chatProviders';
 
 interface ReflectionChatOverlayProps {
@@ -9,6 +9,8 @@ interface ReflectionChatOverlayProps {
   setProvider: (p: ChatProvider) => void;
   openaiModel?: string;
   setOpenaiModel?: (model: string) => void;
+  geminiModel?: string;
+  setGeminiModel?: (model: string) => void;
   onSend: (text: string, provider?: ChatProvider) => Promise<void>;
   onClose: () => void;
   onMinimize: () => void;
@@ -24,6 +26,8 @@ export function ReflectionChatOverlay({
   setProvider,
   openaiModel,
   setOpenaiModel,
+  geminiModel,
+  setGeminiModel,
   onSend,
   onClose,
   onMinimize,
@@ -105,6 +109,19 @@ export function ReflectionChatOverlay({
                   className="ml-2 px-2 py-1 rounded text-xs bg-white/10 text-white border border-white/20"
                 >
                   {OPENAI_CHAT_MODELS.map((model) => (
+                    <option key={model.id} value={model.id}>
+                      {model.label} - {model.id}
+                    </option>
+                  ))}
+                </select>
+              )}
+              {provider === 'gemini' && setGeminiModel && (
+                <select
+                  value={geminiModel || GEMINI_CHAT_MODELS[1].id}
+                  onChange={(e) => setGeminiModel(e.target.value)}
+                  className="ml-2 px-2 py-1 rounded text-xs bg-white/10 text-white border border-white/20"
+                >
+                  {GEMINI_CHAT_MODELS.map((model) => (
                     <option key={model.id} value={model.id}>
                       {model.label} - {model.id}
                     </option>

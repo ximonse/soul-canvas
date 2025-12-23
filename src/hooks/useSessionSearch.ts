@@ -3,6 +3,7 @@
 
 import { useState, useMemo } from 'react';
 import type { MindNode, Session } from '../types/types';
+import { getImageText } from '../utils/imageRefs';
 import { filterNodesOutsideSession } from '../utils/nodeFilters';
 
 // Återanvänd söklogik från useSearch.ts
@@ -147,9 +148,10 @@ export function useSessionSearch({ allNodes, activeSession }: UseSessionSearchOp
     const postfix = toPostfix(tokens);
 
     return outsideNodes.filter(node => {
+      const imageText = node.type === 'image' ? getImageText(node) : node.content;
       const searchableText = [
         node.title,
-        node.content,
+        imageText,
         node.ocrText,
         node.comment,
         ...node.tags,

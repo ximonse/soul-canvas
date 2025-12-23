@@ -1,5 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk';
 import type { MindNode, AIReflection } from '../types/types';
+import { getImageText } from './imageRefs';
 import type { ChatMessage } from './chatProviders';
 import { claudeLimiter } from './rateLimiter';
 
@@ -21,7 +22,7 @@ export const generateReflection = async (
         content = node.content;
         break;
       case 'image':
-        content = node.ocrText || node.comment || '[Bild utan text]';
+        content = getImageText(node) || '[Bild utan text]';
         break;
       case 'zotero': {
         const tempDiv = document.createElement('div');
@@ -108,7 +109,7 @@ export const generateSemanticTags = async (
       content = node.content;
       break;
     case 'image':
-      content = node.ocrText || node.comment || '';
+      content = getImageText(node);
       break;
     case 'zotero': {
       const tempDiv = document.createElement('div');
@@ -187,7 +188,7 @@ export const generateNodeSummaryComment = async (
 
   const anthropic = new Anthropic({ apiKey, dangerouslyAllowBrowser: true });
   const baseText = (() => {
-    if (node.type === 'image') return node.ocrText || node.comment || '';
+    if (node.type === 'image') return getImageText(node);
     if (node.type === 'zotero') {
       const tempDiv = document.createElement('div');
       tempDiv.innerHTML = node.content;
@@ -228,7 +229,7 @@ export const generateNodeTitle = async (
 
   const anthropic = new Anthropic({ apiKey, dangerouslyAllowBrowser: true });
   const baseText = (() => {
-    if (node.type === 'image') return node.ocrText || node.comment || '';
+    if (node.type === 'image') return getImageText(node);
     if (node.type === 'zotero') {
       const tempDiv = document.createElement('div');
       tempDiv.innerHTML = node.content;
@@ -276,7 +277,7 @@ export const analyzeCluster = async (
         content = node.content;
         break;
       case 'image':
-        content = node.ocrText || node.comment || '[Bild]';
+        content = getImageText(node) || '[Bild]';
         break;
       case 'zotero': {
         const tempDiv = document.createElement('div');

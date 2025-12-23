@@ -1,6 +1,6 @@
 // src/components/overlays/AIChatOverlay.tsx
 import { useState, useEffect, useRef } from 'react';
-import { CHAT_PROVIDER_LABELS, OPENAI_CHAT_MODELS } from '../../utils/chatProviders';
+import { CHAT_PROVIDER_LABELS, OPENAI_CHAT_MODELS, GEMINI_CHAT_MODELS } from '../../utils/chatProviders';
 import type { ChatProvider, ChatMessage } from '../../utils/chatProviders';
 import type { Theme } from '../../themes';
 import type { Conversation, MindNode } from '../../types/types';
@@ -13,6 +13,8 @@ interface AIChatOverlayProps {
   setProvider: (p: ChatProvider) => void;
   openaiModel?: string;
   setOpenaiModel?: (model: string) => void;
+  geminiModel?: string;
+  setGeminiModel?: (model: string) => void;
   onSend: (text: string, provider?: ChatProvider) => Promise<void>;
   onClose: () => void;
   onMinimize: () => void;
@@ -40,6 +42,8 @@ export function AIChatOverlay({
   setProvider,
   openaiModel,
   setOpenaiModel,
+  geminiModel,
+  setGeminiModel,
   onSend,
   onClose,
   onMinimize,
@@ -137,6 +141,24 @@ export function AIChatOverlay({
                   }}
                 >
                   {OPENAI_CHAT_MODELS.map((model) => (
+                    <option key={model.id} value={model.id}>
+                      {model.label} - {model.id}
+                    </option>
+                  ))}
+                </select>
+              )}
+              {provider === 'gemini' && setGeminiModel && (
+                <select
+                  value={geminiModel || GEMINI_CHAT_MODELS[1].id}
+                  onChange={(e) => setGeminiModel(e.target.value)}
+                  className="ml-2 px-2 py-1 rounded text-xs"
+                  style={{
+                    backgroundColor: `${theme.node.border}22`,
+                    color: theme.node.text,
+                    border: `1px solid ${theme.node.border}`,
+                  }}
+                >
+                  {GEMINI_CHAT_MODELS.map((model) => (
                     <option key={model.id} value={model.id}>
                       {model.label} - {model.id}
                     </option>

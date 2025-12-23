@@ -2,6 +2,7 @@
 import type { MindNode } from '../../types/types';
 import type { Theme } from '../../themes';
 import { getNodeDisplayTitle } from '../../utils/nodeDisplay';
+import { getImageText } from '../../utils/imageRefs';
 
 interface ChatContextPanelProps {
   pinnedNodes: MindNode[];
@@ -12,7 +13,7 @@ interface ChatContextPanelProps {
 }
 
 function getNodePreview(node: MindNode): string {
-  const text = node.ocrText || node.content || '';
+  const text = node.type === 'image' ? getImageText(node) : (node.ocrText || node.content || '');
   // Strip HTML tags for zotero nodes
   const cleanText = node.type === 'zotero'
     ? text.replace(/<[^>]*>/g, '')

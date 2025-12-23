@@ -2,6 +2,12 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { geminiLimiter } from './rateLimiter';
 
+export const GEMINI_OCR_MODELS = [
+  'gemini-2.5-flash',
+  'gemini-2.5-flash-lite',
+  'gemini-2.5-pro',
+];
+
 // Vi definierar vad vi förväntar oss att få tillbaka
 interface AIResult {
   text: string;
@@ -9,14 +15,18 @@ interface AIResult {
   tags: string[];
 }
 
-export const performOCR = async (imageBase64: string, apiKey: string): Promise<AIResult> => {
+export const performOCR = async (
+  imageBase64: string,
+  apiKey: string,
+  modelId: string = GEMINI_OCR_MODELS[0]
+): Promise<AIResult> => {
   if (!apiKey) throw new Error("Ingen API-nyckel inställd");
 
   try {
     const genAI = new GoogleGenerativeAI(apiKey);
-    
+    const chosenModel = GEMINI_OCR_MODELS.includes(modelId) ? modelId : GEMINI_OCR_MODELS[0];
     const model = genAI.getGenerativeModel({
-      model: "gemini-2.0-flash-exp",
+      model: chosenModel,
       generationConfig: { responseMimeType: "application/json" }
     });
 
@@ -27,8 +37,10 @@ export const performOCR = async (imageBase64: string, apiKey: string): Promise<A
 
     1. **Transkribera (OCR):** Läs av all text i bilden exakt. Om det är handstil, gör ditt bästa.
     
-    2. **Beskriv (Bildanalys):** - Om bilden *endast* är text på vit/enfärgad bakgrund (som ett skannat dokument), lämna detta tomt.
-       - MEN, om bilden innehåller annat (foton, ritningar, objekt, miljöer) eller är en specifik typ av fysisk anteckning (lapp på vägg, skrivbok på bord), beskriv själva bilden med 3-6 meningar. Beskriv stämning, motiv och sammanhang.
+    2. **Beskriv (Bildanalys):**
+       - Om du hittar läsbar text: skriv en kort visuell beskrivning (1-2 meningar).
+       - Om du INTE hittar text: skriv en utförlig beskrivning (3-6 meningar).
+       - Fokusera på medium, layout, miljö och visuella detaljer.
 
     3. **Tagga:** Generera 3-6 relevanta taggar på svenska.
        - Vad handlar texten/bilden om?

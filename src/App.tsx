@@ -531,6 +531,8 @@ function App() {
           setChatProvider={aiChat.setProvider}
           openaiChatModel={aiChat.openaiModel}
           setOpenaiChatModel={aiChat.setOpenaiModel}
+          geminiChatModel={aiChat.geminiModel}
+          setGeminiChatModel={aiChat.setGeminiModel}
           sendChat={aiChat.sendMessage}
           isChatSending={aiChat.isSending}
           chatError={aiChat.error}

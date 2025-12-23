@@ -5,6 +5,7 @@ import { createSelectionSlice, type SelectionActions } from './slices/selectionS
 import { createHistorySlice, historyInitialState, type HistoryState, type HistoryActions } from './slices/historySlice';
 import { createTrailSlice, initialTrailState, type TrailState, type TrailActions } from './slices/trailSlice';
 import { GRAVITY } from '../utils/constants';
+import { GEMINI_OCR_MODELS } from '../utils/gemini';
 
 // Core state interface
 interface CoreState {
@@ -16,6 +17,7 @@ interface CoreState {
 
   // AI Keys & Settings
   geminiKey?: string;
+  geminiOcrModel?: string;
   openaiKey?: string;
   claudeKey?: string;
   autoLinkThreshold?: number;
@@ -52,6 +54,7 @@ interface CoreState {
 interface CoreActions {
   setFileHandle: (handle: FileSystemDirectoryHandle | null) => void;
   setApiKey: (provider: AIProvider, key: string) => void;
+  setGeminiOcrModel: (model: string) => void;
   setAutoLinkThreshold: (threshold: number) => void;
   toggleAutoLink: () => void;
   toggleSynapseLines: () => void;
@@ -124,6 +127,16 @@ const PROVIDER_STATE_KEYS: Record<AIProvider, 'geminiKey' | 'openaiKey' | 'claud
 const getInitialApiKey = (provider: AIProvider) =>
   localStorage.getItem(PROVIDER_STORAGE_KEYS[provider]) || '';
 
+const GEMINI_OCR_MODEL_STORAGE_KEY = 'gemini_ocr_model';
+
+const getInitialGeminiOcrModel = () => {
+  const saved = localStorage.getItem(GEMINI_OCR_MODEL_STORAGE_KEY);
+  if (saved && GEMINI_OCR_MODELS.includes(saved)) {
+    return saved;
+  }
+  return GEMINI_OCR_MODELS[0];
+};
+
 // Combined store type
 type BrainStore = CoreState & HistoryState & TrailState & CoreActions & SelectionActions & HistoryActions & TrailActions;
 
@@ -155,6 +168,7 @@ export const useBrainStore = create<BrainStore>()((set) => ({
 
   // AI Keys & Settings
   geminiKey: getInitialApiKey('gemini'),
+  geminiOcrModel: getInitialGeminiOcrModel(),
   openaiKey: getInitialApiKey('openai'),
   claudeKey: getInitialApiKey('claude'),
   autoLinkThreshold: 0.75,
@@ -169,6 +183,12 @@ export const useBrainStore = create<BrainStore>()((set) => ({
 
     localStorage.setItem(storageKey, key);
     return { [stateKey]: key } as Pick<CoreState, typeof stateKey>;
+  }),
+
+  setGeminiOcrModel: (model) => set(() => {
+    const safeModel = GEMINI_OCR_MODELS.includes(model) ? model : GEMINI_OCR_MODELS[0];
+    localStorage.setItem(GEMINI_OCR_MODEL_STORAGE_KEY, safeModel);
+    return { geminiOcrModel: safeModel };
   }),
 
   setAutoLinkThreshold: (threshold) => set({ autoLinkThreshold: threshold }),

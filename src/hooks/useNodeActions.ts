@@ -5,6 +5,7 @@ import { useCallback } from 'react';
 import type Konva from 'konva';
 import { useBrainStore } from '../store/useBrainStore';
 import { performOCR } from '../utils/gemini';
+import { getImageRef, resolveImageUrl } from '../utils/imageRefs';
 import type { CanvasAPI } from './useCanvas';
 import type { ContextMenuState } from '../components/overlays/ContextMenu';
 import { ZOOM } from '../utils/constants';
@@ -130,7 +131,7 @@ export function useNodeActions({ stageRef, canvas, setShowSettings, setContextMe
       return;
     }
 
-    const assetUrl = store.assets[node.content];
+    const assetUrl = resolveImageUrl(node, store.assets);
     if (!assetUrl) {
       console.error('Hittar inte bilden för OCR');
       return;
@@ -151,20 +152,31 @@ export function useNodeActions({ stageRef, canvas, setShowSettings, setContextMe
         reader.readAsDataURL(blob);
       });
 
-      const result = await performOCR(base64, store.geminiKey || '');
+      const result = await performOCR(base64, store.geminiKey || '', store.geminiOcrModel);
 
       // Re-fetch node to avoid stale closure - node might have changed
       const currentNode = useBrainStore.getState().nodes.get(id);
       if (!currentNode) return; // Node was deleted
 
-      let finalText = result.text;
-      if (result.description) finalText += '\n\n--- BILDANALYS ---\n' + result.description;
+      const transcription = result.text?.trim() || '';
+      const description = result.description?.trim() || '';
+      const finalContent = transcription && description
+        ? `${transcription}\n\n${description}`
+        : (transcription || description);
+      const imageRef = currentNode.imageRef || getImageRef(currentNode);
 
-      store.updateNode(id, {
-        ocrText: finalText,
+      const updates: Partial<MindNode> = {
         tags: [...new Set([...currentNode.tags, ...result.tags])],
-        isFlipped: true
-      });
+        isFlipped: true,
+      };
+
+      if (imageRef) updates.imageRef = imageRef;
+      if (finalContent) {
+        updates.content = finalContent;
+        updates.ocrText = finalContent;
+      }
+
+      store.updateNode(id, updates);
     } catch (error) {
       store.updateNode(id, { ocrText: 'OCR misslyckades' });
     }

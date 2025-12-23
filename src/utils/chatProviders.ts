@@ -25,10 +25,16 @@ export const OPENAI_CHAT_MODELS = [
   { id: 'gpt-5.2', label: 'Top' },
 ] as const;
 
+export const GEMINI_CHAT_MODELS = [
+  { id: 'gemini-2.5-flash-lite', label: 'Billig/snabb' },
+  { id: 'gemini-2.5-flash', label: 'Medel' },
+  { id: 'gemini-2.5-pro', label: 'Top' },
+] as const;
+
 export const DEFAULT_CHAT_MODELS: Record<ChatProvider, string> = {
   claude: 'claude-3-haiku-20240307',
   openai: 'gpt-5-mini',
-  gemini: 'gemini-2.0-flash',
+  gemini: 'gemini-2.5-flash',
 };
 
 export async function chatWithProvider(

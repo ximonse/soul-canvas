@@ -9,6 +9,7 @@ import { type Theme } from '../themes';
 import { CARD } from '../utils/constants';
 import { getScopeColor, getNodeStyles, getGravitatingColor, getSemanticThemeColor } from '../utils/nodeStyles';
 import { layoutMarkdownText, measureTextHeight } from '../utils/textLayout';
+import { getImageText, resolveImageUrl } from '../utils/imageRefs';
 import type { GravitatingColorMode } from '../types/types';
 import MarkdownText from './MarkdownText';
 
@@ -88,6 +89,10 @@ const KonvaNode: React.FC<KonvaNodeProps> = ({
   const captionLineHeight = 1.2;
   const contentFontFamily = 'Inter, sans-serif';
   const captionFontFamily = "'Noto Serif', Georgia, serif";
+  const backFontFamily = "'Playwrite CA', cursive, 'Noto Serif', Georgia, serif";
+  const backTitleLineHeight = 1.1;
+  const backContentLineHeight = 1.35;
+  const backTextWidth = CARD.WIDTH - CARD.PADDING * 2;
 
   const titleHeight = useMemo(() => {
     if (!node.title?.trim()) return 0;
@@ -120,30 +125,48 @@ const KonvaNode: React.FC<KonvaNodeProps> = ({
     });
   }, [node.caption, captionWidth, captionFontFamily, captionLineHeight]);
 
+  const backTitleHeight = useMemo(() => {
+    if (node.type !== 'image' || !node.title?.trim()) return 0;
+    return measureTextHeight(node.title, {
+      width: backTextWidth,
+      fontSize: 20, // Sync with JSX
+      fontFamily: backFontFamily,
+      fontStyle: 'bold',
+      lineHeight: backTitleLineHeight,
+    });
+  }, [node.type, node.title, backTextWidth, backFontFamily, backTitleLineHeight]);
+
   const titleGap = node.title ? CARD.PADDING : 0;
   const contentOffsetY = CARD.PADDING + (node.title ? titleHeight + titleGap : 0);
 
-  // Image loading
+  const backContentHeight = useMemo(() => {
+    if (node.type !== 'image') return 0;
+    const text = getImageText(node);
+    return measureTextHeight(text, {
+      width: backTextWidth,
+      fontSize: 18, // Sync with JSX
+      fontFamily: backFontFamily,
+      lineHeight: backContentLineHeight,
+    });
+  }, [node, backTextWidth, backFontFamily, backContentLineHeight]);
+
+  // Image loading & Height calculation
   useEffect(() => {
-    if (isImage && node.content.startsWith('assets/')) {
-      const assetUrl = useBrainStore.getState().assets[node.content];
-      if (assetUrl) {
-        const img = new window.Image();
-        img.src = assetUrl;
-        img.onload = () => {
-          setImageObj(img);
-          const aspectRatio = img.height / img.width;
-          let totalHeight = CARD.WIDTH * aspectRatio;
-          if (captionHeight > 0) {
-            totalHeight += captionHeight + CARD.PADDING;
-          }
-          setCardHeight(Math.max(CARD.MIN_HEIGHT, Math.min(CARD.MAX_HEIGHT, totalHeight)));
-        };
-        img.onerror = () => { setImageObj(undefined); setCardHeight(CARD.MIN_HEIGHT); };
+    const calcBackHeight = () => {
+      if (!isFlipped || !isImage) return 0;
+      return CARD.PADDING * 2 + backTitleHeight + (node.title?.trim() ? CARD.PADDING / 2 : 0) + backContentHeight;
+    };
+
+    if (isImage) {
+      const assetUrl = resolveImageUrl(node, useBrainStore.getState().assets);
+      if (!assetUrl) {
+        setImageObj(undefined);
+        const backH = calcBackHeight();
+        setCardHeight(Math.max(CARD.MIN_HEIGHT, backH));
+        return;
       }
-    } else if (isImage) {
       const img = new window.Image();
-      img.src = node.content;
+      img.src = assetUrl;
       img.onload = () => {
         setImageObj(img);
         const aspectRatio = img.height / img.width;
@@ -151,9 +174,15 @@ const KonvaNode: React.FC<KonvaNodeProps> = ({
         if (captionHeight > 0) {
           totalHeight += captionHeight + CARD.PADDING;
         }
-        setCardHeight(Math.max(CARD.MIN_HEIGHT, Math.min(CARD.MAX_HEIGHT, totalHeight)));
+
+        const backH = calcBackHeight();
+        setCardHeight(Math.max(CARD.MIN_HEIGHT, Math.max(totalHeight, backH)));
       };
-      img.onerror = () => { setImageObj(undefined); setCardHeight(CARD.MIN_HEIGHT); };
+      img.onerror = () => {
+        setImageObj(undefined);
+        const backH = calcBackHeight();
+        setCardHeight(Math.max(CARD.MIN_HEIGHT, backH));
+      };
     } else {
       setImageObj(undefined);
       let height = CARD.PADDING * 2 + contentLayout.height;
@@ -168,14 +197,18 @@ const KonvaNode: React.FC<KonvaNodeProps> = ({
   }, [
     node.content,
     node.type,
+    node.imageRef,
     node.title,
     node.caption,
     isImage,
+    isFlipped,
     captionHeight,
     contentLayout.height,
     titleHeight,
+    backTitleHeight,
+    backContentHeight,
+    titleGap,
   ]);
-
   // Drag handlers
   const handleDragStart = useCallback((e: Konva.KonvaEventObject<DragEvent>) => {
     if (!isSelected) { clearSelection(); toggleSelection(node.id, false); }
@@ -400,15 +433,50 @@ const KonvaNode: React.FC<KonvaNodeProps> = ({
           <Rect x={0} y={0} width={CARD.WIDTH} height={cardHeight}
             fill={theme.node.flippedBg} cornerRadius={CARD.CORNER_RADIUS}
           />
-          <Text text="Baksida (Redigerbart)" x={CARD.PADDING} y={CARD.PADDING}
-            width={CARD.WIDTH - CARD.PADDING * 2} fill={theme.node.flippedText}
-            fontSize={CARD.FONT_SIZE_SMALL} fontFamily="Inter, sans-serif" align="center"
-          />
-          <Text text={node.ocrText || (node.type === 'zotero' ? node.content : '')}
-            x={CARD.PADDING} y={CARD.PADDING + 30} width={CARD.WIDTH - CARD.PADDING * 2}
-            fill={theme.node.flippedText} fontSize={CARD.FONT_SIZE_TINY}
-            fontFamily="Inter, monospace" align="left" verticalAlign="top" wrap="word"
-          />
+          {node.type === 'image' ? (
+            <>
+              {node.title?.trim() && (
+                <Text
+                  text={node.title}
+                  x={CARD.PADDING}
+                  y={CARD.PADDING}
+                  width={backTextWidth}
+                  fill={theme.node.flippedText}
+                  fontSize={20}
+                  fontFamily={backFontFamily}
+                  fontStyle="bold"
+                  align="left"
+                  lineHeight={backTitleLineHeight}
+                  wrap="word"
+                />
+              )}
+              <Text
+                text={getImageText(node)}
+                x={CARD.PADDING}
+                y={CARD.PADDING + (node.title?.trim() ? backTitleHeight + CARD.PADDING / 2 : 0)}
+                width={backTextWidth}
+                fill={theme.node.flippedText}
+                fontSize={18}
+                fontFamily={backFontFamily}
+                align="left"
+                verticalAlign="top"
+                wrap="word"
+                lineHeight={backContentLineHeight}
+              />
+            </>
+          ) : (
+            <>
+              <Text text="Baksida (Redigerbart)" x={CARD.PADDING} y={CARD.PADDING}
+                width={CARD.WIDTH - CARD.PADDING * 2} fill={theme.node.flippedText}
+                fontSize={CARD.FONT_SIZE_SMALL} fontFamily="Inter, sans-serif" align="center"
+              />
+              <Text text={node.ocrText || (node.type === 'zotero' ? node.content : '')}
+                x={CARD.PADDING} y={CARD.PADDING + 30} width={CARD.WIDTH - CARD.PADDING * 2}
+                fill={theme.node.flippedText} fontSize={CARD.FONT_SIZE_TINY}
+                fontFamily="Inter, monospace" align="left" verticalAlign="top" wrap="word"
+              />
+            </>
+          )}
         </>
       )}
 

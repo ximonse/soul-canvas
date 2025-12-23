@@ -6,6 +6,7 @@ import type { MindNode } from '../../types/types';
 import type { Theme } from '../../themes';
 import { useBrainStore } from '../../store/useBrainStore';
 import { getNodeDisplayTitle } from '../../utils/nodeDisplay';
+import { resolveImageUrl } from '../../utils/imageRefs';
 
 const FIELD_COMPLETIONS = [
   'title',
@@ -196,7 +197,7 @@ export function SearchOverlay({
       <div className="absolute inset-0 overflow-auto pt-32 pointer-events-none">
         {results.slice(0, 25).map((node, index) => {
           const pos = getResultPosition(index, Math.min(results.length, 25));
-          const assetUrl = node.type === 'image' ? store.assets[node.content] : null;
+          const assetUrl = node.type === 'image' ? resolveImageUrl(node, store.assets) : null;
           const previewTitle = getNodeDisplayTitle(node);
 
           return (

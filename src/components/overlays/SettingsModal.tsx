@@ -4,6 +4,7 @@
 import { useState } from 'react';
 import { useBrainStore } from '../../store/useBrainStore';
 import type { Theme } from '../../themes';
+import { GEMINI_OCR_MODELS } from '../../utils/gemini';
 
 interface SettingsModalProps {
   onClose: () => void;
@@ -54,6 +55,24 @@ export function SettingsModal({ onClose, theme }: SettingsModalProps) {
                   style={{ borderColor: theme.node.border, color: theme.node.text }}
                   placeholder="AIza..."
                 />
+              </div>
+
+              <div>
+                <label className="block text-sm mb-2 opacity-80">
+                  Gemini OCR-modell
+                </label>
+                <select
+                  value={store.geminiOcrModel || GEMINI_OCR_MODELS[0]}
+                  onChange={(e) => store.setGeminiOcrModel(e.target.value)}
+                  className="w-full bg-black/20 border rounded p-3"
+                  style={{ borderColor: theme.node.border, color: theme.node.text }}
+                >
+                  {GEMINI_OCR_MODELS.map((model) => (
+                    <option key={model} value={model}>
+                      {model}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div>

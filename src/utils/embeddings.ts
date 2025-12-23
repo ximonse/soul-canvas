@@ -1,6 +1,7 @@
 // src/utils/embeddings.ts
 import OpenAI from 'openai';
 import type { MindNode } from '../types/types';
+import { getImageText } from './imageRefs';
 import { openaiLimiter } from './rateLimiter';
 
 /**
@@ -51,7 +52,7 @@ export const generateNodeEmbedding = async (
       
     case 'image':
       // Prioritera OCR-text, annars använd kommentar
-      textToEmbed = node.ocrText || node.comment || '';
+      textToEmbed = getImageText(node);
       if (!textToEmbed) {
         throw new Error('Bilden saknar text (kör OCR först)');
       }
