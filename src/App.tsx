@@ -100,6 +100,11 @@ function App() {
   const [zenMode, setZenMode] = useState(false);
   const [currentZoom, setCurrentZoom] = useState(1);
   const [isSavingChat, setIsSavingChat] = useState(false);
+  const showChrome = !zenMode;
+
+  useEffect(() => {
+    setCurrentZoom(canvas.view.k);
+  }, [canvas.view.k]);
 
   // Computed
   const selectedNodesCount = useMemo(() =>
@@ -121,6 +126,7 @@ function App() {
   // Node actions
   const { centerCamera, fitAllNodes, resetZoom, runOCR, runOCROnSelected, deleteSelected } = useNodeActions({
     stageRef,
+    canvas,
     setShowSettings,
     setContextMenu,
     visibleNodes: filteredNodesArray,
@@ -149,6 +155,16 @@ function App() {
     if (tag && tag.trim()) {
       store.saveStateForUndo();
       store.addTagToSelected(tag.trim());
+    }
+  }, [store]);
+
+  const handleTogglePin = useCallback(() => {
+    const selected = (Array.from(store.nodes.values()) as MindNode[]).filter((n: MindNode) => n.selected);
+    if (selected.length === 0) return;
+    if (selected.some((n: MindNode) => n.pinned)) {
+      store.unpinSelected();
+    } else {
+      store.pinSelected();
     }
   }, [store]);
 
@@ -265,6 +281,10 @@ function App() {
     setContextMenu,
     setEditingCardId,
     onToggleScopePanel: selectionScope.toggleVisibility,
+    onExpandScopeDegree: (degree: number) => {
+      selectionScope.setIsVisible(true);
+      selectionScope.expandToScope(degree);
+    },
     onToggleWandering: () => {
       if (wandering.isWandering) {
         wandering.stopWandering();
@@ -318,11 +338,14 @@ function App() {
           canvas={canvas}
           stageRef={stageRef}
           nodes={filteredNodesArray}
+          isWandering={wandering.isWandering}
+          onWanderStep={wandering.stepTo}
           gravitatingNodes={wandering.gravitatingNodes}
           gravitatingColorMode={wandering.colorMode}
           wanderingCurrentNodeId={wandering.currentNodeId}
           activeTrail={wandering.activeTrail}
           selectedTrails={wandering.selectedTrails}
+          showActiveTrailLine={wandering.showActiveTrailLine}
           onContextMenu={(nodeId, pos) => setContextMenu({ nodeId, x: pos.x, y: pos.y })}
           onZoomChange={setCurrentZoom}
         />
@@ -336,74 +359,73 @@ function App() {
         />
       )}
 
-      {isDraggingFile && hasFile && (
+      {showChrome && isDraggingFile && hasFile && (
         <div className="absolute inset-0 z-50 bg-blue-500/20 backdrop-blur-sm border-4 border-blue-400 border-dashed m-4 rounded-3xl flex items-center justify-center pointer-events-none">
           <p className="text-3xl font-bold text-white drop-shadow-lg">Släpp filen här!</p>
         </div>
       )}
 
-      <AppMenu
-        hasFile={hasFile}
-        saveStatus={saveStatus}
-        theme={theme}
-        zenMode={zenMode}
-        onConnect={openFile}
-        onSave={handleManualSave}
-      />
+      {showChrome && (
+        <AppMenu
+          hasFile={hasFile}
+          saveStatus={saveStatus}
+          theme={theme}
+          zenMode={zenMode}
+          onConnect={openFile}
+          onSave={handleManualSave}
+        />
+      )}
 
-      <SessionPanel
-        theme={theme}
-        themeName={theme.name}
-        onToggleTheme={() => setThemeIndex((i) => {
-          const newIndex = (i + 1) % THEME_KEYS.length;
-          localStorage.setItem('soul-canvas-theme', THEME_KEYS[newIndex]);
-          return newIndex;
-        })}
-        sessions={store.sessions}
-        activeSessionId={store.activeSessionId}
-        onCreateSession={store.createSession}
-        onDeleteSession={store.deleteSession}
-        onSwitchSession={store.switchSession}
-        onRenameSession={store.renameSession}
-        includeTags={store.includeTags}
-        excludeTags={store.excludeTags}
-        onToggleTagFilter={store.toggleTagFilter}
-        onClearTagFilter={store.clearTagFilter}
-        allNodes={allNodesArray}
-        outsideSearchQuery={sessionSearch.query}
-        outsideSearchResults={sessionSearch.results}
-        onOutsideSearchChange={sessionSearch.setQuery}
-        onAddCardsToSession={(cardIds) => {
-          if (store.activeSessionId) {
-            store.addCardsToSession(store.activeSessionId, cardIds);
-          }
-        }}
-        selectedCount={selectedNodesCount}
-        sessionCardCount={activeSession?.cardIds.length ?? 0}
-        visibleCardCount={filteredNodesArray.length}
-        totalCardCount={allNodesArray.length}
-        searchQuery={search.query}
-        isExpanded={showSessionPanel}
-        onToggleExpanded={() => setShowSessionPanel(prev => !prev)}
-      />
-
-      {zenMode && (
-
-        <div className="absolute bottom-10 left-1/2 transform -translate-x-1/2 text-gray-500 text-xs opacity-50 pointer-events-none">
-          Tryck 'Z' eller 'Esc' för verktyg
-        </div>
+      {showChrome && (
+        <SessionPanel
+          theme={theme}
+          themeName={theme.name}
+          onToggleTheme={() => setThemeIndex((i) => {
+            const newIndex = (i + 1) % THEME_KEYS.length;
+            localStorage.setItem('soul-canvas-theme', THEME_KEYS[newIndex]);
+            return newIndex;
+          })}
+          sessions={store.sessions}
+          activeSessionId={store.activeSessionId}
+          onCreateSession={store.createSession}
+          onDeleteSession={store.deleteSession}
+          onSwitchSession={store.switchSession}
+          onRenameSession={store.renameSession}
+          includeTags={store.includeTags}
+          excludeTags={store.excludeTags}
+          onToggleTagFilter={store.toggleTagFilter}
+          onClearTagFilter={store.clearTagFilter}
+          allNodes={allNodesArray}
+          outsideSearchQuery={sessionSearch.query}
+          outsideSearchResults={sessionSearch.results}
+          onOutsideSearchChange={sessionSearch.setQuery}
+          onAddCardsToSession={(cardIds) => {
+            if (store.activeSessionId) {
+              store.addCardsToSession(store.activeSessionId, cardIds);
+            }
+          }}
+          selectedCount={selectedNodesCount}
+          sessionCardCount={activeSession?.cardIds.length ?? 0}
+          visibleCardCount={filteredNodesArray.length}
+          totalCardCount={allNodesArray.length}
+          searchQuery={search.query}
+          isExpanded={showSessionPanel}
+          onToggleExpanded={() => setShowSessionPanel(prev => !prev)}
+        />
       )}
 
       {/* Zoom indicator */}
-      <div
-        className="absolute bottom-4 left-4 text-xs font-mono pointer-events-none select-none"
-        style={{ color: theme.node.text, opacity: 0.4 }}
-      >
-        {Math.round(currentZoom * 100)}%
-      </div>
+      {showChrome && (
+        <div
+          className="absolute bottom-4 left-4 text-xs font-mono pointer-events-none select-none"
+          style={{ color: theme.node.text, opacity: 0.4 }}
+        >
+          {Math.round(currentZoom * 100)}%
+        </div>
+      )}
 
       {/* Selection Scope Panel - vänster sida */}
-      {selectionScope.hasConnections && (
+      {showChrome && selectionScope.hasConnections && (
         <SelectionScopePanel
           theme={theme}
           isVisible={selectionScope.isVisible}
@@ -420,39 +442,48 @@ function App() {
       )}
 
       {/* Trail Panel - vandring */}
-      <TrailPanel
-        theme={theme}
-        isOpen={showTrailPanel}
-        onClose={() => setShowTrailPanel(false)}
-        isWandering={wandering.isWandering}
-        currentNodeId={wandering.currentNodeId}
-        gravitatingNodes={wandering.gravitatingNodes}
-        visitedNodeIds={wandering.visitedNodeIds}
-        activeTrail={wandering.activeTrail}
-        trailHistory={wandering.trailHistory}
-        minSimilarityThreshold={wandering.minSimilarityThreshold}
-        showOnlyDifferentWords={wandering.showOnlyDifferentWords}
-        colorMode={wandering.colorMode}
-        onStartWandering={wandering.startWandering}
-        onStopWandering={wandering.stopWandering}
-        onStepTo={wandering.stepTo}
-        onBacktrack={wandering.backtrack}
-        onSaveTrail={wandering.saveCurrentTrail}
-        onBranchHere={wandering.branchHere}
-        onResumeTrail={wandering.resumeTrail}
-        onDeleteTrail={wandering.deleteTrail}
-        onSetThreshold={wandering.setThreshold}
-        onToggleSurfaceDifference={wandering.toggleSurfaceDifference}
-        onToggleColorMode={wandering.toggleColorMode}
-        selectedTrailIds={wandering.selectedTrailIds}
-        onSelectTrailNodes={wandering.selectTrailNodes}
-        onToggleTrailSelection={wandering.toggleTrailSelection}
-        getNode={(id) => store.nodes.get(id)}
-        selectedNodeId={firstSelectedNodeId}
-      />
+      {showChrome && (
+        <TrailPanel
+          theme={theme}
+          isOpen={showTrailPanel}
+          onClose={() => setShowTrailPanel(false)}
+          isWandering={wandering.isWandering}
+          currentNodeId={wandering.currentNodeId}
+          gravitatingNodes={wandering.gravitatingNodes}
+          visitedNodeIds={wandering.visitedNodeIds}
+          activeTrail={wandering.activeTrail}
+          trailHistory={wandering.trailHistory}
+          minSimilarityThreshold={wandering.minSimilarityThreshold}
+          showOnlyDifferentWords={wandering.showOnlyDifferentWords}
+          colorMode={wandering.colorMode}
+          onStartWandering={wandering.startWandering}
+          onStartNewTrail={wandering.startNewTrail}
+          onStopWandering={wandering.stopWandering}
+          onStepTo={wandering.stepTo}
+          onBacktrack={wandering.backtrack}
+          onRemoveWaypoint={wandering.removeWaypointFromTrail}
+          onMoveWaypoint={wandering.moveWaypointInTrail}
+          onSaveTrail={wandering.saveCurrentTrail}
+          onBranchHere={wandering.branchHere}
+          onResumeTrail={wandering.resumeTrail}
+          onDeleteTrail={wandering.deleteTrail}
+          onSetThreshold={wandering.setThreshold}
+          onToggleSurfaceDifference={wandering.toggleSurfaceDifference}
+          onSetColorMode={wandering.setColorMode}
+          selectedTrailIds={wandering.selectedTrailIds}
+          onSelectTrailNodes={wandering.selectTrailNodes}
+          onToggleTrailSelection={wandering.toggleTrailSelection}
+          onClearTrailSelection={wandering.clearTrailSelection}
+          onSetSelectedTrailIds={wandering.setSelectedTrailIds}
+          showActiveTrailLine={wandering.showActiveTrailLine}
+          onSetShowActiveTrailLine={wandering.setShowActiveTrailLine}
+          getNode={(id) => store.nodes.get(id)}
+          selectedNodeId={firstSelectedNodeId}
+        />
+      )}
 
       {/* Mass Import Overlay */}
-      {showMassImport && (
+      {showChrome && showMassImport && (
         <MassImportOverlay
           theme={theme}
           onClose={() => setShowMassImport(false)}
@@ -462,7 +493,7 @@ function App() {
       )}
 
       {/* Quote Extractor Overlay */}
-      {showQuoteExtractor && (
+      {showChrome && showQuoteExtractor && (
         <QuoteExtractorOverlay
           theme={theme}
           onClose={() => setShowQuoteExtractor(false)}
@@ -471,72 +502,82 @@ function App() {
         />
       )}
 
-      <ModalManager
-        showSettings={showSettings}
-        showAIPanel={showAIPanel}
-        showCommandPalette={showCommandPalette}
-        showAIChat={showAIChat}
-        contextMenu={contextMenu}
-        editingCardId={editingCardId}
-        searchIsOpen={search.isOpen}
-        search={search}
-        onSearchConfirm={handleSearchConfirm}
-        canvas={canvas}
-        onRunOCR={runOCR}
-        onRunOCROnSelected={runOCROnSelected}
-        onAutoTag={handleAutoTag}
-        onTagSelected={handleTagSelected}
-        onAttractSimilar={intelligence.attractSimilarNodes}
+      {showChrome && (
+        <ModalManager
+          showSettings={showSettings}
+          showAIPanel={showAIPanel}
+          showCommandPalette={showCommandPalette}
+          showAIChat={showAIChat}
+          contextMenu={contextMenu}
+          editingCardId={editingCardId}
+          searchIsOpen={search.isOpen}
+          search={search}
+          onSearchConfirm={handleSearchConfirm}
+          canvas={canvas}
+          onRunOCR={runOCR}
+          onRunOCROnSelected={runOCROnSelected}
+          onAutoTag={handleAutoTag}
+          onTagSelected={handleTagSelected}
+          onAttractSimilar={intelligence.attractSimilarNodes}
         onSummarizeToComment={handleSummarizeToComment}
         onSuggestTitle={handleSuggestTitle}
+        onResetZoom={resetZoom}
+        onTogglePin={handleTogglePin}
         handleManualSave={handleManualSave}
-        centerCamera={centerCamera}
-        handleDrop={handleDrop}
-        chatMessages={aiChat.messages}
-        chatProvider={aiChat.provider}
-        setChatProvider={aiChat.setProvider}
-        sendChat={aiChat.sendMessage}
-        isChatSending={aiChat.isSending}
-        chatError={aiChat.error}
-        chatTheme={theme}
-        setIsChatMinimized={setIsChatMinimized}
-        isReflectionChat={isReflectionChat}
-        onDiscussReflection={handleDiscussReflection}
-        onSaveChatAsCard={handleSaveChatAsCard}
-        isSavingChat={isSavingChat}
-        isChatMinimized={isChatMinimized}
-        conversations={aiChat.listConversations}
-        currentConversationId={aiChat.conversationId}
-        onLoadConversation={aiChat.loadConversation}
-        onNewConversation={aiChat.clearMessages}
-        pinnedNodes={aiChat.pinnedNodes}
-        onRemoveNodeFromContext={aiChat.removeNodeFromContext}
-        onAddSelectedToContext={aiChat.addSelectedNodesToContext}
-        onClearPinnedNodes={aiChat.clearPinnedNodes}
-        onAddNodeToContext={aiChat.addNodeToContext}
-        arrangeVertical={arrangeVertical}
-        arrangeHorizontal={arrangeHorizontal}
-        arrangeGridVertical={arrangeGridVertical}
-        arrangeGridHorizontal={arrangeGridHorizontal}
-        arrangeCircle={arrangeCircle}
-        arrangeKanban={arrangeKanban}
-        copySelectedNodes={store.copySelectedNodes}
-        undo={store.undo}
-        redo={store.redo}
-        setShowSettings={setShowSettings}
-        setShowAIPanel={setShowAIPanel}
-        setShowCommandPalette={setShowCommandPalette}
-        setShowAIChat={setShowAIChat}
-        setContextMenu={setContextMenu}
-        setEditingCardId={setEditingCardId}
-        setThemeIndex={setThemeIndex}
-        setZenMode={setZenMode}
-        hasFile={hasFile}
-        pasteNodes={store.pasteNodes}
-        saveStateForUndo={store.saveStateForUndo}
-        addNode={store.addNode}
-        theme={theme}
-      />
+          centerCamera={centerCamera}
+          handleDrop={handleDrop}
+          chatMessages={aiChat.messages}
+          chatProvider={aiChat.provider}
+          setChatProvider={aiChat.setProvider}
+          openaiChatModel={aiChat.openaiModel}
+          setOpenaiChatModel={aiChat.setOpenaiModel}
+          sendChat={aiChat.sendMessage}
+          isChatSending={aiChat.isSending}
+          chatError={aiChat.error}
+          chatTheme={theme}
+          setIsChatMinimized={setIsChatMinimized}
+          isReflectionChat={isReflectionChat}
+          onDiscussReflection={handleDiscussReflection}
+          onSaveChatAsCard={handleSaveChatAsCard}
+          isSavingChat={isSavingChat}
+          isChatMinimized={isChatMinimized}
+          conversations={aiChat.listConversations}
+          currentConversationId={aiChat.conversationId}
+          onLoadConversation={aiChat.loadConversation}
+          onNewConversation={aiChat.clearMessages}
+          pinnedNodes={aiChat.pinnedNodes}
+          onRemoveNodeFromContext={aiChat.removeNodeFromContext}
+          onAddSelectedToContext={aiChat.addSelectedNodesToContext}
+          onClearPinnedNodes={aiChat.clearPinnedNodes}
+          onAddNodeToContext={aiChat.addNodeToContext}
+          arrangeVertical={arrangeVertical}
+          arrangeHorizontal={arrangeHorizontal}
+          arrangeGridVertical={arrangeGridVertical}
+          arrangeGridHorizontal={arrangeGridHorizontal}
+          arrangeCircle={arrangeCircle}
+          arrangeKanban={arrangeKanban}
+          onExpandScopeDegree={(degree: number) => {
+            selectionScope.setIsVisible(true);
+            selectionScope.expandToScope(degree);
+          }}
+          copySelectedNodes={store.copySelectedNodes}
+          undo={store.undo}
+          redo={store.redo}
+          setShowSettings={setShowSettings}
+          setShowAIPanel={setShowAIPanel}
+          setShowCommandPalette={setShowCommandPalette}
+          setShowAIChat={setShowAIChat}
+          setContextMenu={setContextMenu}
+          setEditingCardId={setEditingCardId}
+          setThemeIndex={setThemeIndex}
+          setZenMode={setZenMode}
+          hasFile={hasFile}
+          pasteNodes={store.pasteNodes}
+          saveStateForUndo={store.saveStateForUndo}
+          addNode={store.addNode}
+          theme={theme}
+        />
+      )}
     </div>
   );
 }

@@ -6,7 +6,7 @@ import { useBrainStore } from '../store/useBrainStore';
 import { useChatContext } from './useChatContext';
 import { useChatMemory } from './useChatMemory';
 import type { ChatProvider, ChatMessage } from '../utils/chatProviders';
-import { chatWithProvider } from '../utils/chatProviders';
+import { chatWithProvider, DEFAULT_CHAT_MODELS, OPENAI_CHAT_MODELS } from '../utils/chatProviders';
 import { generateConversationTitle } from '../utils/claude';
 
 interface UseAIChatOptions {
@@ -22,6 +22,13 @@ export function useAIChat({ initialProvider = 'claude' }: UseAIChatOptions = {})
   const [provider, setProvider] = useState<ChatProvider>(() => {
     const saved = localStorage.getItem('ai_chat_provider') as ChatProvider | null;
     return saved || initialProvider;
+  });
+  const [openaiModel, setOpenaiModel] = useState<string>(() => {
+    const saved = localStorage.getItem('openai_chat_model');
+    if (saved && OPENAI_CHAT_MODELS.some(model => model.id === saved)) {
+      return saved;
+    }
+    return DEFAULT_CHAT_MODELS.openai;
   });
   const [isSending, setIsSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -54,6 +61,7 @@ export function useAIChat({ initialProvider = 'claude' }: UseAIChatOptions = {})
       selectedProvider === 'claude' ? store.claudeKey :
       selectedProvider === 'openai' ? store.openaiKey :
       store.geminiKey;
+    const modelOverride = selectedProvider === 'openai' ? openaiModel : undefined;
 
     if (!apiKey) {
       setError(`API-nyckel saknas för ${selectedProvider}`);
@@ -89,7 +97,12 @@ export function useAIChat({ initialProvider = 'claude' }: UseAIChatOptions = {})
 
     try {
       setIsSending(true);
-      const reply = await chatWithProvider(selectedProvider, apiKey, [...history, contextMessage, userMessage]);
+      const reply = await chatWithProvider(
+        selectedProvider,
+        apiKey,
+        [...history, contextMessage, userMessage],
+        modelOverride
+      );
 
       setMessages(prev => [...prev, { role: 'assistant', content: reply }]);
       store.addMessageToConversation(convId, { role: 'assistant', content: reply });
@@ -206,6 +219,11 @@ ${ctx.contextSnippet || '(Inga kort tillgängliga)'}${memoryContext}`;
     setProvider: (p: ChatProvider) => {
       setProvider(p);
       localStorage.setItem('ai_chat_provider', p);
+    },
+    openaiModel,
+    setOpenaiModel: (model: string) => {
+      setOpenaiModel(model);
+      localStorage.setItem('openai_chat_model', model);
     },
     // Messages
     messages,

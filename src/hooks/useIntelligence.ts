@@ -19,6 +19,8 @@ import {
 import { GRAVITY } from '../utils/constants';
 import type { MindNode, AIReflection, Synapse } from '../types/types';
 
+const isCopyNode = (node?: MindNode | null) => Boolean(node?.copyRef);
+
 export const useIntelligence = () => {
   const store = useBrainStore();
   const [isProcessing, setIsProcessing] = useState(false);
@@ -30,7 +32,7 @@ export const useIntelligence = () => {
    */
   const embedNode = useCallback(async (nodeId: string): Promise<boolean> => {
     const node = store.nodes.get(nodeId);
-    if (!node || !store.openaiKey) return false;
+    if (!node || !store.openaiKey || isCopyNode(node)) return false;
 
     try {
       setIsProcessing(true);
@@ -56,7 +58,9 @@ export const useIntelligence = () => {
   const embedAllNodes = useCallback(async (): Promise<number> => {
     if (!store.openaiKey) return 0;
 
-    const nodesToEmbed = (Array.from(store.nodes.values()) as MindNode[]).filter((n: MindNode) => !n.embedding);
+    const nodesToEmbed = (Array.from(store.nodes.values()) as MindNode[]).filter(
+      (n: MindNode) => !n.embedding && !isCopyNode(n),
+    );
     if (nodesToEmbed.length === 0) return 0;
 
     try {
@@ -99,9 +103,10 @@ export const useIntelligence = () => {
     if (isProcessing) return 0;
 
     const threshold = currentState.autoLinkThreshold || 0.75;
-    const allNodes = Array.from(currentState.nodes.values()) as MindNode[];
+    const allNodes = (Array.from(currentState.nodes.values()) as MindNode[])
+      .filter((n: MindNode) => !isCopyNode(n));
     const nodesToCheck: MindNode[] = nodeId
-      ? [currentState.nodes.get(nodeId)].filter(Boolean) as MindNode[]
+      ? [currentState.nodes.get(nodeId)].filter(Boolean).filter((n) => !isCopyNode(n)) as MindNode[]
       : allNodes.filter((n: MindNode) => n.embedding);
 
     let linksCreated = 0;
@@ -306,7 +311,8 @@ export const useIntelligence = () => {
       };
 
       // Find similar nodes
-      const nodesWithEmbeddings = (Array.from(store.nodes.values()) as MindNode[]).filter((n: MindNode) => n.embedding);
+      const nodesWithEmbeddings = (Array.from(store.nodes.values()) as MindNode[])
+        .filter((n: MindNode) => n.embedding && !isCopyNode(n));
 
       const results = findSimilarNodes(queryMindNode, nodesWithEmbeddings as MindNode[], 0); // Find similar nodes
 
@@ -330,7 +336,8 @@ export const useIntelligence = () => {
    */
   const attractSimilarNodes = useCallback((): number => {
     const currentState = useBrainStore.getState();
-    const allNodes = Array.from(currentState.nodes.values()) as MindNode[];
+    const allNodes = (Array.from(currentState.nodes.values()) as MindNode[])
+      .filter((n: MindNode) => !isCopyNode(n));
     const selectedNodes = allNodes.filter((n: MindNode) => n.selected);
 
     if (selectedNodes.length === 0) return 0;
@@ -376,9 +383,11 @@ export const useIntelligence = () => {
    */
   const arrangeAsGraph = useCallback((centerX?: number, centerY?: number, gravity?: number): number => {
     const currentState = useBrainStore.getState();
-    const allNodes = Array.from(currentState.nodes.values()) as MindNode[];
+    const allNodes = (Array.from(currentState.nodes.values()) as MindNode[])
+      .filter((n: MindNode) => !isCopyNode(n));
 
     if (currentState.synapses.length === 0) return 0;
+    if (allNodes.length === 0) return 0;
 
     // Beräkna center om inte angivet
     const cx = centerX ?? allNodes.reduce((sum: number, n: MindNode) => sum + n.x, 0) / allNodes.length;
@@ -387,9 +396,12 @@ export const useIntelligence = () => {
     // Använd angiven gravity eller från store
     const g = Math.max(GRAVITY.MIN, Math.min(GRAVITY.MAX, gravity ?? currentState.graphGravity));
 
-    const visibleSynapses = currentState.synapses.filter(
-      (s: Synapse) => (s.similarity || 1) >= currentState.synapseVisibilityThreshold
-    );
+    const visibleSynapses = currentState.synapses.filter((s: Synapse) => {
+      if ((s.similarity || 1) < currentState.synapseVisibilityThreshold) return false;
+      const sourceNode = currentState.nodes.get(s.sourceId);
+      const targetNode = currentState.nodes.get(s.targetId);
+      return !isCopyNode(sourceNode) && !isCopyNode(targetNode);
+    });
     if (visibleSynapses.length === 0) return 0;
 
     const positions = calculateConnectedNodesLayout(

@@ -1,6 +1,7 @@
 // src/components/overlays/ChatContextPanel.tsx
 import type { MindNode } from '../../types/types';
 import type { Theme } from '../../themes';
+import { getNodeDisplayTitle } from '../../utils/nodeDisplay';
 
 interface ChatContextPanelProps {
   pinnedNodes: MindNode[];
@@ -86,7 +87,7 @@ export function ChatContextPanel({
               {node.type === 'image' ? '🖼' : node.type === 'zotero' ? '📚' : '📝'}
             </span>
             <span className="truncate flex-1" title={getNodePreview(node)}>
-              {node.title || getNodePreview(node)}
+              {getNodeDisplayTitle(node) || getNodePreview(node)}
             </span>
             <button
               className="opacity-0 group-hover:opacity-70 hover:opacity-100 transition ml-1"

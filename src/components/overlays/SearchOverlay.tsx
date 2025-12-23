@@ -5,6 +5,53 @@ import { useEffect, useRef } from 'react';
 import type { MindNode } from '../../types/types';
 import type { Theme } from '../../themes';
 import { useBrainStore } from '../../store/useBrainStore';
+import { getNodeDisplayTitle } from '../../utils/nodeDisplay';
+
+const FIELD_COMPLETIONS = [
+  'title',
+  'content',
+  'caption',
+  'comment',
+  'ocr',
+  'tags',
+  'semantic',
+  'created',
+  'updated',
+  'type',
+  'copyref',
+  'copied',
+  'originalcreated',
+];
+
+const expandPartialField = (value: string) => {
+  const match = value.match(/(^|\s)([^()\s:]+):$/);
+  if (!match) return value;
+  const prefix = match[2].toLowerCase();
+  if (prefix.length < 2) return value;
+  const completion = FIELD_COMPLETIONS.find((field) => field.startsWith(prefix));
+  if (!completion || completion === prefix) return value;
+  return value.slice(0, value.length - prefix.length - 1) + completion + ':';
+};
+
+const applyFieldCompletion = (value: string) => {
+  const match = value.match(/(^|\s)([^()\s:]+)$/);
+  if (!match) return value;
+  const prefix = match[2].toLowerCase();
+  if (prefix.length < 2) return value;
+  const completion = FIELD_COMPLETIONS.find((field) => field.startsWith(prefix));
+  if (!completion || completion === prefix) return value;
+  return value.slice(0, value.length - prefix.length) + completion + ':';
+};
+
+const getFieldCompletionHint = (value: string) => {
+  const match = value.match(/(^|\s)([^()\s:]+)$/);
+  if (!match) return null;
+  const prefix = match[2].toLowerCase();
+  if (prefix.length < 2) return null;
+  const completion = FIELD_COMPLETIONS.find((field) => field.startsWith(prefix));
+  if (!completion || completion === prefix) return null;
+  return value.slice(0, value.length - prefix.length) + completion + ':';
+};
 
 interface SearchOverlayProps {
   query: string;
@@ -37,6 +84,12 @@ export function SearchOverlay({
       if (e.key === 'Escape') {
         e.preventDefault();
         onClose();
+      } else if (e.key === 'Tab') {
+        const nextValue = applyFieldCompletion(query);
+        if (nextValue !== query) {
+          e.preventDefault();
+          onQueryChange(nextValue);
+        }
       } else if (e.key === 'Enter') {
         e.preventDefault();
         onConfirm();
@@ -45,7 +98,7 @@ export function SearchOverlay({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [onClose, onConfirm]);
+  }, [onClose, onConfirm, onQueryChange, query]);
 
   // Beräkna grid-position för resultat
   const getResultPosition = (index: number, total: number) => {
@@ -80,10 +133,17 @@ export function SearchOverlay({
   };
 
   const hintStyle = { color: theme.node.text, opacity: 0.75 };
+  const titleStyle = { color: theme.node.text, fontWeight: 600 };
   const tagStyle = {
     backgroundColor: theme.node.selectedBorder || theme.node.border,
     color: theme.node.hotText || theme.node.text,
   };
+
+  const completionHint = getFieldCompletionHint(query);
+  const completionSuffix =
+    completionHint && completionHint.startsWith(query)
+      ? completionHint.slice(query.length)
+      : '';
 
   return (
     <div className="fixed inset-0 z-[90]">
@@ -101,22 +161,34 @@ export function SearchOverlay({
           style={inputShellStyle}
         >
           <span className="text-xl pl-2" style={{ color: theme.node.text, opacity: 0.7 }}>/</span>
-          <input
-            ref={inputRef}
-            type="text"
-            value={query}
-            onChange={e => onQueryChange(e.target.value)}
-            placeholder="Sök i kort..."
-            className="bg-transparent text-lg outline-none w-80 placeholder:opacity-60"
-            style={{ color: theme.node.text }}
-            autoFocus
-          />
+          <div className="relative w-80">
+            {completionSuffix && (
+              <div
+                className="absolute inset-0 pointer-events-none text-lg whitespace-pre"
+                style={{ color: theme.node.text, opacity: 0.35 }}
+                aria-hidden="true"
+              >
+                <span style={{ opacity: 0 }}>{query}</span>
+                <span>{completionSuffix}</span>
+              </div>
+            )}
+            <input
+              ref={inputRef}
+              type="text"
+              value={query}
+              onChange={e => onQueryChange(expandPartialField(e.target.value))}
+              placeholder="SБk i kort..."
+              className="bg-transparent text-lg outline-none w-full placeholder:opacity-60"
+              style={{ color: theme.node.text }}
+              autoFocus
+            />
+          </div>
           <span className="text-sm pr-2" style={hintStyle}>
             {results.length} träffar
           </span>
         </div>
         <div className="text-center text-xs mt-2" style={hintStyle}>
-          Enter = markera ・ Escape = avbryt
+          Enter = markera ・ Escape = avbryt ・ Tab = fält (t.ex. title:)
         </div>
       </div>
 
@@ -125,6 +197,7 @@ export function SearchOverlay({
         {results.slice(0, 25).map((node, index) => {
           const pos = getResultPosition(index, Math.min(results.length, 25));
           const assetUrl = node.type === 'image' ? store.assets[node.content] : null;
+          const previewTitle = getNodeDisplayTitle(node);
 
           return (
             <div
@@ -142,6 +215,11 @@ export function SearchOverlay({
                 onClose();
               }}
             >
+              {previewTitle && (
+                <div className="text-sm line-clamp-1 mb-1" style={titleStyle}>
+                  {previewTitle}
+                </div>
+              )}
               {node.type === 'image' && assetUrl ? (
                 <div className="space-y-2">
                   <img

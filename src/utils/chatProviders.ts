@@ -13,9 +13,21 @@ export interface ChatMessage {
   content: string;
 }
 
-const DEFAULT_CHAT_MODELS: Record<ChatProvider, string> = {
+export const CHAT_PROVIDER_LABELS: Record<ChatProvider, string> = {
+  claude: 'Claude',
+  openai: 'ChatGPT',
+  gemini: 'Gemini',
+};
+
+export const OPENAI_CHAT_MODELS = [
+  { id: 'gpt-5-mini', label: 'Billig/snabb' },
+  { id: 'gpt-5', label: 'Medel' },
+  { id: 'gpt-5.2', label: 'Top' },
+] as const;
+
+export const DEFAULT_CHAT_MODELS: Record<ChatProvider, string> = {
   claude: 'claude-3-haiku-20240307',
-  openai: 'gpt-4o-mini',
+  openai: 'gpt-5-mini',
   gemini: 'gemini-2.0-flash',
 };
 
@@ -56,12 +68,20 @@ export async function chatWithProvider(
 
     case 'openai': {
       const client = new OpenAI({ apiKey, dangerouslyAllowBrowser: true });
-      const resp = await client.chat.completions.create({
+      const systemMessages = messages.filter(m => m.role === 'system');
+      const instructions = systemMessages.length > 0
+        ? systemMessages.map(m => m.content).join('\n\n')
+        : undefined;
+      const inputMessages = messages
+        .filter(m => m.role !== 'system')
+        .map(m => ({ role: m.role, content: m.content }));
+
+      const resp = await client.responses.create({
         model: modelToUse,
-        messages,
-        max_tokens: 400,
+        input: inputMessages,
+        ...(instructions && { instructions }),
       });
-      return resp.choices[0]?.message?.content || '';
+      return resp.output_text || '';
     }
 
     case 'gemini': {

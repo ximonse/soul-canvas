@@ -310,6 +310,7 @@ export const useBrainStore = create<BrainStore>()((set) => ({
   updateNodePosition: (id, x, y) => set((state) => {
     const existingNode = state.nodes.get(id);
     if (!existingNode) return {};
+    if (existingNode.pinned) return {};
     const updatedNode = { ...existingNode, x, y };
     const newNodes = new Map(state.nodes);
     newNodes.set(id, updatedNode);
@@ -325,6 +326,7 @@ export const useBrainStore = create<BrainStore>()((set) => ({
     positions.forEach((pos, id) => {
       const existingNode = newNodes.get(id);
       if (existingNode) {
+        if (existingNode.pinned) return;
         const dx = Math.abs((existingNode.x || 0) - pos.x);
         const dy = Math.abs((existingNode.y || 0) - pos.y);
 

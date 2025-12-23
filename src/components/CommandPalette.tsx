@@ -24,12 +24,15 @@ interface CommandPaletteProps {
   onToggleTheme: () => void;
   onCenterCamera: () => void;
   onToggleZen: () => void;
+  onResetZoom: () => void;
+  onTogglePin: () => void;
   onArrangeCircle: () => void;
   onArrangeKanban: () => void;
   onArrangeVertical: () => void;
   onArrangeHorizontal: () => void;
   onArrangeGridVertical: () => void;
   onArrangeGridHorizontal: () => void;
+  onExpandScopeDegree?: (degree: number) => void;
   onCopy: () => void;
   onPaste: () => void;
   onUndo: () => void;
@@ -49,12 +52,15 @@ export const CommandPalette = ({
   onToggleTheme,
   onCenterCamera,
   onToggleZen,
+  onResetZoom,
+  onTogglePin,
   onArrangeCircle,
   onArrangeKanban,
   onArrangeVertical,
   onArrangeHorizontal,
   onArrangeGridVertical,
   onArrangeGridHorizontal,
+  onExpandScopeDegree,
   onCopy,
   onPaste,
   onUndo,
@@ -70,6 +76,17 @@ export const CommandPalette = ({
   const [selectedIndex, setSelectedIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  const scopeCommands: Command[] = onExpandScopeDegree
+    ? [1, 2, 3, 4, 5, 6].map((degree) => ({
+        id: `scope-${degree}`,
+        name: `Scope +${degree}`,
+        shortcut: `alt+${degree}`,
+        action: () => { onExpandScopeDegree(degree); onClose(); },
+        category: 'view',
+        icon: '🧭',
+      }))
+    : [];
+
   const commands: Command[] = [
     // AI Commands
     { id: 'ai-panel', name: 'Open AI Panel', shortcut: 'b', action: () => { onOpenAIPanel(); onClose(); }, category: 'ai', icon: '🤖' },
@@ -83,6 +100,7 @@ export const CommandPalette = ({
     { id: 'center', name: 'Center Camera', shortcut: '-', action: () => { onCenterCamera(); onClose(); }, category: 'view', icon: '🎯' },
     { id: 'zen', name: 'Toggle Zen Mode', shortcut: 'z', action: () => { onToggleZen(); onClose(); }, category: 'view', icon: '🧘' },
     { id: 'theme', name: 'Change Theme', shortcut: 't', action: () => { onToggleTheme(); onClose(); }, category: 'view', icon: '🎨' },
+    { id: 'reset-zoom', name: 'Reset Zoom', shortcut: '0', action: () => { onResetZoom(); onClose(); }, category: 'view', icon: '100%' },
 
     // Create Commands
     { id: 'new-card', name: 'New Card', shortcut: 'n', action: () => { onNewCard(); onClose(); }, category: 'edit', icon: '➕' },
@@ -97,6 +115,8 @@ export const CommandPalette = ({
     { id: 'arrange-grid-horizontal', name: 'Arrange Grid Horizontal', shortcut: 'g+h', action: () => { onArrangeGridHorizontal(); onClose(); }, category: 'edit', icon: '🧊' },
     { id: 'arrange-kanban', name: 'Arrange Overlapping Rows', shortcut: 'g+t', action: () => { onArrangeKanban(); onClose(); }, category: 'edit', icon: '🗂️' },
 
+    ...scopeCommands,
+
     // Edit Commands
     { id: 'copy', name: 'Copy Selected', shortcut: 'ctrl+c', action: () => { onCopy(); onClose(); }, category: 'edit', icon: '📄' },
     { id: 'paste', name: 'Paste', shortcut: 'ctrl+v', action: () => { onPaste(); onClose(); }, category: 'edit', icon: '📋' },
@@ -105,6 +125,7 @@ export const CommandPalette = ({
     { id: 'select-all', name: 'Select All', shortcut: 'ctrl+a', action: () => { store.selectAll(); onClose(); }, category: 'edit', icon: '✨' },
     { id: 'clear', name: 'Clear Selection', shortcut: 'esc', action: () => { store.clearSelection(); onClose(); }, category: 'edit', icon: '❌' },
     { id: 'delete', name: 'Delete Selected', shortcut: 'del', action: () => { (Array.from(store.nodes.values()) as MindNode[]).filter((n: MindNode) => n.selected).forEach((n: MindNode) => store.removeNode(n.id)); onClose(); }, category: 'edit', icon: '🗑️' },
+    { id: 'pin', name: 'Pin/Unpin Selected', shortcut: 'p', action: () => { onTogglePin(); onClose(); }, category: 'edit', icon: '📌' },
 
     // File Commands
     { id: 'save', name: 'Save', shortcut: 'ctrl+enter', action: () => { onSave(); onClose(); }, category: 'file', icon: '💾' },

@@ -1,5 +1,6 @@
 // src/components/overlays/AIChatOverlay.tsx
 import { useState, useEffect, useRef } from 'react';
+import { CHAT_PROVIDER_LABELS, OPENAI_CHAT_MODELS } from '../../utils/chatProviders';
 import type { ChatProvider, ChatMessage } from '../../utils/chatProviders';
 import type { Theme } from '../../themes';
 import type { Conversation, MindNode } from '../../types/types';
@@ -10,6 +11,8 @@ interface AIChatOverlayProps {
   messages: ChatMessage[];
   provider: ChatProvider;
   setProvider: (p: ChatProvider) => void;
+  openaiModel?: string;
+  setOpenaiModel?: (model: string) => void;
   onSend: (text: string, provider?: ChatProvider) => Promise<void>;
   onClose: () => void;
   onMinimize: () => void;
@@ -35,6 +38,8 @@ export function AIChatOverlay({
   messages,
   provider,
   setProvider,
+  openaiModel,
+  setOpenaiModel,
   onSend,
   onClose,
   onMinimize,
@@ -106,7 +111,7 @@ export function AIChatOverlay({
         <header className="flex items-center justify-between px-6 py-4 relative">
           <div className="flex items-center gap-4">
             {/* Provider as subtle pills */}
-            <div className="flex gap-1">
+            <div className="flex gap-1 items-center">
               {(['claude', 'openai', 'gemini'] as ChatProvider[]).map(p => (
                 <button
                   key={p}
@@ -117,9 +122,27 @@ export function AIChatOverlay({
                     opacity: provider === p ? 1 : 0.5,
                   }}
                 >
-                  {p === 'claude' ? '✨' : p === 'openai' ? '🤖' : '💫'}
+                  {CHAT_PROVIDER_LABELS[p]}
                 </button>
               ))}
+              {provider === 'openai' && setOpenaiModel && (
+                <select
+                  value={openaiModel || OPENAI_CHAT_MODELS[0].id}
+                  onChange={(e) => setOpenaiModel(e.target.value)}
+                  className="ml-2 px-2 py-1 rounded text-xs"
+                  style={{
+                    backgroundColor: `${theme.node.border}22`,
+                    color: theme.node.text,
+                    border: `1px solid ${theme.node.border}`,
+                  }}
+                >
+                  {OPENAI_CHAT_MODELS.map((model) => (
+                    <option key={model.id} value={model.id}>
+                      {model.label} - {model.id}
+                    </option>
+                  ))}
+                </select>
+              )}
             </div>
           </div>
           <div className="flex items-center gap-1">

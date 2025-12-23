@@ -15,7 +15,10 @@ export interface MindNode {
   tags: string[];
   title?: string;          // Kortets rubrik (AI-genererad eller manuell)
   createdAt: string;
-  updatedAt?: string;      // Senast ändrad (för sortering)
+  updatedAt?: string;      // Last updated (sorting)
+  copyRef?: string;        // Original card id if this is a copy
+  copiedAt?: string;       // When this copy was created
+  originalCreatedAt?: string; // When the original card was created
   
   // NYA FÄLT
   type: 'text' | 'image' | 'zotero'; // För att veta hur vi ska rendera
@@ -40,7 +43,7 @@ export interface MindNode {
   lastEmbedded?: string;   // Timestamp för när embedding skapades
 
   // Selection Scope (transient, ej sparad till fil)
-  scopeDegree?: number;    // 0 = ej scope, 1-5 = grad av koppling från bas-selektion
+  scopeDegree?: number;    // 0 = ej scope, 1-6 = grad av koppling från bas-selektion
 }
 
 export interface Synapse {

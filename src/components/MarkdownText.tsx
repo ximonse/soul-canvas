@@ -3,8 +3,8 @@
 
 import React, { useMemo } from 'react';
 import { Group, Text } from 'react-konva';
-import { parseMarkdown } from '../utils/markdownParser';
 import { CARD } from '../utils/constants';
+import { layoutMarkdownText } from '../utils/textLayout';
 
 interface MarkdownTextProps {
   text: string;
@@ -16,13 +16,6 @@ interface MarkdownTextProps {
   fontFamily?: string;
   align?: 'left' | 'center' | 'right';
   lineHeight?: number;
-}
-
-interface RenderedLine {
-  text: string;
-  y: number;
-  fontSize: number;
-  fontStyle: string;
 }
 
 const MarkdownText: React.FC<MarkdownTextProps> = ({
@@ -37,39 +30,8 @@ const MarkdownText: React.FC<MarkdownTextProps> = ({
   lineHeight = 1.6,
 }) => {
   const renderedLines = useMemo(() => {
-    const parsedLines = parseMarkdown(text);
-    const lines: RenderedLine[] = [];
-
-    let currentY = 0;
-
-    for (const line of parsedLines) {
-      let lineFontSize = fontSize;
-      let fontStyle = 'normal';
-
-      if (line.isHeading === 1) {
-        lineFontSize = fontSize * 1.5;
-        fontStyle = 'bold';
-      } else if (line.isHeading === 2) {
-        lineFontSize = fontSize * 1.3;
-        fontStyle = 'bold';
-      } else if (line.isHeading === 3) {
-        lineFontSize = fontSize * 1.15;
-        fontStyle = 'bold';
-      }
-
-      lines.push({
-        text: line.text,
-        y: currentY,
-        fontSize: lineFontSize,
-        fontStyle,
-      });
-
-      // Nästa rad börjar efter denna radhöjd
-      currentY += lineFontSize * lineHeight;
-    }
-
-    return lines;
-  }, [text, fontSize, lineHeight]);
+    return layoutMarkdownText(text, { width, fontSize, fontFamily, lineHeight }).lines;
+  }, [text, width, fontSize, fontFamily, lineHeight]);
 
   return (
     <Group x={x} y={y}>
@@ -86,6 +48,7 @@ const MarkdownText: React.FC<MarkdownTextProps> = ({
           fill={fill}
           align={align}
           wrap="word"
+          lineHeight={lineHeight}
         />
       ))}
     </Group>

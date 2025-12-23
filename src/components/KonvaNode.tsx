@@ -8,6 +8,7 @@ import type { MindNode } from '../types/types';
 import { type Theme } from '../themes';
 import { CARD } from '../utils/constants';
 import { getScopeColor, getNodeStyles, getGravitatingColor, getSemanticThemeColor } from '../utils/nodeStyles';
+import { layoutMarkdownText, measureTextHeight } from '../utils/textLayout';
 import type { GravitatingColorMode } from '../types/types';
 import MarkdownText from './MarkdownText';
 
@@ -17,6 +18,8 @@ interface KonvaNodeProps {
   gravitatingSimilarity?: number;  // Om noden är en gravitating node, dess similarity (0-1)
   gravitatingSemanticTheme?: string;  // Semantiskt tema (existential, practical, etc.)
   gravitatingColorMode?: GravitatingColorMode;  // 'similarity' eller 'semantic'
+  isWandering?: boolean;
+  onWanderStep?: (nodeId: string) => void;
   onEditCard: (cardId: string) => void;
   onDragStart?: () => void;
   onDragEnd?: () => void;
@@ -37,6 +40,8 @@ const KonvaNode: React.FC<KonvaNodeProps> = ({
   gravitatingSimilarity,
   gravitatingSemanticTheme,
   gravitatingColorMode = 'similarity',
+  isWandering = false,
+  onWanderStep,
   onEditCard,
   onDragStart: onDragStartProp,
   onDragEnd: onDragEndProp,
@@ -75,6 +80,48 @@ const KonvaNode: React.FC<KonvaNodeProps> = ({
   const isSelected = node.selected || false;
   const isFlipped = node.isFlipped;
   const isScopeSelected = node.scopeDegree && node.scopeDegree > 0;
+  const contentX = node.accentColor ? CARD.PADDING + 8 : CARD.PADDING;
+  const contentWidth = CARD.WIDTH - CARD.PADDING * 2 - (node.accentColor ? 8 : 0);
+  const captionWidth = isImage ? CARD.WIDTH - CARD.PADDING * 2 : contentWidth;
+  const contentLineHeight = 1.6;
+  const titleLineHeight = 1.2;
+  const captionLineHeight = 1.2;
+  const contentFontFamily = 'Inter, sans-serif';
+  const captionFontFamily = "'Noto Serif', Georgia, serif";
+
+  const titleHeight = useMemo(() => {
+    if (!node.title?.trim()) return 0;
+    return measureTextHeight(node.title, {
+      width: contentWidth,
+      fontSize: CARD.FONT_SIZE,
+      fontFamily: contentFontFamily,
+      fontStyle: 'bold',
+      lineHeight: titleLineHeight,
+    });
+  }, [node.title, contentWidth, contentFontFamily, titleLineHeight]);
+
+  const contentLayout = useMemo(() => (
+    layoutMarkdownText(node.content || '', {
+      width: contentWidth,
+      fontSize: CARD.FONT_SIZE,
+      fontFamily: contentFontFamily,
+      lineHeight: contentLineHeight,
+    })
+  ), [node.content, contentWidth, contentFontFamily, contentLineHeight]);
+
+  const captionHeight = useMemo(() => {
+    if (!node.caption?.trim()) return 0;
+    return measureTextHeight(node.caption, {
+      width: captionWidth,
+      fontSize: CARD.FONT_SIZE_SMALL,
+      fontFamily: captionFontFamily,
+      fontStyle: 'italic',
+      lineHeight: captionLineHeight,
+    });
+  }, [node.caption, captionWidth, captionFontFamily, captionLineHeight]);
+
+  const titleGap = node.title ? CARD.PADDING : 0;
+  const contentOffsetY = CARD.PADDING + (node.title ? titleHeight + titleGap : 0);
 
   // Image loading
   useEffect(() => {
@@ -87,8 +134,8 @@ const KonvaNode: React.FC<KonvaNodeProps> = ({
           setImageObj(img);
           const aspectRatio = img.height / img.width;
           let totalHeight = CARD.WIDTH * aspectRatio;
-          if (node.caption?.trim()) {
-            totalHeight += Math.ceil(node.caption.length / 30 + 1) * CARD.LINE_HEIGHT + CARD.PADDING;
+          if (captionHeight > 0) {
+            totalHeight += captionHeight + CARD.PADDING;
           }
           setCardHeight(Math.max(CARD.MIN_HEIGHT, Math.min(CARD.MAX_HEIGHT, totalHeight)));
         };
@@ -101,28 +148,33 @@ const KonvaNode: React.FC<KonvaNodeProps> = ({
         setImageObj(img);
         const aspectRatio = img.height / img.width;
         let totalHeight = CARD.WIDTH * aspectRatio;
-        if (node.caption?.trim()) {
-          totalHeight += Math.ceil(node.caption.length / 30 + 1) * CARD.LINE_HEIGHT + CARD.PADDING;
+        if (captionHeight > 0) {
+          totalHeight += captionHeight + CARD.PADDING;
         }
         setCardHeight(Math.max(CARD.MIN_HEIGHT, Math.min(CARD.MAX_HEIGHT, totalHeight)));
       };
       img.onerror = () => { setImageObj(undefined); setCardHeight(CARD.MIN_HEIGHT); };
     } else {
       setImageObj(undefined);
-      const textContent = node.ocrText || node.content || '';
-      const estimatedLines = textContent.split('\n').length + textContent.length / 30 + 1;
-      let height = Math.max(CARD.MIN_HEIGHT, Math.min(CARD.MAX_HEIGHT, estimatedLines * CARD.LINE_HEIGHT_TEXT + CARD.PADDING * 2));
+      let height = CARD.PADDING * 2 + contentLayout.height;
       if (node.title) {
-        height += CARD.LINE_HEIGHT + CARD.PADDING / 2;
+        height += titleHeight + titleGap;
       }
-      // Lägg till höjd för caption om den finns
-      if (node.caption?.trim()) {
-        const captionLines = Math.ceil(node.caption.length / 35) + 1;
-        height += captionLines * CARD.LINE_HEIGHT + CARD.PADDING;
+      if (captionHeight > 0) {
+        height += captionHeight + CARD.PADDING;
       }
-      setCardHeight(height);
+      setCardHeight(Math.max(CARD.MIN_HEIGHT, Math.min(CARD.MAX_HEIGHT, height)));
     }
-  }, [node.content, node.type, node.caption, isImage]);
+  }, [
+    node.content,
+    node.type,
+    node.title,
+    node.caption,
+    isImage,
+    captionHeight,
+    contentLayout.height,
+    titleHeight,
+  ]);
 
   // Drag handlers
   const handleDragStart = useCallback((e: Konva.KonvaEventObject<DragEvent>) => {
@@ -138,7 +190,7 @@ const KonvaNode: React.FC<KonvaNodeProps> = ({
       const dx = e.target.x() - initialX;
       const dy = e.target.y() - initialY;
       (Array.from(useBrainStore.getState().nodes.values()) as MindNode[])
-        .filter((n: MindNode) => n.selected && n.id !== node.id)
+        .filter((n: MindNode) => n.selected && !n.pinned && n.id !== node.id)
         .forEach((n: MindNode) => {
           const stage = e.target.getStage();
           const otherGroup = stage?.findOne(`#konva-node-${n.id}`) as Konva.Group;
@@ -174,9 +226,13 @@ const KonvaNode: React.FC<KonvaNodeProps> = ({
         store.activeSequence ? store.addToSequence(node.id) : store.startSequence(node.id);
         return;
       }
-      toggleSelection(node.id, e.evt.shiftKey || e.evt.ctrlKey || e.evt.metaKey);
+      const hasModifier = e.evt.shiftKey || e.evt.ctrlKey || e.evt.metaKey || e.evt.altKey;
+      toggleSelection(node.id, hasModifier);
+      if (isWandering && !hasModifier) {
+        onWanderStep?.(node.id);
+      }
     }
-  }, [toggleSelection, node.id]);
+  }, [toggleSelection, node.id, isWandering, onWanderStep]);
 
   const handleDblClick = useCallback((e: Konva.KonvaEventObject<MouseEvent>) => {
     e.cancelBubble = true;
@@ -248,7 +304,7 @@ const KonvaNode: React.FC<KonvaNodeProps> = ({
 
   return (
     <Group
-      x={node.x} y={node.y} draggable
+      x={node.x} y={node.y} draggable={!node.pinned}
       onDragStart={handleDragStart} onDragMove={handleDragMove} onDragEnd={handleDragEnd}
       onClick={handleClick} onDblClick={handleDblClick} onContextMenu={handleContextMenu}
       onMouseEnter={handleMouseEnter} onMouseLeave={handleMouseLeave}
@@ -304,36 +360,37 @@ const KonvaNode: React.FC<KonvaNodeProps> = ({
       {!isImage && !isFlipped && node.title && (
         <Text
           text={node.title}
-          x={node.accentColor ? CARD.PADDING + 8 : CARD.PADDING}
+          x={contentX}
           y={CARD.PADDING}
-          width={CARD.WIDTH - CARD.PADDING * 2 - (node.accentColor ? 8 : 0)}
+          width={contentWidth}
           fill={styles.text}
           fontSize={CARD.FONT_SIZE}
-          fontFamily="Inter, sans-serif"
+          fontFamily={contentFontFamily}
           fontStyle="bold"
           wrap="word"
+          lineHeight={titleLineHeight}
         />
       )}
 
       {!isImage && !isFlipped && (
         <MarkdownText
           text={node.content}
-          x={node.accentColor ? CARD.PADDING + 8 : CARD.PADDING} y={CARD.PADDING + (node.title ? CARD.LINE_HEIGHT * 2 : 0)}
-          width={CARD.WIDTH - CARD.PADDING * 2 - (node.accentColor ? 8 : 0)}
-          fill={styles.text} fontSize={CARD.FONT_SIZE} fontFamily="Inter, sans-serif" align="left"
+          x={contentX} y={contentOffsetY}
+          width={contentWidth}
+          fill={styles.text} fontSize={CARD.FONT_SIZE} fontFamily={contentFontFamily} align="left"
+          lineHeight={contentLineHeight}
         />
       )}
 
       {!isImage && !isFlipped && node.caption?.trim() && (() => {
-        const captionLines = Math.ceil((node.caption?.length || 0) / 35) + 1;
-        const captionHeight = captionLines * CARD.LINE_HEIGHT;
         return (
           <Text text={node.caption}
-            x={node.accentColor ? CARD.PADDING + 8 : CARD.PADDING}
+            x={contentX}
             y={cardHeight - CARD.PADDING - captionHeight}
-            width={CARD.WIDTH - CARD.PADDING * 2 - (node.accentColor ? 8 : 0)}
+            width={contentWidth}
             fill={styles.text} fontSize={CARD.FONT_SIZE_SMALL}
-            fontFamily="'Noto Serif', Georgia, serif" fontStyle="italic" align="center" wrap="word"
+            fontFamily={captionFontFamily} fontStyle="italic" align="center" wrap="word"
+            lineHeight={captionLineHeight}
           />
         );
       })()}
@@ -404,7 +461,8 @@ const KonvaNode: React.FC<KonvaNodeProps> = ({
         <Text text={node.caption} x={CARD.PADDING}
           y={CARD.WIDTH * (imageObj?.height || 0) / (imageObj?.width || 1) + CARD.PADDING / 2}
           width={CARD.WIDTH - CARD.PADDING * 2} fill={styles.text} fontSize={CARD.FONT_SIZE_SMALL}
-          fontFamily="'Noto Serif', Georgia, serif" fontStyle="italic" align="center" wrap="word"
+          fontFamily={captionFontFamily} fontStyle="italic" align="center" wrap="word"
+          lineHeight={captionLineHeight}
         />
       )}
     </Group>

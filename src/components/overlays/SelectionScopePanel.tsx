@@ -30,6 +30,7 @@ const DEGREE_COLORS: Record<number, string> = {
   3: '#ec4899', // Rosa
   4: '#f97316', // Orange
   5: '#eab308', // Gul
+  6: '#22c55e', // Grön
 };
 
 export function SelectionScopePanel({

@@ -3,6 +3,7 @@ import type { Session, MindNode, SortOption } from '../types/types';
 import type { Theme } from '../themes';
 import { useBrainStore } from '../store/useBrainStore';
 import { SORT_LABELS } from '../utils/sortNodes';
+import { getNodeDisplayTitle } from '../utils/nodeDisplay';
 
 interface SessionPanelProps {
   // Theme
@@ -444,7 +445,7 @@ export const SessionPanel: React.FC<SessionPanelProps> = ({
                       onClick={() => onAddCardsToSession([node.id])}
                     >
                       <span className="text-sm truncate flex-1">
-                        {node.title || node.content.slice(0, 50)}
+                        {getNodeDisplayTitle(node) || node.content.slice(0, 50)}
                       </span>
                       <span className="text-xs text-green-400">+</span>
                     </div>

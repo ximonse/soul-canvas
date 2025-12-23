@@ -44,6 +44,7 @@ interface KeyboardHandlersProps {
   setContextMenu: (menu: ContextMenuState | null) => void;
   setEditingCardId: (id: string | null) => void;
   onToggleScopePanel?: () => void;
+  onExpandScopeDegree?: (degree: number) => void;
   onToggleSessionPanel?: () => void;
   isSessionPanelOpen?: boolean;
   onCloseSessionPanel?: () => void;
@@ -84,6 +85,7 @@ export function useKeyboardHandlers({
   setContextMenu,
   setEditingCardId,
   onToggleScopePanel,
+  onExpandScopeDegree,
   onToggleSessionPanel,
   isSessionPanelOpen,
   onCloseSessionPanel,
@@ -164,6 +166,7 @@ export function useKeyboardHandlers({
 
     onToggleSynapseLines: store.toggleSynapseLines,
     onToggleScopePanel,
+    onExpandScopeDegree,
 
     onAdjustGraphGravity: (delta: number) => {
       // Clampa gravity till giltigt range

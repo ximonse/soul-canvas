@@ -30,7 +30,7 @@ export function getDirectConnections(
 export function getConnectionsByDegree(
   baseIds: Set<string>,
   synapses: Synapse[],
-  maxDegree: number = 5
+  maxDegree: number = 6
 ): Map<string, number> {
   const result = new Map<string, number>();
   let currentFrontier = new Set(baseIds);
@@ -67,7 +67,7 @@ export function getConnectionsByDegree(
 export function getConnectionsGroupedByDegree(
   baseIds: Set<string>,
   synapses: Synapse[],
-  maxDegree: number = 5
+  maxDegree: number = 6
 ): Map<number, string[]> {
   const allConnections = getConnectionsByDegree(baseIds, synapses, maxDegree);
   const grouped = new Map<number, string[]>();
@@ -103,7 +103,7 @@ export function hasAnyConnections(
 export function getMaxAvailableDegree(
   baseIds: Set<string>,
   synapses: Synapse[],
-  maxSearch: number = 5
+  maxSearch: number = 6
 ): number {
   const connections = getConnectionsByDegree(baseIds, synapses, maxSearch);
 

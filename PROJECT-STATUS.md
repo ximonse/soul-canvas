@@ -286,6 +286,7 @@ Stöd för:
 - Visar antal träffar
 - `Enter`: Markera alla träffar
 - `Escape`: Stäng och rensa sök
+- Fallback title: for textkort används forsta markdown-rubrik (#/##/###) nar title saknas i listor/sokpreview
 
 **Implementation**: `src/hooks/useSearch.ts`
 

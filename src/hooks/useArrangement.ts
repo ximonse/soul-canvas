@@ -56,8 +56,9 @@ export const useArrangement = (defaultCenter?: {x: number, y: number}) => {
     // Always get fresh nodes from store to avoid stale closures
     const store = useBrainStore.getState();
     const currentNodes = store.nodes;
-    let selected = (Array.from(currentNodes.values()) as MindNode[]).filter((n: MindNode) => n.selected);
-    if (selected.length < 2) return; // Need at least 2 nodes to arrange
+    let selected = (Array.from(currentNodes.values()) as MindNode[])
+      .filter((n: MindNode) => n.selected && !n.pinned);
+    if (selected.length === 0) return;
 
     // Om sekvensordning ska användas, sortera efter sekvens
     if (useSequenceOrder) {
@@ -80,8 +81,9 @@ export const useArrangement = (defaultCenter?: {x: number, y: number}) => {
     const store = useBrainStore.getState();
     const currentNodes = store.nodes;
     const synapses = store.synapses;
-    const selected = (Array.from(currentNodes.values()) as MindNode[]).filter((n: MindNode) => n.selected);
-    if (selected.length < 2) return;
+    const selected = (Array.from(currentNodes.values()) as MindNode[])
+      .filter((n: MindNode) => n.selected && !n.pinned);
+    if (selected.length === 0) return;
 
     const targetCenter = center || defaultCenter;
     const newPositions = arrangeCentrality(selected, synapses, targetCenter);

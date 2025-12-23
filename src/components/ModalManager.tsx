@@ -45,9 +45,13 @@ interface ModalManagerProps {
   handleDrop: (e: React.DragEvent) => void;
   onSummarizeToComment?: (id: string) => void;
   onSuggestTitle?: (id: string) => void;
+  onResetZoom: () => void;
+  onTogglePin: () => void;
   chatMessages: ChatMessage[];
   chatProvider: ChatProvider;
   setChatProvider: (p: ChatProvider) => void;
+  openaiChatModel: string;
+  setOpenaiChatModel: (model: string) => void;
   sendChat: (text: string, provider?: ChatProvider) => Promise<void>;
   isChatSending: boolean;
   chatError?: string | null;
@@ -76,6 +80,7 @@ interface ModalManagerProps {
   arrangeGridHorizontal: () => void;
   arrangeCircle: () => void;
   arrangeKanban: () => void;
+  onExpandScopeDegree?: (degree: number) => void;
 
   // Clipboard & state
   copySelectedNodes: () => void;
@@ -124,9 +129,13 @@ export const ModalManager: React.FC<ModalManagerProps> = ({
   handleDrop,
   onSummarizeToComment,
   onSuggestTitle,
+  onResetZoom,
+  onTogglePin,
   chatMessages,
   chatProvider,
   setChatProvider,
+  openaiChatModel,
+  setOpenaiChatModel,
   sendChat,
   isChatSending,
   chatError,
@@ -150,6 +159,7 @@ export const ModalManager: React.FC<ModalManagerProps> = ({
   arrangeGridHorizontal,
   arrangeCircle,
   arrangeKanban,
+  onExpandScopeDegree,
   copySelectedNodes,
   undo,
   redo,
@@ -219,12 +229,15 @@ export const ModalManager: React.FC<ModalManagerProps> = ({
           onToggleTheme={() => setThemeIndex((i) => (i + 1) % 4)} // Assumes 4 themes
           onCenterCamera={centerCamera}
           onToggleZen={() => setZenMode((prev) => !prev)}
+          onResetZoom={onResetZoom}
+          onTogglePin={onTogglePin}
           onArrangeCircle={arrangeCircle}
           onArrangeKanban={arrangeKanban}
           onArrangeVertical={arrangeVertical}
           onArrangeHorizontal={arrangeHorizontal}
           onArrangeGridVertical={arrangeGridVertical}
           onArrangeGridHorizontal={arrangeGridHorizontal}
+          onExpandScopeDegree={onExpandScopeDegree}
           onCopy={copySelectedNodes}
           onPaste={() => {
             saveStateForUndo();
@@ -278,6 +291,8 @@ export const ModalManager: React.FC<ModalManagerProps> = ({
             messages={chatMessages}
             provider={chatProvider}
             setProvider={setChatProvider}
+            openaiModel={openaiChatModel}
+            setOpenaiModel={setOpenaiChatModel}
             onSend={sendChat}
             onClose={() => { setShowAIChat(false); setIsChatMinimized(false); }}
             onMinimize={() => setIsChatMinimized(true)}
@@ -290,6 +305,8 @@ export const ModalManager: React.FC<ModalManagerProps> = ({
             messages={chatMessages}
             provider={chatProvider}
             setProvider={setChatProvider}
+            openaiModel={openaiChatModel}
+            setOpenaiModel={setOpenaiChatModel}
             onSend={sendChat}
             onClose={() => { setShowAIChat(false); setIsChatMinimized(false); }}
             onMinimize={() => setIsChatMinimized(true)}

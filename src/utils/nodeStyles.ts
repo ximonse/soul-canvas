@@ -11,6 +11,8 @@ export const getScopeColor = (degree: number | undefined): string => {
     case 2: return '#8b5cf6'; // Lila
     case 3: return '#ec4899'; // Rosa
     case 4: return '#f97316'; // Orange
+    case 5: return '#eab308'; // Gul
+    case 6: return '#22c55e'; // Grön
     default: return '#eab308'; // Gul
   }
 };

@@ -149,10 +149,10 @@ export const AIPanel = ({ theme, onClose, onDiscussReflection }: AIPanelProps) =
 
         {/* STEG 2: VISA */}
         <StepSection step={2} title="Visa kopplingar" textColor={theme.node.text}>
-          {/* Slider: Kopplingsstryka (minsta likhet för att skapa koppling) */}
+          {/* Slider: Kopplingsstyrka (minsta likhet för att skapa + visa kopplingar) */}
           <div className="mb-3">
             <div className="flex justify-between text-xs mb-1" style={{ color: subTextColor }}>
-              <span style={{ color: subTextColor }}>Kopplingsstryka</span>
+              <span style={{ color: subTextColor }}>Kopplingsstyrka</span>
               <span className="font-mono" style={{ color: theme.node.text }}>{Math.round((store.autoLinkThreshold || 0.75) * 100)}%</span>
             </div>
             <input
@@ -161,10 +161,14 @@ export const AIPanel = ({ theme, onClose, onDiscussReflection }: AIPanelProps) =
               max="0.95"
               step="0.05"
               value={store.autoLinkThreshold || 0.75}
-              onChange={e => store.setAutoLinkThreshold(parseFloat(e.target.value))}
+              onChange={e => {
+                const value = parseFloat(e.target.value);
+                store.setAutoLinkThreshold(value);
+                store.setSynapseVisibilityThreshold(value);
+              }}
               className="w-full h-2 rounded-lg appearance-none cursor-pointer accent-purple-500 bg-gray-300 dark:bg-gray-700"
             />
-            <p className="text-xs mt-1" style={{ color: subTextColor }}>Lägre = fler kopplingar</p>
+            <p className="text-xs mt-1" style={{ color: subTextColor }}>Lägre = fler kopplingar och fler synliga linjer</p>
           </div>
 
           {/* Slider: Synlighet (filtrera befintliga kopplingar) */}

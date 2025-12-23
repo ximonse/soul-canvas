@@ -1,11 +1,14 @@
 // src/components/overlays/ReflectionChatOverlay.tsx
 import { useState, useEffect, useRef } from 'react';
+import { CHAT_PROVIDER_LABELS, OPENAI_CHAT_MODELS } from '../../utils/chatProviders';
 import type { ChatProvider, ChatMessage } from '../../utils/chatProviders';
 
 interface ReflectionChatOverlayProps {
   messages: ChatMessage[];
   provider: ChatProvider;
   setProvider: (p: ChatProvider) => void;
+  openaiModel?: string;
+  setOpenaiModel?: (model: string) => void;
   onSend: (text: string, provider?: ChatProvider) => Promise<void>;
   onClose: () => void;
   onMinimize: () => void;
@@ -19,6 +22,8 @@ export function ReflectionChatOverlay({
   messages,
   provider,
   setProvider,
+  openaiModel,
+  setOpenaiModel,
   onSend,
   onClose,
   onMinimize,
@@ -79,7 +84,7 @@ export function ReflectionChatOverlay({
           <div className="flex items-center gap-4">
             <span className="text-2xl">💭</span>
             {/* Provider as subtle pills */}
-            <div className="flex gap-1">
+            <div className="flex gap-1 items-center">
               {(['claude', 'openai', 'gemini'] as ChatProvider[]).map(p => (
                 <button
                   key={p}
@@ -90,9 +95,22 @@ export function ReflectionChatOverlay({
                     color: provider === p ? 'white' : 'rgba(255,255,255,0.5)',
                   }}
                 >
-                  {p === 'claude' ? '✨' : p === 'openai' ? '🤖' : '💫'}
+                  {CHAT_PROVIDER_LABELS[p]}
                 </button>
               ))}
+              {provider === 'openai' && setOpenaiModel && (
+                <select
+                  value={openaiModel || OPENAI_CHAT_MODELS[0].id}
+                  onChange={(e) => setOpenaiModel(e.target.value)}
+                  className="ml-2 px-2 py-1 rounded text-xs bg-white/10 text-white border border-white/20"
+                >
+                  {OPENAI_CHAT_MODELS.map((model) => (
+                    <option key={model.id} value={model.id}>
+                      {model.label} - {model.id}
+                    </option>
+                  ))}
+                </select>
+              )}
             </div>
           </div>
           <div className="flex items-center gap-1">

@@ -22,6 +22,7 @@ interface KeyboardActions {
   onToggleSynapseLines: () => void;
   onAdjustGraphGravity: (delta: number) => void;
   onToggleScopePanel?: () => void;
+  onExpandScopeDegree?: (degree: number) => void;
   onToggleSessionPanel?: () => void;
   onToggleViewMode?: () => void;
   // Trail/Wandering
@@ -61,6 +62,8 @@ function isTyping(): boolean {
 // Exported so other components can check if G is pressed (e.g., to disable zoom)
 export const gComboState = {
   pressed: false,
+  held: false,
+  used: false,
   timeout: undefined as number | undefined
 };
 
@@ -158,7 +161,8 @@ export function useKeyboard(
       const key = e.key.toLowerCase();
 
       // Z = zen mode
-      if (key === 'z' && !e.ctrlKey) {
+      if ((key === 'z' || e.code === 'KeyZ') && !e.ctrlKey && !e.metaKey) {
+        e.preventDefault();
         actions.onToggleZen();
         return;
       }
@@ -289,6 +293,18 @@ export function useKeyboard(
         return;
       }
 
+      // Alt+1..6 = expand scope degree
+      if (e.altKey && !e.ctrlKey && !e.metaKey) {
+        const degree = e.key >= '1' && e.key <= '6'
+          ? parseInt(e.key, 10)
+          : (e.code.startsWith('Digit') ? parseInt(e.code.replace('Digit', ''), 10) : NaN);
+        if (!Number.isNaN(degree) && degree >= 1 && degree <= 6) {
+          e.preventDefault();
+          actions.onExpandScopeDegree?.(degree);
+          return;
+        }
+      }
+
       // Ctrl+A = select all
       if (key === 'a' && (e.ctrlKey || e.metaKey)) {
         e.preventDefault();
@@ -309,6 +325,8 @@ export function useKeyboard(
         // Start g-combo tracking
         if (key === 'g' && !e.ctrlKey) {
           gComboState.pressed = true;
+          gComboState.held = true;
+          gComboState.used = false;
           if (gComboState.timeout) clearTimeout(gComboState.timeout);
           gComboState.timeout = window.setTimeout(() => {
             gComboState.pressed = false;
@@ -316,13 +334,19 @@ export function useKeyboard(
           return;
         }
 
+        if (gComboState.held && key !== 'g') {
+          gComboState.used = true;
+        }
+
         // Check for g+v, g+h, g+t, g+c combos OR standalone v/h
         if (['v', 'h', 't', 'c'].includes(key)) {
           const currentHasSelection = (Array.from(useBrainStore.getState().nodes.values()) as MindNode[]).some((n: MindNode) => n.selected);
+          let handled = false;
 
-          if (gComboState.pressed && currentHasSelection) {
-            // g+key combos: grid arrangements
+          if (gComboState.pressed && currentHasSelection && (key !== 'c' || gComboState.held)) {
+            // g+key combos: grid arrangements (g+c only when g is held)
             e.preventDefault();
+            gComboState.used = true;
             if (key === 'v') {
               actionsRef.current.onArrangeGridVertical();
             } else if (key === 'h') {
@@ -333,6 +357,7 @@ export function useKeyboard(
               actionsRef.current.onArrangeCentrality();
             }
             gComboState.pressed = false;
+            handled = true;
           } else if (!gComboState.pressed && currentHasSelection && (key === 'v' || key === 'h')) {
             // Standalone v/h: single row/column arrangements
             e.preventDefault();
@@ -341,11 +366,17 @@ export function useKeyboard(
             } else if (key === 'h') {
               actionsRef.current.onArrangeHorizontal();
             }
-          } else {
+            handled = true;
+          }
+
+          if (handled) {
+            return;
+          }
+
+          if (key !== 'c' || !gComboState.held) {
             gComboState.pressed = false;
           }
-          // Don't pass v/h/t/c to handleKeyDown
-          return;
+          // Let other handlers run (e.g., "c" duplicate)
         }
       }
 
@@ -364,6 +395,7 @@ export function useKeyboard(
     const handleWheel = (e: WheelEvent) => {
       if (gComboState.pressed && !isTyping()) {
         e.preventDefault();
+        gComboState.used = true;
         // Scroll up = öka gravity (tätare), scroll down = minska (glesare)
         const delta = e.deltaY > 0 ? -0.1 : 0.1;
         actionsRef.current.onAdjustGraphGravity(delta);
@@ -380,6 +412,15 @@ export function useKeyboard(
     const handleKeyUp = (e: KeyboardEvent) => {
       const key = e.key.toLowerCase();
       if (key === 'g') {
+        if (!isTyping() && !gComboState.used) {
+          const hasSelection = (Array.from(useBrainStore.getState().nodes.values()) as MindNode[]).some(
+            (n: MindNode) => n.selected && !n.pinned,
+          );
+          if (hasSelection) {
+            actionsRef.current.onArrangeGridVertical();
+          }
+        }
+        gComboState.held = false;
         // Ge lite extra tid efter att G släpps
         if (gComboState.timeout) clearTimeout(gComboState.timeout);
         gComboState.timeout = window.setTimeout(() => {

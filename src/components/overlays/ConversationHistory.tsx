@@ -1,4 +1,5 @@
 // src/components/overlays/ConversationHistory.tsx
+import { CHAT_PROVIDER_LABELS } from '../../utils/chatProviders';
 import type { Conversation } from '../../types/types';
 import type { Theme } from '../../themes';
 
@@ -99,7 +100,7 @@ export function ConversationHistory({
                     className="text-xs px-1.5 py-0.5 rounded opacity-70 shrink-0"
                     style={{ backgroundColor: `${theme.node.border}44` }}
                   >
-                    {conv.provider}
+                    {CHAT_PROVIDER_LABELS[conv.provider]}
                   </div>
                 </div>
                 {conv.themes && conv.themes.length > 0 && (

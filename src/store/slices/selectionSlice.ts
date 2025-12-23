@@ -84,6 +84,7 @@ export const createSelectionSlice = (set: SetState): SelectionActions => ({
     if (selectedNodes.length === 0) return {};
 
     const dateTag = 'card_copy_' + new Date().toISOString().slice(2, 10).replace(/-/g, '');
+    const copiedAt = new Date().toISOString();
     const newNodesMap = new Map(state.nodes);
 
     // Unselect original nodes
@@ -93,11 +94,23 @@ export const createSelectionSlice = (set: SetState): SelectionActions => ({
 
     // Add duplicated nodes
     selectedNodes.forEach(node => {
+      const newId = crypto.randomUUID();
+      const originalCreatedAt = node.originalCreatedAt ?? node.createdAt;
+      const originalId = node.copyRef
+        ? (node.copyRef.includes('-copy-')
+          ? node.copyRef.split('-copy-').pop() || node.id
+          : node.copyRef)
+        : node.id;
       const newNode = {
         ...node,
-        id: crypto.randomUUID(),
+        id: newId,
         tags: [...node.tags, dateTag],
         selected: true,
+        createdAt: copiedAt,
+        updatedAt: copiedAt,
+        copyRef: originalId,
+        copiedAt,
+        originalCreatedAt,
       };
       newNodesMap.set(newNode.id, newNode);
     });

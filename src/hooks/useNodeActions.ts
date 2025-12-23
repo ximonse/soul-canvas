@@ -5,18 +5,20 @@ import { useCallback } from 'react';
 import type Konva from 'konva';
 import { useBrainStore } from '../store/useBrainStore';
 import { performOCR } from '../utils/gemini';
+import type { CanvasAPI } from './useCanvas';
 import type { ContextMenuState } from '../components/overlays/ContextMenu';
 import { ZOOM } from '../utils/constants';
 import type { MindNode } from '../types/types';
 
 interface NodeActionsProps {
   stageRef: React.RefObject<Konva.Stage | null>;
+  canvas: CanvasAPI;
   setShowSettings: (show: boolean) => void;
   setContextMenu: (menu: ContextMenuState | null) => void;
   visibleNodes?: import('../types/types').MindNode[];
 }
 
-export function useNodeActions({ stageRef, setShowSettings, setContextMenu, visibleNodes }: NodeActionsProps) {
+export function useNodeActions({ stageRef, canvas, setShowSettings, setContextMenu, visibleNodes }: NodeActionsProps) {
   const store = useBrainStore();
 
   // Center camera on selected nodes (or all if none selected)
@@ -39,12 +41,15 @@ export function useNodeActions({ stageRef, setShowSettings, setContextMenu, visi
     const centerY = sumY / targetNodes.length;
     const currentScale = stageRef.current.scaleX();
 
-    stageRef.current.position({
+    const nextView = {
       x: (window.innerWidth / 2) - (centerX * currentScale),
       y: (window.innerHeight / 2) - (centerY * currentScale),
-    });
+      k: currentScale,
+    };
+    stageRef.current.position({ x: nextView.x, y: nextView.y });
     stageRef.current.batchDraw();
-  }, [store.nodes, stageRef]);
+    canvas.setView(nextView);
+  }, [store.nodes, stageRef, canvas]);
 
   // Fit all visible nodes in view (zoom to show everything, as large as possible)
   const fitAllNodes = useCallback(() => {
@@ -78,13 +83,16 @@ export function useNodeActions({ stageRef, setShowSettings, setContextMenu, visi
     const centerX = minX + contentWidth / 2;
     const centerY = minY + contentHeight / 2;
 
-    stageRef.current.scale({ x: newScale, y: newScale });
-    stageRef.current.position({
+    const nextView = {
       x: (window.innerWidth / 2) - (centerX * newScale),
       y: (window.innerHeight / 2) - (centerY * newScale),
-    });
+      k: newScale,
+    };
+    stageRef.current.scale({ x: newScale, y: newScale });
+    stageRef.current.position({ x: nextView.x, y: nextView.y });
     stageRef.current.batchDraw();
-  }, [store.nodes, stageRef, visibleNodes]);
+    canvas.setView(nextView);
+  }, [store.nodes, stageRef, visibleNodes, canvas]);
 
   // Reset zoom to 100% and center
   const resetZoom = useCallback(() => {
@@ -102,13 +110,16 @@ export function useNodeActions({ stageRef, setShowSettings, setContextMenu, visi
       centerY /= allNodes.length;
     }
 
-    stageRef.current.scale({ x: 1, y: 1 });
-    stageRef.current.position({
+    const nextView = {
       x: (window.innerWidth / 2) - centerX,
       y: (window.innerHeight / 2) - centerY,
-    });
+      k: 1,
+    };
+    stageRef.current.scale({ x: 1, y: 1 });
+    stageRef.current.position({ x: nextView.x, y: nextView.y });
     stageRef.current.batchDraw();
-  }, [store.nodes, stageRef]);
+    canvas.setView(nextView);
+  }, [store.nodes, stageRef, canvas]);
 
   // Run OCR on an image node
   const runOCR = useCallback(async (id: string) => {

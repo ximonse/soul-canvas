@@ -67,18 +67,30 @@ export const createHistorySlice = (set: SetState): HistoryActions => ({
 
     // Paste nodes with offset
     const pasteTag = 'pasted_' + new Date().toISOString().slice(2, 10).replace(/-/g, '');
+    const copiedAt = new Date().toISOString();
     state.clipboard.forEach(node => {
       const offsetX = node.x - clipboardCenterX;
       const offsetY = node.y - clipboardCenterY;
 
+      const newId = crypto.randomUUID();
+      const originalCreatedAt = node.originalCreatedAt ?? node.createdAt;
+      const originalId = node.copyRef
+        ? (node.copyRef.includes('-copy-')
+          ? node.copyRef.split('-copy-').pop() || node.id
+          : node.copyRef)
+        : node.id;
       const newNode: MindNode = {
         ...node,
-        id: crypto.randomUUID(),
+        id: newId,
         x: centerX + offsetX,
         y: centerY + offsetY,
         selected: true,
         tags: [...node.tags, pasteTag],
-        createdAt: new Date().toISOString(),
+        createdAt: copiedAt,
+        updatedAt: copiedAt,
+        copyRef: originalId,
+        copiedAt,
+        originalCreatedAt,
       };
       newNodesMap.set(newNode.id, newNode);
     });

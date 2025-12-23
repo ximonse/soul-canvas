@@ -13,7 +13,17 @@ function revokeAssetUrls(assets: Record<string, string>) {
 }
 
 export function useFileSystem() {
-  const { setFileHandle, loadNodes, loadAssets, loadConversations, loadSessions, loadTrails, fileHandle } = useBrainStore();
+  const {
+    setFileHandle,
+    loadNodes,
+    loadAssets,
+    loadConversations,
+    loadSessions,
+    loadTrails,
+    setSelectedTrailIds,
+    setShowActiveTrailLine,
+    fileHandle,
+  } = useBrainStore();
   // Track current blob URLs for cleanup
   const currentAssetsRef = useRef<Record<string, string>>({});
   const [isReady, setIsReady] = useState(false);
@@ -31,7 +41,15 @@ export function useFileSystem() {
       await setDb('soul-folder-handle', dirHandle);
 
       // 2. Leta efter data.json
-      let data = { nodes: [], synapses: [], conversations: [], sessions: [], trails: [], activeSessionId: null as string | null };
+      let data = {
+        nodes: [],
+        synapses: [],
+        conversations: [],
+        sessions: [],
+        trails: [],
+        activeSessionId: null as string | null,
+        trailUi: { selectedTrailIds: [] as string[], showActiveTrailLine: true },
+      };
       try {
         const fileHandle = await dirHandle.getFileHandle('data.json');
         const file = await fileHandle.getFile();
@@ -45,13 +63,28 @@ export function useFileSystem() {
           nodes = Object.values(nodes).filter(n => n && typeof n === 'object');
         }
 
+        const rawSelectedTrailIds = Array.isArray(parsed.trailUi?.selectedTrailIds)
+          ? parsed.trailUi.selectedTrailIds
+          : Array.isArray(parsed.selectedTrailIds)
+            ? parsed.selectedTrailIds
+            : [];
+        const rawShowActiveTrailLine = typeof parsed.trailUi?.showActiveTrailLine === 'boolean'
+          ? parsed.trailUi.showActiveTrailLine
+          : typeof parsed.showActiveTrailLine === 'boolean'
+            ? parsed.showActiveTrailLine
+            : true;
+
         data = {
           nodes,
           synapses: parsed.synapses || [],
           conversations: parsed.conversations || [],
           sessions: parsed.sessions || [],
           trails: parsed.trails || [],
-          activeSessionId: parsed.activeSessionId || null
+          activeSessionId: parsed.activeSessionId || null,
+          trailUi: {
+            selectedTrailIds: rawSelectedTrailIds,
+            showActiveTrailLine: rawShowActiveTrailLine,
+          },
         };
       } catch {
         // No data.json found, start with empty brain
@@ -82,6 +115,14 @@ export function useFileSystem() {
       loadConversations(data.conversations || []);
       loadSessions(data.sessions || []);
       loadTrails(data.trails || []);
+      if (data.trails && data.trails.length > 0) {
+        const trailIds = new Set(data.trails.map(t => t.id));
+        const selectedTrailIds = data.trailUi.selectedTrailIds.filter(id => trailIds.has(id));
+        setSelectedTrailIds(selectedTrailIds);
+      } else {
+        setSelectedTrailIds([]);
+      }
+      setShowActiveTrailLine(data.trailUi.showActiveTrailLine);
       if (data.activeSessionId) {
         useBrainStore.getState().switchSession(data.activeSessionId);
       }
@@ -89,7 +130,16 @@ export function useFileSystem() {
       console.error('Kunde inte läsa mapp:', err);
       setFileHandle(null!);
     }
-  }, [setFileHandle, loadNodes, loadAssets, loadConversations, loadTrails]);
+  }, [
+    setFileHandle,
+    loadNodes,
+    loadAssets,
+    loadConversations,
+    loadSessions,
+    loadTrails,
+    setSelectedTrailIds,
+    setShowActiveTrailLine,
+  ]);
 
   // Cleanup blob URLs on unmount
   useEffect(() => {
@@ -136,7 +186,11 @@ export function useFileSystem() {
         conversations: state.conversations,
         sessions: state.sessions,
         trails: state.trails,
-        activeSessionId: state.activeSessionId
+        activeSessionId: state.activeSessionId,
+        trailUi: {
+          selectedTrailIds: state.selectedTrailIds,
+          showActiveTrailLine: state.showActiveTrailLine,
+        },
       };
       
       await writable.write(JSON.stringify(dataToSave, null, 2));

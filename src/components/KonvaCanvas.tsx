@@ -20,11 +20,14 @@ interface KonvaCanvasProps {
   canvas: CanvasAPI;
   stageRef?: React.RefObject<Konva.Stage | null>;
   nodes: MindNode[];
+  isWandering?: boolean;
+  onWanderStep?: (nodeId: string) => void;
   gravitatingNodes?: GravitatingNode[];
   gravitatingColorMode?: GravitatingColorMode;
   wanderingCurrentNodeId?: string | null;
   activeTrail?: Trail | null;
   selectedTrails?: Trail[];
+  showActiveTrailLine?: boolean;
   onContextMenu?: (nodeId: string, screenPos: { x: number; y: number }) => void;
   onZoomChange?: (zoom: number) => void;
 }
@@ -43,11 +46,14 @@ const KonvaCanvas: React.FC<KonvaCanvasProps> = ({
   canvas,
   stageRef: externalStageRef,
   nodes,
+  isWandering = false,
+  onWanderStep,
   gravitatingNodes = [],
   gravitatingColorMode = 'similarity',
   wanderingCurrentNodeId,
   activeTrail,
   selectedTrails = [],
+  showActiveTrailLine = true,
   onContextMenu,
   onZoomChange,
 }) => {
@@ -304,7 +310,7 @@ const KonvaCanvas: React.FC<KonvaCanvasProps> = ({
           // Samla alla trails att rita (aktiv + valda)
           const trailsToDraw: { trail: Trail; color: string; isActive: boolean }[] = [];
 
-          if (activeTrail && activeTrail.waypoints.length > 1) {
+          if (showActiveTrailLine && activeTrail && activeTrail.waypoints.length > 1) {
             trailsToDraw.push({ trail: activeTrail, color: '#f59e0b', isActive: true }); // Orange för aktiv
           }
 
@@ -334,14 +340,13 @@ const KonvaCanvas: React.FC<KonvaCanvasProps> = ({
                   key={`trail-${trail.id}-${i}`}
                   points={[fromX, fromY, toX, toY]}
                   stroke={color}
-                  strokeWidth={(isActive ? 6 : 4) / canvas.view.k}
-                  opacity={isActive ? 0.9 : 0.7}
+                  strokeWidth={(isActive ? 8 : 6) / canvas.view.k}
+                  opacity={isActive ? 0.95 : 0.85}
                   lineCap="round"
                   lineJoin="round"
                   shadowColor={color}
-                  shadowBlur={isActive ? 12 : 6}
+                  shadowBlur={isActive ? 14 : 10}
                   shadowOpacity={0.6}
-                  dash={isActive ? undefined : [10 / canvas.view.k, 5 / canvas.view.k]}
                 />
               );
             }
@@ -357,6 +362,8 @@ const KonvaCanvas: React.FC<KonvaCanvasProps> = ({
               key={node.id}
               node={node}
               theme={theme}
+              isWandering={isWandering}
+              onWanderStep={onWanderStep}
               gravitatingSimilarity={gravitatingInfo?.similarity}
               gravitatingSemanticTheme={gravitatingInfo?.semanticTheme}
               gravitatingColorMode={gravitatingColorMode}

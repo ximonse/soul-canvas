@@ -121,11 +121,95 @@ const termMatches = (term: string, text: string) => {
   return text.includes(normalizedTerm);
 };
 
-const evaluate = (postfix: Token[], text: string): boolean => {
+type SearchField =
+  | 'title'
+  | 'content'
+  | 'caption'
+  | 'comment'
+  | 'ocr'
+  | 'tags'
+  | 'semantic'
+  | 'created'
+  | 'updated'
+  | 'type'
+  | 'copyref'
+  | 'copied'
+  | 'originalcreated'
+  | 'all';
+
+const FIELD_ALIASES: Record<string, SearchField> = {
+  type: 'type',
+  copyref: 'copyref',
+  copy: 'copyref',
+  copied: 'copied',
+  copiedat: 'copied',
+  originalcreated: 'originalcreated',
+  originalcreatedat: 'originalcreated',
+  title: 'title',
+  ti: 'title',
+  content: 'content',
+  text: 'content',
+  body: 'content',
+  caption: 'caption',
+  cap: 'caption',
+  comment: 'comment',
+  note: 'comment',
+  ocr: 'ocr',
+  ocrtext: 'ocr',
+  tags: 'tags',
+  tag: 'tags',
+  semantic: 'semantic',
+  sem: 'semantic',
+  created: 'created',
+  createdat: 'created',
+  date: 'created',
+  updated: 'updated',
+  updatedat: 'updated',
+  modified: 'updated',
+};
+
+const parseFieldTerm = (raw: string): { field?: SearchField; value: string } => {
+  const idx = raw.indexOf(':');
+  if (idx <= 0) return { value: raw };
+  const fieldKey = raw.slice(0, idx).toLowerCase();
+  const value = raw.slice(idx + 1);
+  const field = FIELD_ALIASES[fieldKey];
+  if (!field) return { value: raw };
+  return { field, value };
+};
+
+const normalizeDateSearchText = (raw?: string): string => {
+  if (!raw) return '';
+  const date = new Date(raw);
+  if (Number.isNaN(date.getTime())) {
+    return raw.toLowerCase();
+  }
+  const yyyy = String(date.getFullYear());
+  const mm = String(date.getMonth() + 1).padStart(2, '0');
+  const dd = String(date.getDate()).padStart(2, '0');
+  const variants = [
+    raw,
+    `${yyyy}-${mm}-${dd}`,
+    `${yyyy}/${mm}/${dd}`,
+    `${dd}-${mm}`,
+    `${mm}-${dd}`,
+    `${dd}/${mm}`,
+    `${mm}/${dd}`,
+  ];
+  return variants.join(' ').toLowerCase();
+};
+
+const evaluate = (postfix: Token[], searchable: Record<SearchField, string>): boolean => {
   const stack: boolean[] = [];
   for (const token of postfix) {
     if (token.type === 'TERM') {
-      stack.push(termMatches(token.value, text));
+      const { field, value } = parseFieldTerm(token.value);
+      if (field) {
+        const needle = value.trim();
+        stack.push(needle.length > 0 ? termMatches(needle, searchable[field]) : false);
+      } else {
+        stack.push(termMatches(token.value, searchable.all));
+      }
     } else if (token.type === 'NOT') {
       const a = stack.pop() ?? false;
       stack.push(!a);
@@ -142,7 +226,7 @@ export function useSearch({ nodes }: UseSearchOptions): UseSearchResult {
   const [isOpen, setIsOpen] = useState(false);
   const [query, setQuery] = useState('');
 
-  // Sök i noder (content, tags, ocrText, comment) med boolesk logik
+  // Sök i noder med boolesk logik + fältfilter (title:, content:, caption:, created:, updated:, etc.)
   const results = useMemo(() => {
     if (!query.trim()) return [];
 
@@ -151,19 +235,36 @@ export function useSearch({ nodes }: UseSearchOptions): UseSearchResult {
     const postfix = toPostfix(tokens);
 
     return Array.from(nodes.values()).filter(node => {
-      const searchableText = [
-        node.title,
-        node.content,
-        node.ocrText,
-        node.comment,
-        ...node.tags,
-        ...(node.semanticTags || []),
+      const searchable = {
+        title: (node.title || '').toLowerCase(),
+        content: (node.content || '').toLowerCase(),
+        caption: (node.caption || '').toLowerCase(),
+        comment: (node.comment || '').toLowerCase(),
+        ocr: (node.ocrText || '').toLowerCase(),
+        tags: (node.tags || []).join(' ').toLowerCase(),
+        semantic: (node.semanticTags || []).join(' ').toLowerCase(),
+        created: normalizeDateSearchText(node.createdAt),
+        updated: normalizeDateSearchText(node.updatedAt),
+        type: (node.type || '').toLowerCase(),
+        copyref: (node.copyRef || '').toLowerCase(),
+        copied: normalizeDateSearchText(node.copiedAt),
+        originalcreated: normalizeDateSearchText(node.originalCreatedAt),
+        all: '',
+      } as Record<SearchField, string>;
+
+      searchable.all = [
+        searchable.title,
+        searchable.content,
+        searchable.caption,
+        searchable.comment,
+        searchable.ocr,
+        searchable.tags,
+        searchable.semantic,
       ]
         .filter(Boolean)
-        .join(' ')
-        .toLowerCase();
+        .join(' ');
 
-      return evaluate(postfix, searchableText);
+      return evaluate(postfix, searchable);
     });
   }, [nodes, query]);
 

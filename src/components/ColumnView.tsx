@@ -3,6 +3,7 @@ import React, { useMemo, useCallback } from 'react';
 import type { MindNode, Synapse } from '../types/types';
 import type { Theme } from '../themes';
 import { sortNodes } from '../utils/sortNodes';
+import { getNodeDisplayTitle } from '../utils/nodeDisplay';
 import { useBrainStore } from '../store/useBrainStore';
 
 interface ColumnViewProps {
@@ -89,6 +90,7 @@ export const ColumnView: React.FC<ColumnViewProps> = ({
         {sortedNodes.map((node) => {
           const connections = countConnections(node.id, synapses);
           const tagCount = (node.tags?.length || 0) + (node.semanticTags?.length || 0);
+          const displayTitle = getNodeDisplayTitle(node);
 
           return (
             <div
@@ -125,12 +127,12 @@ export const ColumnView: React.FC<ColumnViewProps> = ({
 
                   <div className="flex-1 min-w-0">
                     {/* Titel om finns */}
-                    {node.title && (
+                    {displayTitle && (
                       <h3
                         className="font-semibold mb-1 truncate"
                         style={{ color: theme.node.text }}
                       >
-                        {node.title}
+                        {displayTitle}
                       </h3>
                     )}
 
