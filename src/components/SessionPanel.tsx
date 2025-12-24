@@ -79,7 +79,13 @@ export const SessionPanel: React.FC<SessionPanelProps> = ({
   const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
   const [tagSortMode, setTagSortMode] = useState<'alpha' | 'count'>('alpha');
-  const { viewMode, columnSort, setColumnSort, columnShowComments, columnShowTags, toggleColumnShowComments, toggleColumnShowTags } = useBrainStore();
+  const viewMode = useBrainStore((state) => state.viewMode);
+  const columnSort = useBrainStore((state) => state.columnSort);
+  const setColumnSort = useBrainStore((state) => state.setColumnSort);
+  const columnShowComments = useBrainStore((state) => state.columnShowComments);
+  const columnShowTags = useBrainStore((state) => state.columnShowTags);
+  const toggleColumnShowComments = useBrainStore((state) => state.toggleColumnShowComments);
+  const toggleColumnShowTags = useBrainStore((state) => state.toggleColumnShowTags);
 
   const activeSession = useMemo(
     () => sessions.find(s => s.id === activeSessionId) || null,

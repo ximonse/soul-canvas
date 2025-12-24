@@ -1,7 +1,7 @@
 // src/components/canvas/SynapseLines.tsx
 // Renderar synapse-linjer mellan kort baserat på semantiska kopplingar
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Line } from 'react-konva';
 import type { MindNode, Synapse } from '../../types/types';
 
@@ -29,20 +29,23 @@ const SynapseLinesComponent: React.FC<SynapseLinesProps> = ({
   visibilityThreshold,
   scale,
 }) => {
-  // Filtrera synapser baserat på visibility threshold
-  const visibleSynapses = synapses.filter(s =>
-    (s.similarity || 1) >= visibilityThreshold
-  );
+  // Filtrera synapser baserat pǾ visibility threshold
+  const visibleSynapses = useMemo(() => (
+    synapses.filter(s => (s.similarity || 1) >= visibilityThreshold)
+  ), [synapses, visibilityThreshold]);
 
-  // Räkna kopplingar per nod (bara synliga)
-  const connectionCount = new Map<string, number>();
-  visibleSynapses.forEach(s => {
-    connectionCount.set(s.sourceId, (connectionCount.get(s.sourceId) || 0) + 1);
-    connectionCount.set(s.targetId, (connectionCount.get(s.targetId) || 0) + 1);
-  });
-
-  // Hitta max för normalisering
-  const maxConnections = Math.max(...connectionCount.values(), 1);
+  const { connectionCount, maxConnections } = useMemo(() => {
+    const counts = new Map<string, number>();
+    let max = 1;
+    visibleSynapses.forEach(s => {
+      const nextSource = (counts.get(s.sourceId) || 0) + 1;
+      const nextTarget = (counts.get(s.targetId) || 0) + 1;
+      counts.set(s.sourceId, nextSource);
+      counts.set(s.targetId, nextTarget);
+      max = Math.max(max, nextSource, nextTarget);
+    });
+    return { connectionCount: counts, maxConnections: max };
+  }, [visibleSynapses]);
 
   return (
     <>

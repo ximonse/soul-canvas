@@ -52,14 +52,16 @@ const MassImportOverlay: React.FC<MassImportOverlayProps> = ({
   centerY
 }) => {
   const [text, setText] = useState('');
-  const store = useBrainStore();
+  const saveStateForUndo = useBrainStore((state) => state.saveStateForUndo);
+  const addNodeWithId = useBrainStore((state) => state.addNodeWithId);
+  const updateNode = useBrainStore((state) => state.updateNode);
 
   const cards = parseImportText(text);
 
   const handleImport = useCallback(() => {
     if (cards.length === 0) return;
 
-    store.saveStateForUndo();
+    saveStateForUndo();
 
     const spacing = 300;
     const cols = Math.ceil(Math.sqrt(cards.length));
@@ -71,15 +73,15 @@ const MassImportOverlay: React.FC<MassImportOverlayProps> = ({
       const y = centerY + (row - Math.ceil(cards.length / cols) / 2) * spacing;
 
       const nodeId = crypto.randomUUID();
-      store.addNodeWithId(nodeId, card.content, x, y, 'text');
+      addNodeWithId(nodeId, card.content, x, y, 'text');
 
       if (card.tags.length > 0) {
-        store.updateNode(nodeId, { tags: card.tags });
+        updateNode(nodeId, { tags: card.tags });
       }
     });
 
     onClose();
-  }, [cards, store, centerX, centerY, onClose]);
+  }, [cards, saveStateForUndo, addNodeWithId, updateNode, centerX, centerY, onClose]);
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (e.key === 'Escape') {

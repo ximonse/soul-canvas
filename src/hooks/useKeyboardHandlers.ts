@@ -94,7 +94,29 @@ export function useKeyboardHandlers({
   onBacktrackTrail,
   onForwardTrail,
 }: KeyboardHandlersProps) {
-  const store = useBrainStore();
+  const nodes = useBrainStore((state) => state.nodes);
+  const selectedNodeIds = useBrainStore((state) => state.selectedNodeIds);
+  const sequences = useBrainStore((state) => state.sequences);
+  const removeFromSequence = useBrainStore((state) => state.removeFromSequence);
+  const toggleSelection = useBrainStore((state) => state.toggleSelection);
+  const clearSelection = useBrainStore((state) => state.clearSelection);
+  const unpinSelected = useBrainStore((state) => state.unpinSelected);
+  const pinSelected = useBrainStore((state) => state.pinSelected);
+  const toggleSynapseLines = useBrainStore((state) => state.toggleSynapseLines);
+  const graphGravity = useBrainStore((state) => state.graphGravity);
+  const setGraphGravity = useBrainStore((state) => state.setGraphGravity);
+  const synapses = useBrainStore((state) => state.synapses);
+  const synapseVisibilityThreshold = useBrainStore((state) => state.synapseVisibilityThreshold);
+  const updateNodePositions = useBrainStore((state) => state.updateNodePositions);
+  const duplicateSelectedNodes = useBrainStore((state) => state.duplicateSelectedNodes);
+  const copySelectedNodes = useBrainStore((state) => state.copySelectedNodes);
+  const saveStateForUndo = useBrainStore((state) => state.saveStateForUndo);
+  const pasteNodes = useBrainStore((state) => state.pasteNodes);
+  const undo = useBrainStore((state) => state.undo);
+  const redo = useBrainStore((state) => state.redo);
+  const addNodeWithId = useBrainStore((state) => state.addNodeWithId);
+  const flipAllImageCardsToText = useBrainStore((state) => state.flipAllImageCardsToText);
+  const flipAllImageCardsToImage = useBrainStore((state) => state.flipAllImageCardsToImage);
 
   // Build keyboard handlers
   useKeyboard({
@@ -105,7 +127,7 @@ export function useKeyboardHandlers({
     // Markera bara kort som är synliga (filtrerade efter session + taggar)
     onSelectAll: () => {
       visibleNodeIds.forEach(id => {
-        store.toggleSelection(id, true);
+        toggleSelection(id, true);
       });
     },
 
@@ -122,16 +144,16 @@ export function useKeyboardHandlers({
       }
 
       // Kolla om valda kort är del av en sekvens - ta bort dem från sekvensen
-      const selected = Array.from(store.selectedNodeIds)
-        .map(id => store.nodes.get(id))
+      const selected = Array.from(selectedNodeIds)
+        .map(id => nodes.get(id))
         .filter(Boolean) as MindNode[];
       if (selected.length > 0) {
         let removedFromSequence = false;
         selected.forEach((node: MindNode) => {
           // Kolla om noden är i någon sekvens
-          const inSequence = store.sequences.some((seq: Sequence) => seq.nodeIds.includes(node.id));
+          const inSequence = sequences.some((seq: Sequence) => seq.nodeIds.includes(node.id));
           if (inSequence) {
-            store.removeFromSequence(node.id);
+            removeFromSequence(node.id);
             removedFromSequence = true;
           }
         });
@@ -147,7 +169,7 @@ export function useKeyboardHandlers({
       setShowSettings(false);
       setShowAIPanel(false);
       setShowCommandPalette(false);
-      store.clearSelection();
+      clearSelection();
     },
 
     onSave: handleManualSave,
@@ -158,34 +180,34 @@ export function useKeyboardHandlers({
     onToggleAIPanel: () => setShowAIPanel((prev: boolean) => !prev),
 
     onPin: () => {
-      const selected = Array.from(store.selectedNodeIds)
-        .map(id => store.nodes.get(id))
+      const selected = Array.from(selectedNodeIds)
+        .map(id => nodes.get(id))
         .filter(Boolean) as MindNode[];
       if (selected.some((n: MindNode) => n.pinned)) {
-        store.unpinSelected();
+        unpinSelected();
       } else {
-        store.pinSelected();
+        pinSelected();
       }
     },
 
-    onToggleSynapseLines: store.toggleSynapseLines,
+    onToggleSynapseLines: toggleSynapseLines,
     onToggleScopePanel,
     onExpandScopeDegree,
 
     onAdjustGraphGravity: (delta: number) => {
       // Clampa gravity till giltigt range
-      const newGravity = Math.max(GRAVITY.MIN, Math.min(GRAVITY.MAX, store.graphGravity + delta));
-      store.setGraphGravity(newGravity);
+      const newGravity = Math.max(GRAVITY.MIN, Math.min(GRAVITY.MAX, graphGravity + delta));
+      setGraphGravity(newGravity);
 
       // Kör om layouten live med färre iterationer för snabbare respons
-      const allNodes = Array.from(store.nodes.values()) as MindNode[];
-      const selectedNodes = Array.from(store.selectedNodeIds)
-        .map(id => store.nodes.get(id))
+      const allNodes = Array.from(nodes.values()) as MindNode[];
+      const selectedNodes = Array.from(selectedNodeIds)
+        .map(id => nodes.get(id))
         .filter(Boolean) as MindNode[];
 
       // Filtrera synapser baserat på visibility threshold först
-      const visibleSynapses = store.synapses.filter((s: { similarity?: number }) =>
-        (s.similarity || 1) >= store.synapseVisibilityThreshold
+      const visibleSynapses = synapses.filter((s: { similarity?: number }) =>
+        (s.similarity || 1) >= synapseVisibilityThreshold
       );
 
       // Om kort är markerade, använd bara dem och deras kopplingar
@@ -230,7 +252,7 @@ export function useKeyboardHandlers({
             { centerX: cx, centerY: cy, iterations: 50, gravity: newGravity }
           );
           if (positions.size > 0) {
-            store.updateNodePositions(positions);
+            updateNodePositions(positions);
           }
         });
       }
@@ -245,27 +267,27 @@ export function useKeyboardHandlers({
     onArrangeKanban: arrangeKanban,
     onArrangeCentrality: arrangeCentrality,
 
-    onDuplicate: store.duplicateSelectedNodes,
+    onDuplicate: duplicateSelectedNodes,
 
     // Copy/Paste
-    onCopy: store.copySelectedNodes,
+    onCopy: copySelectedNodes,
     onPaste: () => {
-      store.saveStateForUndo();
+      saveStateForUndo();
       const centerPos = canvas.screenToWorld(window.innerWidth / 2, window.innerHeight / 2);
-      store.pasteNodes(centerPos.x, centerPos.y);
+      pasteNodes(centerPos.x, centerPos.y);
     },
 
     // Undo/Redo
-    onUndo: store.undo,
-    onRedo: store.redo,
+    onUndo: undo,
+    onRedo: redo,
 
     // New card
     onNewCard: () => {
       if (!hasFile) return;
-      store.saveStateForUndo();
+      saveStateForUndo();
       const centerPos = canvas.screenToWorld(window.innerWidth / 2, window.innerHeight / 2);
       const newId = crypto.randomUUID();
-      store.addNodeWithId(newId, '', centerPos.x, centerPos.y, 'text');
+      addNodeWithId(newId, '', centerPos.x, centerPos.y, 'text');
       setEditingCardId(newId);
     },
 
@@ -329,12 +351,12 @@ export function useKeyboardHandlers({
 
     // Flip image cards
     onFlipAllToText: () => {
-      store.saveStateForUndo();
-      store.flipAllImageCardsToText();
+      saveStateForUndo();
+      flipAllImageCardsToText();
     },
     onFlipAllToImage: () => {
-      store.saveStateForUndo();
-      store.flipAllImageCardsToImage();
+      saveStateForUndo();
+      flipAllImageCardsToImage();
     },
   }, selectedNodesCount > 0);
 }

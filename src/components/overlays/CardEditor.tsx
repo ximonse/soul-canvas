@@ -10,7 +10,8 @@ interface CardEditorProps {
 }
 
 export const CardEditor = ({ cardId, onClose, theme }: CardEditorProps) => {
-  const store = useBrainStore();
+  const nodes = useBrainStore((state) => state.nodes);
+  const updateNode = useBrainStore((state) => state.updateNode);
   const [content, setContent] = useState('');
   const [tags, setTags] = useState('');
   const [title, setTitle] = useState('');
@@ -20,7 +21,7 @@ export const CardEditor = ({ cardId, onClose, theme }: CardEditorProps) => {
   const [showAITags, setShowAITags] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  const card = cardId ? store.nodes.get(cardId) : null;
+  const card = cardId ? nodes.get(cardId) : null;
 
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
@@ -52,7 +53,7 @@ export const CardEditor = ({ cardId, onClose, theme }: CardEditorProps) => {
       .map(t => t.trim())
       .filter(t => t.length > 0);
 
-    store.updateNode(cardId, {
+    updateNode(cardId, {
       content,
       tags: tagsArray,
       title: title.trim(),

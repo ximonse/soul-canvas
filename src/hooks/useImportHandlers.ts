@@ -25,7 +25,10 @@ const dataURLtoBlob = (dataurl: string) => {
 };
 
 export function useImportHandlers({ canvas, hasFile, saveAsset }: ImportHandlersProps) {
-  const store = useBrainStore();
+  const saveStateForUndo = useBrainStore((state) => state.saveStateForUndo);
+  const addNode = useBrainStore((state) => state.addNode);
+  const addNodeWithId = useBrainStore((state) => state.addNodeWithId);
+  const updateNode = useBrainStore((state) => state.updateNode);
 
   // Import JSON files
   const handleJSONImport = useCallback(async (file: File) => {
@@ -38,7 +41,7 @@ export function useImportHandlers({ canvas, hasFile, saveAsset }: ImportHandlers
         return;
       }
 
-      store.saveStateForUndo();
+      saveStateForUndo();
 
       // Get center position for imported nodes
       const centerPos = canvas.screenToWorld(window.innerWidth / 2, window.innerHeight / 2);
@@ -71,7 +74,7 @@ export function useImportHandlers({ canvas, hasFile, saveAsset }: ImportHandlers
           tags: [...(node.tags || []), importTag],
         };
 
-        store.addNode(
+        addNode(
           newNode.content || '',
           newNode.x,
           newNode.y,
@@ -80,7 +83,7 @@ export function useImportHandlers({ canvas, hasFile, saveAsset }: ImportHandlers
 
         // Update with additional properties
         if (newNode.tags.length > 0) {
-          store.updateNode(newNodeId, { tags: newNode.tags });
+          updateNode(newNodeId, { tags: newNode.tags });
         }
 
         importedCount++;
@@ -90,7 +93,7 @@ export function useImportHandlers({ canvas, hasFile, saveAsset }: ImportHandlers
     } catch (error) {
       console.error('JSON import error:', error);
     }
-  }, [store, canvas]);
+  }, [saveStateForUndo, addNode, updateNode, canvas]);
 
   // Handle drag-and-drop of files
   const handleDrop = useCallback(async (e: React.DragEvent) => {
@@ -108,7 +111,7 @@ export function useImportHandlers({ canvas, hasFile, saveAsset }: ImportHandlers
         const processedFile = new File([blob], file.name, { type: 'image/jpeg' });
         const uniqueName = `${Date.now()}_${file.name.replace(/\s+/g, '_')}`;
         const relativePath = await saveAsset(processedFile, uniqueName);
-        if (relativePath) store.addNode(relativePath, worldPos.x, worldPos.y, 'image');
+        if (relativePath) addNode(relativePath, worldPos.x, worldPos.y, 'image');
       } else if (file.type === 'application/json' || file.name.endsWith('.json')) {
         await handleJSONImport(file);
       } else if (file.type === 'text/html' || file.name.endsWith('.html')) {
@@ -122,8 +125,8 @@ export function useImportHandlers({ canvas, hasFile, saveAsset }: ImportHandlers
               const row = Math.floor(index / cols);
               const col = index % cols;
               const nodeId = crypto.randomUUID();
-              store.addNodeWithId(nodeId, note.content, worldPos.x + col * spacing, worldPos.y + row * spacing, 'text');
-              store.updateNode(nodeId, {
+              addNodeWithId(nodeId, note.content, worldPos.x + col * spacing, worldPos.y + row * spacing, 'text');
+              updateNode(nodeId, {
                 caption: note.caption,
                 tags: note.tags,
                 comment: note.pdfLink ? `[Öppna PDF](${note.pdfLink})` : undefined,
@@ -131,14 +134,14 @@ export function useImportHandlers({ canvas, hasFile, saveAsset }: ImportHandlers
               });
             });
           } else {
-            store.addNode(text, worldPos.x, worldPos.y, 'text');
+            addNode(text, worldPos.x, worldPos.y, 'text');
           }
         } else {
-          store.addNode(text, worldPos.x, worldPos.y, 'text');
+          addNode(text, worldPos.x, worldPos.y, 'text');
         }
       }
     }
-  }, [hasFile, canvas, store, saveAsset, handleJSONImport]);
+  }, [hasFile, canvas, saveAsset, handleJSONImport, addNode, addNodeWithId, updateNode]);
 
   // Handle paste events (images)
   useEffect(() => {
@@ -160,14 +163,14 @@ export function useImportHandlers({ canvas, hasFile, saveAsset }: ImportHandlers
             const uniqueName = `pasted_${Date.now()}.jpg`;
             const relativePath = await saveAsset(processedFile, uniqueName);
             const centerPos = canvas.screenToWorld(window.innerWidth / 2, window.innerHeight / 2);
-            if (relativePath) store.addNode(relativePath, centerPos.x, centerPos.y, 'image');
+            if (relativePath) addNode(relativePath, centerPos.x, centerPos.y, 'image');
           }
         }
       }
     };
     window.addEventListener('paste', handlePaste);
     return () => window.removeEventListener('paste', handlePaste);
-  }, [hasFile, canvas, store, saveAsset]);
+  }, [hasFile, canvas, saveAsset, addNode]);
 
   return {
     handleDrop,

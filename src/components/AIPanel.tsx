@@ -1,6 +1,7 @@
 // src/components/AIPanel.tsx
 import { useState } from 'react';
 import { useAIPanelActions } from '../hooks/useAIPanelActions';
+import { useBrainStore } from '../store/useBrainStore';
 import { APIKeyStatus } from './ai';
 import type { Theme } from '../themes';
 
@@ -52,16 +53,23 @@ export const AIPanel = ({ theme, onClose, onDiscussReflection }: AIPanelProps) =
     handleSearch,
     handleGenerateTags,
     intelligence,
-    store,
   } = useAIPanelActions();
 
   const [showTools, setShowTools] = useState(false);
+  const synapses = useBrainStore((state) => state.synapses);
+  const synapseVisibilityThreshold = useBrainStore((state) => state.synapseVisibilityThreshold);
+  const openaiKey = useBrainStore((state) => state.openaiKey);
+  const claudeKey = useBrainStore((state) => state.claudeKey);
+  const enableAutoLink = useBrainStore((state) => state.enableAutoLink);
+  const autoLinkThreshold = useBrainStore((state) => state.autoLinkThreshold);
+  const setAutoLinkThreshold = useBrainStore((state) => state.setAutoLinkThreshold);
+  const setSynapseVisibilityThreshold = useBrainStore((state) => state.setSynapseVisibilityThreshold);
 
   // Beräkna synliga kopplingar baserat på threshold
-  const visibleSynapseCount = store.synapses.filter(
-    (s: { similarity?: number }) => (s.similarity || 1) >= (store.synapseVisibilityThreshold || 0)
+  const visibleSynapseCount = synapses.filter(
+    (s: { similarity?: number }) => (s.similarity || 1) >= (synapseVisibilityThreshold || 0)
   ).length;
-  const totalSynapseCount = store.synapses.length;
+  const totalSynapseCount = synapses.length;
 
   // Helper styles for inputs/panels based on theme darkness
   const isDarkTheme = theme.bg.includes('black') || theme.bg.includes('gray-9') || theme.bg.includes('#050505') || theme.bg.includes('#30362f') || theme.bg.includes('#1f2937');
@@ -121,24 +129,24 @@ export const AIPanel = ({ theme, onClose, onDiscussReflection }: AIPanelProps) =
               Bearbetar... {intelligence.progress.current}/{intelligence.progress.total}
             </div>
           )}
-          <APIKeyStatus openaiKey={!!store.openaiKey} claudeKey={!!store.claudeKey} />
+          <APIKeyStatus openaiKey={!!openaiKey} claudeKey={!!claudeKey} />
         </div>
 
         {/* STEG 1: VEKTORISERA */}
         <StepSection step={1} title="Vektorisera" textColor={theme.node.text}>
           <button
             onClick={handleEmbedAll}
-            disabled={intelligence.isProcessing || !store.openaiKey || embeddedCount === totalCount}
+            disabled={intelligence.isProcessing || !openaiKey || embeddedCount === totalCount}
             className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white py-2 rounded text-sm transition font-medium"
           >
             {embeddedCount === totalCount && totalCount > 0
               ? '✓ Alla har vektorer'
               : `Skapa vektorer (${totalCount - embeddedCount} kvar)`}
           </button>
-          {!store.openaiKey && (
+          {!openaiKey && (
             <p className="text-xs text-amber-600 dark:text-yellow-400 mt-1 font-medium">⚠️ OpenAI-nyckel saknas</p>
           )}
-          {store.enableAutoLink && (
+          {enableAutoLink && (
             <p className="text-xs text-green-600 dark:text-green-400 mt-1">✓ Nya kort länkas automatiskt</p>
           )}
           {totalSynapseCount > 0 && (
@@ -152,18 +160,18 @@ export const AIPanel = ({ theme, onClose, onDiscussReflection }: AIPanelProps) =
           <div className="mb-3">
             <div className="flex justify-between text-xs mb-1" style={{ color: subTextColor }}>
               <span style={{ color: subTextColor }}>Kopplingsstyrka</span>
-              <span className="font-mono" style={{ color: theme.node.text }}>{Math.round((store.autoLinkThreshold || 0.75) * 100)}%</span>
+              <span className="font-mono" style={{ color: theme.node.text }}>{Math.round((autoLinkThreshold || 0.75) * 100)}%</span>
             </div>
             <input
               type="range"
               min="0.5"
               max="0.95"
               step="0.05"
-              value={store.autoLinkThreshold || 0.75}
+              value={autoLinkThreshold || 0.75}
               onChange={e => {
                 const value = parseFloat(e.target.value);
-                store.setAutoLinkThreshold(value);
-                store.setSynapseVisibilityThreshold(value);
+                setAutoLinkThreshold(value);
+                setSynapseVisibilityThreshold(value);
               }}
               className="w-full h-2 rounded-lg appearance-none cursor-pointer accent-purple-500 bg-gray-300 dark:bg-gray-700"
             />
@@ -174,15 +182,15 @@ export const AIPanel = ({ theme, onClose, onDiscussReflection }: AIPanelProps) =
           <div className="mb-3">
             <div className="flex justify-between text-xs mb-1">
               <span style={{ color: subTextColor }}>Synlighet</span>
-              <span className="font-mono" style={{ color: theme.node.text }}>≥{Math.round((store.synapseVisibilityThreshold || 0) * 100)}%</span>
+              <span className="font-mono" style={{ color: theme.node.text }}>≥{Math.round((synapseVisibilityThreshold || 0) * 100)}%</span>
             </div>
             <input
               type="range"
               min="0"
               max="0.95"
               step="0.05"
-              value={store.synapseVisibilityThreshold || 0}
-              onChange={e => store.setSynapseVisibilityThreshold(parseFloat(e.target.value))}
+              value={synapseVisibilityThreshold || 0}
+              onChange={e => setSynapseVisibilityThreshold(parseFloat(e.target.value))}
               className="w-full h-2 rounded-lg appearance-none cursor-pointer accent-purple-500 bg-gray-300 dark:bg-gray-700"
             />
             <p className="text-xs mt-1" style={{ color: subTextColor }}>
@@ -205,8 +213,8 @@ export const AIPanel = ({ theme, onClose, onDiscussReflection }: AIPanelProps) =
               📊 Graf
             </button>
             <button
-              onClick={() => store.setSynapseVisibilityThreshold(0)}
-              disabled={store.synapseVisibilityThreshold === 0}
+              onClick={() => setSynapseVisibilityThreshold(0)}
+              disabled={synapseVisibilityThreshold === 0}
               className="flex-1 bg-gray-500 hover:bg-gray-600 disabled:bg-gray-300 disabled:text-gray-500 disabled:cursor-not-allowed text-white py-2 rounded text-sm transition font-medium"
             >
               Visa alla
@@ -259,12 +267,12 @@ export const AIPanel = ({ theme, onClose, onDiscussReflection }: AIPanelProps) =
                 <label className="block text-xs mb-1" style={{ color: subTextColor }}>🏷️ Semantiska taggar</label>
                 <button
                   onClick={handleGenerateTags}
-                  disabled={intelligence.isProcessing || selectedCount === 0 || !store.claudeKey}
+                  disabled={intelligence.isProcessing || selectedCount === 0 || !claudeKey}
                   className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-400 text-white py-2 rounded text-xs font-medium"
                 >
                   {selectedCount > 0 ? `Tagga ${selectedCount} valda` : 'Välj kort först'}
                 </button>
-                {!store.claudeKey && <p className="text-xs text-amber-600 dark:text-yellow-400 mt-1">⚠️ Claude-nyckel saknas</p>}
+                {!claudeKey && <p className="text-xs text-amber-600 dark:text-yellow-400 mt-1">⚠️ Claude-nyckel saknas</p>}
               </div>
 
               {/* Reflektion */}
@@ -272,7 +280,7 @@ export const AIPanel = ({ theme, onClose, onDiscussReflection }: AIPanelProps) =
                 <label className="block text-xs mb-1" style={{ color: subTextColor }}>💭 AI Reflektion</label>
                 <button
                   onClick={handleReflect}
-                  disabled={intelligence.isProcessing || totalCount === 0 || !store.claudeKey}
+                  disabled={intelligence.isProcessing || totalCount === 0 || !claudeKey}
                   className="w-full bg-pink-600 hover:bg-pink-700 disabled:bg-gray-400 text-white py-2 rounded text-xs font-medium"
                 >
                   {selectedCount > 0 ? `Reflektera (${selectedCount} valda)` : 'Reflektera över allt'}
@@ -285,7 +293,7 @@ export const AIPanel = ({ theme, onClose, onDiscussReflection }: AIPanelProps) =
                   <label className="block text-xs mb-1" style={{ color: subTextColor }}>🌌 Kluster-analys</label>
                   <button
                     onClick={handleAnalyzeCluster}
-                    disabled={intelligence.isProcessing || !store.claudeKey}
+                    disabled={intelligence.isProcessing || !claudeKey}
                     className="w-full bg-orange-600 hover:bg-orange-700 disabled:bg-gray-400 text-white py-2 rounded text-xs font-medium"
                   >
                     Analysera {selectedCount} kort

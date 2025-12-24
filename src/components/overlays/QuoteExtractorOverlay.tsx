@@ -26,11 +26,14 @@ export const QuoteExtractorOverlay: React.FC<QuoteExtractorOverlayProps> = ({
   const [sourceTitle, setSourceTitle] = useState('');
   const [error, setError] = useState<string | null>(null);
 
-  const store = useBrainStore();
+  const claudeKey = useBrainStore((state) => state.claudeKey);
+  const saveStateForUndo = useBrainStore((state) => state.saveStateForUndo);
+  const addNodeWithId = useBrainStore((state) => state.addNodeWithId);
+  const updateNode = useBrainStore((state) => state.updateNode);
 
   const handleExtract = useCallback(async (count: number) => {
     if (!text.trim()) return;
-    if (!store.claudeKey) {
+    if (!claudeKey) {
       setError('Claude API-nyckel saknas. Ställ in den i Inställningar.');
       return;
     }
@@ -39,7 +42,7 @@ export const QuoteExtractorOverlay: React.FC<QuoteExtractorOverlayProps> = ({
     setMode('extracting');
 
     try {
-      const result = await extractQuotesFromText(text, store.claudeKey, count);
+      const result = await extractQuotesFromText(text, claudeKey, count);
       setQuotes(result.quotes);
       setSourceTitle(result.sourceTitle || '');
       setMode('preview');
@@ -47,7 +50,7 @@ export const QuoteExtractorOverlay: React.FC<QuoteExtractorOverlayProps> = ({
       setError(err instanceof Error ? err.message : 'Något gick fel');
       setMode('input');
     }
-  }, [text, store.claudeKey]);
+  }, [text, claudeKey]);
 
   const toggleQuote = useCallback((index: number) => {
     setQuotes(prev => prev.map((q, i) =>
@@ -67,7 +70,7 @@ export const QuoteExtractorOverlay: React.FC<QuoteExtractorOverlayProps> = ({
     const selectedQuotes = quotes.filter(q => q.selected);
     if (selectedQuotes.length === 0) return;
 
-    store.saveStateForUndo();
+    saveStateForUndo();
 
     const spacing = 320;
     const cols = Math.ceil(Math.sqrt(selectedQuotes.length));
@@ -79,20 +82,20 @@ export const QuoteExtractorOverlay: React.FC<QuoteExtractorOverlayProps> = ({
       const y = centerY + (row - Math.ceil(selectedQuotes.length / cols) / 2) * spacing;
 
       const nodeId = crypto.randomUUID();
-      store.addNodeWithId(nodeId, quote.quote, x, y, 'text');
+      addNodeWithId(nodeId, quote.quote, x, y, 'text');
 
       // Lägg till caption (synlig på framsidan), taggar och källa
       const tags = [...quote.tags, 'citat'];
       if (sourceTitle) tags.push(sourceTitle.toLowerCase().replace(/\s+/g, '-'));
 
-      store.updateNode(nodeId, {
+      updateNode(nodeId, {
         caption: quote.comment,
         tags,
       });
     });
 
     onClose();
-  }, [quotes, store, centerX, centerY, sourceTitle, onClose]);
+  }, [quotes, saveStateForUndo, addNodeWithId, updateNode, centerX, centerY, sourceTitle, onClose]);
 
   const selectedCount = quotes.filter(q => q.selected).length;
 

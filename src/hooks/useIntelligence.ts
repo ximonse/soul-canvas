@@ -22,7 +22,13 @@ import type { MindNode, AIReflection, Synapse } from '../types/types';
 const isCopyNode = (node?: MindNode | null) => Boolean(node?.copyRef);
 
 export const useIntelligence = () => {
-  const store = useBrainStore();
+  const nodes = useBrainStore((state) => state.nodes);
+  const selectedNodeIds = useBrainStore((state) => state.selectedNodeIds);
+  const openaiKey = useBrainStore((state) => state.openaiKey);
+  const claudeKey = useBrainStore((state) => state.claudeKey);
+  const updateNode = useBrainStore((state) => state.updateNode);
+  const setNodeTagging = useBrainStore((state) => state.setNodeTagging);
+  const setNodeAIProcessing = useBrainStore((state) => state.setNodeAIProcessing);
   const [isProcessing, setIsProcessing] = useState(false);
   const [progress, setProgress] = useState({ current: 0, total: 0 });
   const [lastReflection, setLastReflection] = useState<AIReflection | null>(null);
@@ -31,14 +37,14 @@ export const useIntelligence = () => {
    * Generate embedding for a single node
    */
   const embedNode = useCallback(async (nodeId: string): Promise<boolean> => {
-    const node = store.nodes.get(nodeId);
-    if (!node || !store.openaiKey || isCopyNode(node)) return false;
+    const node = nodes.get(nodeId);
+    if (!node || !openaiKey || isCopyNode(node)) return false;
 
     try {
       setIsProcessing(true);
-      const embedding = await generateNodeEmbedding(node, store.openaiKey);
+      const embedding = await generateNodeEmbedding(node, openaiKey);
       
-      store.updateNode(nodeId, {
+      updateNode(nodeId, {
         embedding,
         lastEmbedded: new Date().toISOString(),
       });
@@ -50,15 +56,15 @@ export const useIntelligence = () => {
     } finally {
       setIsProcessing(false);
     }
-  }, [store]);
+  }, [nodes, openaiKey, updateNode]);
 
   /**
    * Generate embeddings for all nodes that don't have them
    */
   const embedAllNodes = useCallback(async (): Promise<number> => {
-    if (!store.openaiKey) return 0;
+    if (!openaiKey) return 0;
 
-    const nodesToEmbed = (Array.from(store.nodes.values()) as MindNode[]).filter(
+    const nodesToEmbed = (Array.from(nodes.values()) as MindNode[]).filter(
       (n: MindNode) => !n.embedding && !isCopyNode(n),
     );
     if (nodesToEmbed.length === 0) return 0;
@@ -69,13 +75,13 @@ export const useIntelligence = () => {
 
       const embeddings = await batchGenerateEmbeddings(
         nodesToEmbed as MindNode[],
-        store.openaiKey,
+        openaiKey,
         (current, total) => setProgress({ current, total })
       );
 
       // Update all nodes with their embeddings
       embeddings.forEach((embedding, nodeId) => {
-        store.updateNode(nodeId, {
+        updateNode(nodeId, {
           embedding,
           lastEmbedded: new Date().toISOString(),
         });
@@ -89,7 +95,7 @@ export const useIntelligence = () => {
       setIsProcessing(false);
       setProgress({ current: 0, total: 0 });
     }
-  }, [store]);
+  }, [nodes, openaiKey, updateNode]);
 
   /**
    * Find and create links between semantically similar nodes
@@ -148,14 +154,14 @@ export const useIntelligence = () => {
    * Practical tags merge with existing tags, hidden tags replace semanticTags
    */
   const generateTags = useCallback(async (nodeId: string): Promise<{ practical: string[]; hidden: string[] }> => {
-    const node = store.nodes.get(nodeId);
-    if (!node || !store.claudeKey) return { practical: [], hidden: [] };
+    const node = nodes.get(nodeId);
+    if (!node || !claudeKey) return { practical: [], hidden: [] };
 
     try {
       setIsProcessing(true);
-      store.setNodeAIProcessing(nodeId, 'claude');
-      store.setNodeTagging(nodeId, true);  // Start tagging animation
-      const result = await generateSemanticTags(node, store.claudeKey);
+      setNodeAIProcessing(nodeId, 'claude');
+      setNodeTagging(nodeId, true);  // Start tagging animation
+      const result = await generateSemanticTags(node, claudeKey);
 
       // Merge practical tags with existing tags (avoid duplicates)
       const existingTags = node.tags || [];
@@ -164,7 +170,7 @@ export const useIntelligence = () => {
       );
       const mergedTags = [...existingTags, ...newPracticalTags];
 
-      store.updateNode(nodeId, {
+      updateNode(nodeId, {
         tags: mergedTags,
         semanticTags: result.hiddenTags,
       });
@@ -174,11 +180,11 @@ export const useIntelligence = () => {
       console.error('Tag generation error:', error);
       return { practical: [], hidden: [] };
     } finally {
-      store.setNodeTagging(nodeId, false);  // Stop tagging animation
-      store.setNodeAIProcessing(nodeId, null);
+      setNodeTagging(nodeId, false);  // Stop tagging animation
+      setNodeAIProcessing(nodeId, null);
       setIsProcessing(false);
     }
-  }, [store]);
+  }, [nodes, claudeKey, setNodeAIProcessing, setNodeTagging, updateNode]);
 
   /**
    * Generate a short summary and write to node.comment
@@ -260,18 +266,18 @@ export const useIntelligence = () => {
    * Generate a reflective question based on selected or all nodes
    */
   const reflect = useCallback(async (): Promise<AIReflection | null> => {
-    if (!store.claudeKey) return null;
+    if (!claudeKey) return null;
 
-    const selectedNodes = Array.from(store.selectedNodeIds)
-      .map(id => store.nodes.get(id))
+    const selectedNodes = Array.from(selectedNodeIds)
+      .map(id => nodes.get(id))
       .filter(Boolean) as MindNode[];
-    const nodesToAnalyze: MindNode[] = selectedNodes.length > 0 ? selectedNodes : Array.from(store.nodes.values()) as MindNode[];
+    const nodesToAnalyze: MindNode[] = selectedNodes.length > 0 ? selectedNodes : Array.from(nodes.values()) as MindNode[];
 
     if (nodesToAnalyze.length === 0) return null;
 
     try {
       setIsProcessing(true);
-      const reflection = await generateReflection(nodesToAnalyze as MindNode[], store.claudeKey);
+      const reflection = await generateReflection(nodesToAnalyze as MindNode[], claudeKey);
       setLastReflection(reflection);
       return reflection;
     } catch (error) {
@@ -280,22 +286,22 @@ export const useIntelligence = () => {
     } finally {
       setIsProcessing(false);
     }
-  }, [store]);
+  }, [claudeKey, selectedNodeIds, nodes]);
 
   /**
    * Analyze a cluster of connected nodes
    */
   const analyzeSelectedCluster = useCallback(async (): Promise<string | null> => {
-    if (!store.claudeKey) return null;
+    if (!claudeKey) return null;
 
-    const selectedNodes = Array.from(store.selectedNodeIds)
-      .map(id => store.nodes.get(id))
+    const selectedNodes = Array.from(selectedNodeIds)
+      .map(id => nodes.get(id))
       .filter(Boolean) as MindNode[];
     if (selectedNodes.length < 2) return null;
 
     try {
       setIsProcessing(true);
-      const insight = await analyzeCluster(selectedNodes as MindNode[], store.claudeKey);
+      const insight = await analyzeCluster(selectedNodes as MindNode[], claudeKey);
       return insight;
     } catch (error) {
       console.error('Cluster analysis error:', error);
@@ -303,13 +309,13 @@ export const useIntelligence = () => {
     } finally {
       setIsProcessing(false);
     }
-  }, [store]);
+  }, [claudeKey, selectedNodeIds, nodes]);
 
   /**
    * Search nodes by semantic similarity to a query
    */
   const semanticSearch = useCallback(async (query: string): Promise<MindNode[]> => {
-    if (!store.openaiKey) return [];
+    if (!openaiKey) return [];
 
     if (!query.trim()) return [];
 
@@ -317,7 +323,7 @@ export const useIntelligence = () => {
       setIsProcessing(true);
       
       // Generate embedding for the search query
-      const queryEmbedding = await generateEmbedding(query, store.openaiKey);
+      const queryEmbedding = await generateEmbedding(query, openaiKey);
 
       // Create a dummy MindNode for the query
       const queryMindNode: MindNode = {
@@ -331,7 +337,7 @@ export const useIntelligence = () => {
       };
 
       // Find similar nodes
-      const nodesWithEmbeddings = (Array.from(store.nodes.values()) as MindNode[])
+      const nodesWithEmbeddings = (Array.from(nodes.values()) as MindNode[])
         .filter((n: MindNode) => n.embedding && !isCopyNode(n));
 
       const results = findSimilarNodes(queryMindNode, nodesWithEmbeddings as MindNode[], 0); // Find similar nodes
@@ -340,7 +346,7 @@ export const useIntelligence = () => {
         .filter(r => r.similarity > 0.5) // Threshold for search
         .sort((a, b) => b.similarity - a.similarity)
         .slice(0, 10) // Top 10 results
-        .map(r => store.nodes.get(r.nodeId)!); // Map back to MindNode objects
+        .map(r => nodes.get(r.nodeId)!); // Map back to MindNode objects
 
     } catch (error) {
       console.error('Semantic search error:', error);
@@ -348,7 +354,7 @@ export const useIntelligence = () => {
     } finally {
       setIsProcessing(false);
     }
-  }, [store]);
+  }, [openaiKey, nodes]);
 
   /**
    * Attract similar nodes to the selected nodes

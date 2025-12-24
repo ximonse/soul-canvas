@@ -72,7 +72,8 @@ export function SearchOverlay({
   theme,
 }: SearchOverlayProps) {
   const inputRef = useRef<HTMLInputElement>(null);
-  const store = useBrainStore();
+  const assets = useBrainStore((state) => state.assets);
+  const toggleSelection = useBrainStore((state) => state.toggleSelection);
 
   // Fokusera input när overlay öppnas
   useEffect(() => {
@@ -197,7 +198,7 @@ export function SearchOverlay({
       <div className="absolute inset-0 overflow-auto pt-32 pointer-events-none">
         {results.slice(0, 25).map((node, index) => {
           const pos = getResultPosition(index, Math.min(results.length, 25));
-          const assetUrl = node.type === 'image' ? resolveImageUrl(node, store.assets) : null;
+          const assetUrl = node.type === 'image' ? resolveImageUrl(node, assets) : null;
           const previewTitle = getNodeDisplayTitle(node);
 
           return (
@@ -212,7 +213,7 @@ export function SearchOverlay({
               }}
               onClick={() => {
                 // Markera detta kort och stäng
-                store.toggleSelection(node.id, false);
+                toggleSelection(node.id, false);
                 onClose();
               }}
             >

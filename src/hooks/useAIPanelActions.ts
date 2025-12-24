@@ -7,7 +7,14 @@ import { useBrainStore } from '../store/useBrainStore';
 import type { MindNode } from '../types/types';
 
 export function useAIPanelActions() {
-  const store = useBrainStore();
+  const nodes = useBrainStore((state) => state.nodes);
+  const selectedNodeIds = useBrainStore((state) => state.selectedNodeIds);
+  const openaiKey = useBrainStore((state) => state.openaiKey);
+  const claudeKey = useBrainStore((state) => state.claudeKey);
+  const enableAutoLink = useBrainStore((state) => state.enableAutoLink);
+  const toggleAutoLink = useBrainStore((state) => state.toggleAutoLink);
+  const clearSelection = useBrainStore((state) => state.clearSelection);
+  const toggleSelection = useBrainStore((state) => state.toggleSelection);
   const intelligence = useIntelligence();
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -21,12 +28,12 @@ export function useAIPanelActions() {
   };
 
   // Counts
-  const selectedCount = store.selectedNodeIds.size;
-  const embeddedCount = (Array.from(store.nodes.values()) as MindNode[]).filter((n: MindNode) => n.embedding).length;
-  const totalCount = store.nodes.size;
+  const selectedCount = selectedNodeIds.size;
+  const embeddedCount = (Array.from(nodes.values()) as MindNode[]).filter((n: MindNode) => n.embedding).length;
+  const totalCount = nodes.size;
 
   const handleEmbedAll = useCallback(async () => {
-    if (!store.openaiKey) {
+    if (!openaiKey) {
       notify('OpenAI API-nyckel saknas! Lägg till den i menyn först.', 'warn');
       return;
     }
@@ -37,8 +44,8 @@ export function useAIPanelActions() {
         notify(`Skapade embeddings för ${count} noder!`, 'success');
 
         // Aktivera auto-länkning och länka alla efter vektorisering
-        if (!store.enableAutoLink) {
-          store.toggleAutoLink(); // Aktivera för nya kort
+        if (!enableAutoLink) {
+          toggleAutoLink(); // Aktivera för nya kort
         }
         const links = await intelligence.autoLinkSimilarNodes();
         if (links > 0) {
@@ -49,7 +56,7 @@ export function useAIPanelActions() {
       console.error('Fel vid skapande av embeddings', error);
       notify(`Fel vid skapande av embeddings: ${error instanceof Error ? error.message : 'Okänt fel'}`, 'error');
     }
-  }, [store, intelligence]);
+  }, [openaiKey, enableAutoLink, toggleAutoLink, intelligence]);
 
   const handleAutoLink = useCallback(async () => {
     if (embeddedCount < 2) {
@@ -71,7 +78,7 @@ export function useAIPanelActions() {
   }, [embeddedCount, intelligence]);
 
   const handleReflect = useCallback(async () => {
-    if (!store.claudeKey) {
+    if (!claudeKey) {
       notify('Claude API-nyckel saknas! Lägg till den i menyn först.', 'warn');
       return;
     }
@@ -90,10 +97,10 @@ export function useAIPanelActions() {
       console.error('Fel vid reflektion', error);
       notify(`Fel vid reflektion: ${error instanceof Error ? error.message : 'Okänt fel'}`, 'error');
     }
-  }, [store.claudeKey, totalCount, intelligence]);
+  }, [claudeKey, totalCount, intelligence]);
 
   const handleAnalyzeCluster = useCallback(async () => {
-    if (!store.claudeKey) {
+    if (!claudeKey) {
       notify('Claude API-nyckel saknas! Lägg till den i menyn först.', 'warn');
       return;
     }
@@ -112,10 +119,10 @@ export function useAIPanelActions() {
       console.error('Fel vid klusteranalys', error);
       notify(`Fel vid klusteranalys: ${error instanceof Error ? error.message : 'Okänt fel'}`, 'error');
     }
-  }, [store.claudeKey, selectedCount, intelligence]);
+  }, [claudeKey, selectedCount, intelligence]);
 
   const handleSearch = useCallback(async () => {
-    if (!store.openaiKey) {
+    if (!openaiKey) {
       notify('OpenAI API-nyckel saknas! Lägg till den i menyn först.', 'warn');
       return;
     }
@@ -135,9 +142,9 @@ export function useAIPanelActions() {
       setSearchResults(results);
 
       if (results.length > 0) {
-        store.clearSelection();
+        clearSelection();
         results.forEach(node => {
-          store.toggleSelection(node.id, true);
+          toggleSelection(node.id, true);
         });
       } else {
         notify('Inga resultat hittades. Prova en annan sökfråga.', 'info');
@@ -146,16 +153,16 @@ export function useAIPanelActions() {
       console.error('Fel vid sökning', error);
       notify(`Fel vid sökning: ${error instanceof Error ? error.message : 'Okänt fel'}`, 'error');
     }
-  }, [store, searchQuery, embeddedCount, intelligence]);
+  }, [openaiKey, searchQuery, embeddedCount, intelligence, clearSelection, toggleSelection]);
 
   const handleGenerateTags = useCallback(async () => {
-    if (!store.claudeKey) {
+    if (!claudeKey) {
       notify('Claude API-nyckel saknas! Lägg till den i menyn först.', 'warn');
       return;
     }
 
-    const selectedNodes = Array.from(store.selectedNodeIds)
-      .map(id => store.nodes.get(id))
+    const selectedNodes = Array.from(selectedNodeIds)
+      .map(id => nodes.get(id))
       .filter(Boolean) as MindNode[];
     if (selectedNodes.length === 0) {
       notify('Välj minst en nod först!', 'info');
@@ -178,7 +185,7 @@ export function useAIPanelActions() {
       console.error('Fel vid generering av taggar', error);
       notify(`Fel vid generering av taggar: ${error instanceof Error ? error.message : 'Okänt fel'}`, 'error');
     }
-  }, [store, intelligence]);
+  }, [claudeKey, selectedNodeIds, nodes, intelligence]);
 
   return {
     // State
@@ -205,6 +212,7 @@ export function useAIPanelActions() {
 
     // Intelligence state
     intelligence,
-    store,
   };
 }
+
+

@@ -49,8 +49,7 @@ const sortBySequence = (nodes: MindNode[], sequence: Sequence): MindNode[] => {
 };
 
 export const useArrangement = (defaultCenter?: {x: number, y: number}) => {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const updateNodePositions = useBrainStore((state: any) => state.updateNodePositions);
+  const updateNodePositions = useBrainStore((state) => state.updateNodePositions);
 
   const applyArrangement = useCallback((arranger: (nodes: MindNode[], center?: {x: number, y: number}) => Map<string, { x: number; y: number }>, center?: {x: number, y: number}, useSequenceOrder: boolean = false) => {
     // Always get fresh nodes from store to avoid stale closures

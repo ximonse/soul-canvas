@@ -20,13 +20,22 @@ interface NodeActionsProps {
 }
 
 export function useNodeActions({ stageRef, canvas, setShowSettings, setContextMenu, visibleNodes }: NodeActionsProps) {
-  const store = useBrainStore();
+  const nodes = useBrainStore((state) => state.nodes);
+  const selectedNodeIds = useBrainStore((state) => state.selectedNodeIds);
+  const geminiKey = useBrainStore((state) => state.geminiKey);
+  const geminiOcrModel = useBrainStore((state) => state.geminiOcrModel);
+  const assets = useBrainStore((state) => state.assets);
+  const updateNode = useBrainStore((state) => state.updateNode);
+  const setNodeAIProcessing = useBrainStore((state) => state.setNodeAIProcessing);
+  const saveStateForUndo = useBrainStore((state) => state.saveStateForUndo);
+  const removeNode = useBrainStore((state) => state.removeNode);
+  const addTagToSelected = useBrainStore((state) => state.addTagToSelected);
 
   // Center camera on selected nodes (or all if none selected)
   const centerCamera = useCallback(() => {
-    const allNodes = Array.from(store.nodes.values()) as MindNode[];
-    const selectedNodes = Array.from(store.selectedNodeIds)
-      .map(id => store.nodes.get(id))
+    const allNodes = Array.from(nodes.values()) as MindNode[];
+    const selectedNodes = Array.from(selectedNodeIds)
+      .map(id => nodes.get(id))
       .filter(Boolean) as MindNode[];
     const targetNodes = selectedNodes.length > 0 ? selectedNodes : allNodes;
 
@@ -51,14 +60,14 @@ export function useNodeActions({ stageRef, canvas, setShowSettings, setContextMe
     stageRef.current.position({ x: nextView.x, y: nextView.y });
     stageRef.current.batchDraw();
     canvas.setView(nextView);
-  }, [store.nodes, store.selectedNodeIds, stageRef, canvas]);
+  }, [nodes, selectedNodeIds, stageRef, canvas]);
 
   // Fit all visible nodes in view (zoom to show everything, as large as possible)
   const fitAllNodes = useCallback(() => {
     // Använd synliga noder om tillgängliga, annars alla
     const nodes: MindNode[] = visibleNodes && visibleNodes.length > 0
       ? visibleNodes
-      : Array.from(store.nodes.values()) as MindNode[];
+      : Array.from(useBrainStore.getState().nodes.values()) as MindNode[];
     if (!stageRef.current || nodes.length === 0) return;
 
     // Beräkna bounding box för synliga kort
@@ -94,11 +103,11 @@ export function useNodeActions({ stageRef, canvas, setShowSettings, setContextMe
     stageRef.current.position({ x: nextView.x, y: nextView.y });
     stageRef.current.batchDraw();
     canvas.setView(nextView);
-  }, [store.nodes, stageRef, visibleNodes, canvas]);
+  }, [stageRef, visibleNodes, canvas]);
 
   // Reset zoom to 100% and center
   const resetZoom = useCallback(() => {
-    const allNodes = Array.from(store.nodes.values()) as MindNode[];
+    const allNodes = Array.from(nodes.values()) as MindNode[];
     if (!stageRef.current) return;
 
     // Beräkna center av alla kort
@@ -121,25 +130,25 @@ export function useNodeActions({ stageRef, canvas, setShowSettings, setContextMe
     stageRef.current.position({ x: nextView.x, y: nextView.y });
     stageRef.current.batchDraw();
     canvas.setView(nextView);
-  }, [store.nodes, stageRef, canvas]);
+  }, [nodes, stageRef, canvas]);
 
   // Run OCR on an image node
   const runOCR = useCallback(async (id: string) => {
-    const node = store.nodes.get(id);
+    const node = nodes.get(id);
     if (!node || node.type !== 'image') return;
-    if (!store.geminiKey) {
+    if (!geminiKey) {
       setShowSettings(true);
       return;
     }
 
-    const assetUrl = resolveImageUrl(node, store.assets);
+    const assetUrl = resolveImageUrl(node, assets);
     if (!assetUrl) {
       console.error('Hittar inte bilden för OCR');
       return;
     }
 
-    store.updateNode(id, { ocrText: 'Läser...' });
-    store.setNodeAIProcessing(id, 'gemini');
+    updateNode(id, { ocrText: 'Läser...' });
+    setNodeAIProcessing(id, 'gemini');
     setContextMenu(null);
 
     try {
@@ -154,7 +163,7 @@ export function useNodeActions({ stageRef, canvas, setShowSettings, setContextMe
         reader.readAsDataURL(blob);
       });
 
-      const result = await performOCR(base64, store.geminiKey || '', store.geminiOcrModel);
+      const result = await performOCR(base64, geminiKey || '', geminiOcrModel);
 
       // Re-fetch node to avoid stale closure - node might have changed
       const currentNode = useBrainStore.getState().nodes.get(id);
@@ -178,24 +187,24 @@ export function useNodeActions({ stageRef, canvas, setShowSettings, setContextMe
         updates.ocrText = finalContent;
       }
 
-      store.updateNode(id, updates);
+      updateNode(id, updates);
     } catch {
-      store.updateNode(id, { ocrText: 'OCR misslyckades' });
+      updateNode(id, { ocrText: 'OCR misslyckades' });
     } finally {
-      store.setNodeAIProcessing(id, null);
+      setNodeAIProcessing(id, null);
     }
-  }, [store, setShowSettings, setContextMenu]);
+  }, [nodes, geminiKey, geminiOcrModel, assets, updateNode, setNodeAIProcessing, setShowSettings, setContextMenu]);
 
   // Run OCR on all selected image nodes
   const runOCROnSelected = useCallback(async () => {
-    const selectedImages = Array.from(store.selectedNodeIds)
-      .map(id => store.nodes.get(id))
+    const selectedImages = Array.from(selectedNodeIds)
+      .map(id => nodes.get(id))
       .filter((node): node is MindNode => Boolean(node))
       .filter((n: MindNode) => n.type === 'image');
 
     if (selectedImages.length === 0) return;
 
-    if (!store.geminiKey) {
+    if (!geminiKey) {
       setShowSettings(true);
       return;
     }
@@ -206,26 +215,26 @@ export function useNodeActions({ stageRef, canvas, setShowSettings, setContextMe
     for (const node of selectedImages) {
       await runOCR(node.id);
     }
-  }, [store, runOCR, setShowSettings, setContextMenu]);
+  }, [selectedNodeIds, nodes, geminiKey, runOCR, setShowSettings, setContextMenu]);
 
   // Delete selected nodes
   const deleteSelected = useCallback(() => {
-    const selectedNodes = Array.from(store.selectedNodeIds)
-      .map(id => store.nodes.get(id))
+    const selectedNodes = Array.from(selectedNodeIds)
+      .map(id => nodes.get(id))
       .filter(Boolean) as MindNode[];
     if (selectedNodes.length === 0) return;
     const requiresConfirm = selectedNodes.length >= 10;
     if (requiresConfirm && !confirm(`Radera ${selectedNodes.length} valda kort?`)) return;
-    store.saveStateForUndo();
-    selectedNodes.forEach((node: MindNode) => store.removeNode(node.id));
-  }, [store]);
+    saveStateForUndo();
+    selectedNodes.forEach((node: MindNode) => removeNode(node.id));
+  }, [selectedNodeIds, nodes, saveStateForUndo, removeNode]);
 
   // Add tag to all selected nodes
   const addBulkTag = useCallback((tag: string) => {
     if (tag.trim()) {
-      store.addTagToSelected(tag.trim());
+      addTagToSelected(tag.trim());
     }
-  }, [store]);
+  }, [addTagToSelected]);
 
   return {
     centerCamera,

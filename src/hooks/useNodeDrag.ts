@@ -22,14 +22,10 @@ export function useNodeDrag({
   onDragStart: onDragStartCallback,
   onDragEnd: onDragEndCallback,
 }: UseNodeDragOptions) {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const updateNodePosition = useBrainStore((state: any) => state.updateNodePosition);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const toggleSelection = useBrainStore((state: any) => state.toggleSelection);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const clearSelection = useBrainStore((state: any) => state.clearSelection);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const dragSelectedNodes = useBrainStore((state: any) => state.dragSelectedNodes);
+  const updateNodePosition = useBrainStore((state) => state.updateNodePosition);
+  const toggleSelection = useBrainStore((state) => state.toggleSelection);
+  const clearSelection = useBrainStore((state) => state.clearSelection);
+  const dragSelectedNodes = useBrainStore((state) => state.dragSelectedNodes);
 
   const [initialX, setInitialX] = useState(0);
   const [initialY, setInitialY] = useState(0);

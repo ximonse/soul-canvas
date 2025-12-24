@@ -12,7 +12,12 @@ interface SettingsModalProps {
 }
 
 export function SettingsModal({ onClose, theme }: SettingsModalProps) {
-  const store = useBrainStore();
+  const geminiKey = useBrainStore((state) => state.geminiKey);
+  const geminiOcrModel = useBrainStore((state) => state.geminiOcrModel);
+  const openaiKey = useBrainStore((state) => state.openaiKey);
+  const claudeKey = useBrainStore((state) => state.claudeKey);
+  const setApiKey = useBrainStore((state) => state.setApiKey);
+  const setGeminiOcrModel = useBrainStore((state) => state.setGeminiOcrModel);
   const [showKeys, setShowKeys] = useState(false);
 
   return (
@@ -49,8 +54,8 @@ export function SettingsModal({ onClose, theme }: SettingsModalProps) {
                 </label>
                 <input
                   type="password"
-                  value={store.geminiKey || ''}
-                  onChange={e => store.setApiKey('gemini', e.target.value)}
+                  value={geminiKey || ''}
+                  onChange={e => setApiKey('gemini', e.target.value)}
                   className="w-full bg-black/20 border rounded p-3"
                   style={{ borderColor: theme.node.border, color: theme.node.text }}
                   placeholder="AIza..."
@@ -62,8 +67,8 @@ export function SettingsModal({ onClose, theme }: SettingsModalProps) {
                   Gemini OCR-modell
                 </label>
                 <select
-                  value={store.geminiOcrModel || GEMINI_OCR_MODELS[0]}
-                  onChange={(e) => store.setGeminiOcrModel(e.target.value)}
+                  value={geminiOcrModel || GEMINI_OCR_MODELS[0]}
+                  onChange={(e) => setGeminiOcrModel(e.target.value)}
                   className="w-full bg-black/20 border rounded p-3"
                   style={{ borderColor: theme.node.border, color: theme.node.text }}
                 >
@@ -81,8 +86,8 @@ export function SettingsModal({ onClose, theme }: SettingsModalProps) {
                 </label>
                 <input
                   type="password"
-                  value={store.openaiKey || ''}
-                  onChange={e => store.setApiKey('openai', e.target.value)}
+                  value={openaiKey || ''}
+                  onChange={e => setApiKey('openai', e.target.value)}
                   className="w-full bg-black/20 border rounded p-3"
                   style={{ borderColor: theme.node.border, color: theme.node.text }}
                   placeholder="sk-..."
@@ -95,8 +100,8 @@ export function SettingsModal({ onClose, theme }: SettingsModalProps) {
                 </label>
                 <input
                   type="password"
-                  value={store.claudeKey || ''}
-                  onChange={e => store.setApiKey('claude', e.target.value)}
+                  value={claudeKey || ''}
+                  onChange={e => setApiKey('claude', e.target.value)}
                   className="w-full bg-black/20 border rounded p-3"
                   style={{ borderColor: theme.node.border, color: theme.node.text }}
                   placeholder="sk-ant-..."

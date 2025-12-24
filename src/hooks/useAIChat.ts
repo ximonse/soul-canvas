@@ -16,7 +16,12 @@ interface UseAIChatOptions {
 const DEFAULT_SYSTEM_MESSAGE = 'Du är en koncis assistent som hjälper till med kontext från användarens kort.';
 
 export function useAIChat({ initialProvider = 'claude' }: UseAIChatOptions = {}) {
-  const store = useBrainStore();
+  const createConversation = useBrainStore((state) => state.createConversation);
+  const addMessageToConversation = useBrainStore((state) => state.addMessageToConversation);
+  const updateConversation = useBrainStore((state) => state.updateConversation);
+  const claudeKey = useBrainStore((state) => state.claudeKey);
+  const openaiKey = useBrainStore((state) => state.openaiKey);
+  const geminiKey = useBrainStore((state) => state.geminiKey);
   const context = useChatContext();
 
   const [provider, setProvider] = useState<ChatProvider>(() => {
@@ -54,10 +59,10 @@ export function useAIChat({ initialProvider = 'claude' }: UseAIChatOptions = {})
   const ensureConversation = useCallback((selectedProvider: ChatProvider) => {
     if (conversationId) return conversationId;
     const contextNodeIds = context.getContextNodeIds();
-    const newId = store.createConversation(selectedProvider, contextNodeIds);
+    const newId = createConversation(selectedProvider, contextNodeIds);
     setConversationId(newId);
     return newId;
-  }, [conversationId, store, context]);
+  }, [conversationId, createConversation, context]);
 
   const sendMessage = useCallback(async (text: string, overrideProvider?: ChatProvider) => {
     if (!text.trim()) return;
@@ -65,9 +70,9 @@ export function useAIChat({ initialProvider = 'claude' }: UseAIChatOptions = {})
 
     const selectedProvider = overrideProvider || provider;
     const apiKey =
-      selectedProvider === 'claude' ? store.claudeKey :
-      selectedProvider === 'openai' ? store.openaiKey :
-      store.geminiKey;
+      selectedProvider === 'claude' ? claudeKey :
+      selectedProvider === 'openai' ? openaiKey :
+      geminiKey;
     const modelOverride = selectedProvider === 'openai'
       ? openaiModel
       : selectedProvider === 'gemini'
@@ -104,7 +109,7 @@ export function useAIChat({ initialProvider = 'claude' }: UseAIChatOptions = {})
 
     const history = messages.slice(-8);
     setMessages(prev => [...prev, userMessage]);
-    store.addMessageToConversation(convId, { role: 'user', content: text });
+    addMessageToConversation(convId, { role: 'user', content: text });
 
     try {
       setIsSending(true);
@@ -116,17 +121,17 @@ export function useAIChat({ initialProvider = 'claude' }: UseAIChatOptions = {})
       );
 
       setMessages(prev => [...prev, { role: 'assistant', content: reply }]);
-      store.addMessageToConversation(convId, { role: 'assistant', content: reply });
+      addMessageToConversation(convId, { role: 'assistant', content: reply });
 
       // Auto-generera titel (med race condition-skydd)
-      if (!titleGeneratedRef.current && !titleGeneratingRef.current && store.claudeKey) {
+      if (!titleGeneratedRef.current && !titleGeneratingRef.current && claudeKey) {
         titleGeneratingRef.current = true;
         generateConversationTitle(
           [...messages, userMessage, { role: 'assistant', content: reply }],
-          store.claudeKey
+          claudeKey
         ).then(title => {
           titleGeneratedRef.current = true;
-          store.updateConversation(convId, { title });
+          updateConversation(convId, { title });
         }).catch(err => {
           console.error('Kunde inte generera samtalstitel:', err);
         }).finally(() => {
@@ -140,7 +145,7 @@ export function useAIChat({ initialProvider = 'claude' }: UseAIChatOptions = {})
     } finally {
       setIsSending(false);
     }
-  }, [provider, store, messages, context, memory, ensureConversation, openaiModel, geminiModel]);
+  }, [provider, claudeKey, openaiKey, geminiKey, messages, context, memory, ensureConversation, openaiModel, geminiModel, addMessageToConversation, updateConversation]);
 
   // Starta chatten med en reflektion
   const startWithReflection = useCallback((reflection: string) => {
@@ -176,16 +181,16 @@ ${ctx.contextSnippet || '(Inga kort tillgängliga)'}${memoryContext}`;
 
     // Skapa nytt samtal
     const contextNodeIds = context.getContextNodeIds();
-    const newId = store.createConversation(provider, contextNodeIds);
+    const newId = createConversation(provider, contextNodeIds);
     setConversationId(newId);
 
     // Spara initiala meddelanden
-    store.addMessageToConversation(newId, { role: 'system', content: contextIntro });
-    store.addMessageToConversation(newId, {
+    addMessageToConversation(newId, { role: 'system', content: contextIntro });
+    addMessageToConversation(newId, {
       role: 'assistant',
       content: `**Reflektion:**\n\n${reflection}\n\n---\n\nVill du utforska denna tanke vidare? Jag kan hjälpa dig gräva djupare i vad det betyder för dig.`
     });
-  }, [conversationId, provider, store, context, memory]);
+  }, [conversationId, provider, context, memory, createConversation, addMessageToConversation]);
 
   // Rensa chatten och starta nytt samtal
   const clearMessages = useCallback(() => {

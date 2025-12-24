@@ -13,17 +13,15 @@ function revokeAssetUrls(assets: Record<string, string>) {
 }
 
 export function useFileSystem() {
-  const {
-    setFileHandle,
-    loadNodes,
-    loadAssets,
-    loadConversations,
-    loadSessions,
-    loadTrails,
-    setSelectedTrailIds,
-    setShowActiveTrailLine,
-    fileHandle,
-  } = useBrainStore();
+  const setFileHandle = useBrainStore((state) => state.setFileHandle);
+  const loadNodes = useBrainStore((state) => state.loadNodes);
+  const loadAssets = useBrainStore((state) => state.loadAssets);
+  const loadConversations = useBrainStore((state) => state.loadConversations);
+  const loadSessions = useBrainStore((state) => state.loadSessions);
+  const loadTrails = useBrainStore((state) => state.loadTrails);
+  const setSelectedTrailIds = useBrainStore((state) => state.setSelectedTrailIds);
+  const setShowActiveTrailLine = useBrainStore((state) => state.setShowActiveTrailLine);
+  const fileHandle = useBrainStore((state) => state.fileHandle);
   // Track current blob URLs for cleanup
   const currentAssetsRef = useRef<Record<string, string>>({});
   const [isReady, setIsReady] = useState(false);

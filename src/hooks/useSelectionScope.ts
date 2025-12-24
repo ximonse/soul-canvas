@@ -17,17 +17,12 @@ export interface ScopeData {
 }
 
 export function useSelectionScope() {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const nodes = useBrainStore((state: any) => state.nodes);
+  const nodes = useBrainStore((state) => state.nodes);
   const selectedNodeIds = useBrainStore((state) => state.selectedNodeIds);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const synapses = useBrainStore((state: any) => state.synapses);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const synapseVisibilityThreshold = useBrainStore((state: any) => state.synapseVisibilityThreshold);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const selectNodes = useBrainStore((state: any) => state.selectNodes);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const setScopeDegreeOnNodes = useBrainStore((state: any) => state.setScopeDegreeOnNodes);
+  const synapses = useBrainStore((state) => state.synapses);
+  const synapseVisibilityThreshold = useBrainStore((state) => state.synapseVisibilityThreshold);
+  const selectNodes = useBrainStore((state) => state.selectNodes);
+  const setScopeDegreeOnNodes = useBrainStore((state) => state.setScopeDegreeOnNodes);
 
   // UI state
   const [isVisible, setIsVisible] = useState(false);

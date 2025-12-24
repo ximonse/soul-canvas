@@ -37,10 +37,15 @@ export function ContextMenu({
   onAddToChat,
   onTagSelected,
 }: ContextMenuProps) {
-  const store = useBrainStore();
-  const node = store.nodes.get(menu.nodeId);
-  const selectedNodes = Array.from(store.selectedNodeIds)
-    .map(id => store.nodes.get(id))
+  const nodes = useBrainStore((state) => state.nodes);
+  const selectedNodeIds = useBrainStore((state) => state.selectedNodeIds);
+  const updateNode = useBrainStore((state) => state.updateNode);
+  const removeNode = useBrainStore((state) => state.removeNode);
+  const activeSessionId = useBrainStore((state) => state.activeSessionId);
+  const removeCardsFromSession = useBrainStore((state) => state.removeCardsFromSession);
+  const node = nodes.get(menu.nodeId);
+  const selectedNodes = Array.from(selectedNodeIds)
+    .map(id => nodes.get(id))
     .filter(Boolean) as MindNode[];
   const selectedCount = selectedNodes.length;
   const selectedImageCount = selectedNodes.filter((n: MindNode) => n.type === 'image').length;
@@ -52,7 +57,7 @@ export function ContextMenu({
   }
 
   const handleFlip = () => {
-    store.updateNode(menu.nodeId, { isFlipped: !node.isFlipped });
+    updateNode(menu.nodeId, { isFlipped: !node.isFlipped });
     onClose();
   };
 
@@ -60,7 +65,7 @@ export function ContextMenu({
     // Flippa alla markerade bildkort
     selectedNodes.forEach((n: MindNode) => {
       if (n.type === 'image') {
-        store.updateNode(n.id, { isFlipped: !n.isFlipped });
+        updateNode(n.id, { isFlipped: !n.isFlipped });
       }
     });
     onClose();
@@ -72,12 +77,12 @@ export function ContextMenu({
   };
 
   const handleDelete = () => {
-    store.removeNode(menu.nodeId);
+    removeNode(menu.nodeId);
     onClose();
   };
 
   const handlePin = () => {
-    store.updateNode(menu.nodeId, { pinned: !node.pinned });
+    updateNode(menu.nodeId, { pinned: !node.pinned });
     onClose();
   };
 
@@ -125,14 +130,14 @@ export function ContextMenu({
   const hasEmbedding = node.embedding || selectedNodes.some((n: MindNode) => n.embedding);
 
   // Session-relaterat
-  const isInSession = store.activeSessionId !== null;
+  const isInSession = activeSessionId !== null;
 
   const handleRemoveFromSession = () => {
-    if (!store.activeSessionId) return;
+    if (!activeSessionId) return;
     const cardIdsToRemove = selectedCount > 1
       ? selectedNodes.map((n: MindNode) => n.id)
       : [menu.nodeId];
-    store.removeCardsFromSession(store.activeSessionId, cardIdsToRemove);
+    removeCardsFromSession(activeSessionId, cardIdsToRemove);
     onClose();
   };
 
