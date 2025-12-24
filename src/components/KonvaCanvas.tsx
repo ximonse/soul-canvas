@@ -4,7 +4,6 @@ import { Stage, Layer, Rect, Line } from 'react-konva';
 import type Konva from 'konva';
 import type { KonvaEventObject } from 'konva/lib/Node';
 import { useBrainStore } from '../store/useBrainStore';
-import { gComboState } from '../hooks/useKeyboard';
 import type { CanvasAPI } from '../hooks/useCanvas';
 import { useViewportCulling } from '../hooks/useViewportCulling';
 import KonvaNode from './KonvaNode';
@@ -142,15 +141,18 @@ const KonvaCanvas: React.FC<KonvaCanvasProps> = ({
   };
 
   const handleStageWheel = (e: KonvaEventObject<WheelEvent>) => {
-    // Om G är nedtryckt, låt useKeyboard hantera gravity-justering
-    if (gComboState.pressed) {
-      return;
-    }
-
     e.evt.preventDefault();
 
     const stage = stageRef.current;
     if (!stage) return;
+
+    if (e.evt.altKey || e.evt.metaKey || e.evt.ctrlKey) {
+      const nextY = stage.y() - e.evt.deltaY;
+      stage.position({ x: stage.x(), y: nextY });
+      stage.batchDraw();
+      canvas.setView({ x: stage.x(), y: nextY, k: stage.scaleX() });
+      return;
+    }
 
     const oldScale = stage.scaleX();
     const pointer = stage.getPointerPosition();

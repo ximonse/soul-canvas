@@ -429,23 +429,6 @@ export function useKeyboard(
 
     window.addEventListener('keydown', handleAllKeyDown);
 
-    // G + scroll för att justera graph gravity
-    const handleWheel = (e: WheelEvent) => {
-      if (gComboState.pressed && !isTyping()) {
-        e.preventDefault();
-        gComboState.used = true;
-        // Scroll up = öka gravity (tätare), scroll down = minska (glesare)
-        const delta = e.deltaY > 0 ? -0.1 : 0.1;
-        actionsRef.current.onAdjustGraphGravity(delta);
-
-        // Förnya timeouten så man kan fortsätta scrolla
-        if (gComboState.timeout) clearTimeout(gComboState.timeout);
-        gComboState.timeout = window.setTimeout(() => {
-          gComboState.pressed = false;
-        }, 1000); // Längre timeout när man scrollar
-      }
-    };
-
     // Håll G nedtryckt = förhindra timeout
     const handleKeyUp = (e: KeyboardEvent) => {
       const key = e.key.toLowerCase();
@@ -485,13 +468,11 @@ export function useKeyboard(
       }
     };
 
-    window.addEventListener('wheel', handleWheel, { passive: false });
     window.addEventListener('keyup', handleKeyUp);
     window.addEventListener('keydown', handleDKeyDown);
 
     return () => {
       window.removeEventListener('keydown', handleAllKeyDown);
-      window.removeEventListener('wheel', handleWheel);
       window.removeEventListener('keyup', handleKeyUp);
       window.removeEventListener('keydown', handleDKeyDown);
       // Cleanup timers
