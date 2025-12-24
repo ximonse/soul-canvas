@@ -4,6 +4,7 @@
 import { useState, useMemo, useCallback } from 'react';
 import { useBrainStore } from '../store/useBrainStore';
 import {
+  buildAdjacencyMap,
   getConnectionsByDegree,
   getConnectionsGroupedByDegree,
   hasAnyConnections,
@@ -45,6 +46,7 @@ export function useSelectionScope() {
   const visibleSynapses = useMemo(() => (
     synapses.filter((s: { similarity?: number }) => (s.similarity || 1) >= synapseVisibilityThreshold)
   ), [synapses, synapseVisibilityThreshold]);
+  const adjacencyMap = useMemo(() => buildAdjacencyMap(visibleSynapses), [visibleSynapses]);
 
   // Har bas-noderna några kopplingar?
   const hasConnections = useMemo(() => {
@@ -55,8 +57,8 @@ export function useSelectionScope() {
   // Max tillgänglig grad
   const maxAvailableDegree = useMemo(() => {
     if (baseSelected.size === 0) return 0;
-    return getMaxAvailableDegree(baseSelected, visibleSynapses);
-  }, [baseSelected, visibleSynapses]);
+    return getMaxAvailableDegree(baseSelected, visibleSynapses, 6, adjacencyMap);
+  }, [baseSelected, visibleSynapses, adjacencyMap]);
 
   // Scope-data för aktuell grad
   const scopeData = useMemo((): ScopeData => {
@@ -64,34 +66,34 @@ export function useSelectionScope() {
       return { byDegree: new Map(), allScopedIds: new Map(), total: 0 };
     }
 
-    const allScopedIds = getConnectionsByDegree(baseSelected, visibleSynapses, currentDegree);
-    const byDegree = getConnectionsGroupedByDegree(baseSelected, visibleSynapses, currentDegree);
+    const allScopedIds = getConnectionsByDegree(baseSelected, visibleSynapses, currentDegree, adjacencyMap);
+    const byDegree = getConnectionsGroupedByDegree(baseSelected, visibleSynapses, currentDegree, adjacencyMap);
 
     return {
       byDegree,
       allScopedIds,
       total: allScopedIds.size,
     };
-  }, [baseSelected, visibleSynapses, currentDegree]);
+  }, [baseSelected, visibleSynapses, currentDegree, adjacencyMap]);
 
   // Förhandsgransknings-data
   const previewData = useMemo((): ScopeData | null => {
     if (previewDegree === null || baseSelected.size === 0) return null;
 
-    const allScopedIds = getConnectionsByDegree(baseSelected, visibleSynapses, previewDegree);
-    const byDegree = getConnectionsGroupedByDegree(baseSelected, visibleSynapses, previewDegree);
+    const allScopedIds = getConnectionsByDegree(baseSelected, visibleSynapses, previewDegree, adjacencyMap);
+    const byDegree = getConnectionsGroupedByDegree(baseSelected, visibleSynapses, previewDegree, adjacencyMap);
 
     return {
       byDegree,
       allScopedIds,
       total: allScopedIds.size,
     };
-  }, [baseSelected, visibleSynapses, previewDegree]);
+  }, [baseSelected, visibleSynapses, previewDegree, adjacencyMap]);
 
   // Antal kort per grad (för UI)
   const degreeCounts = useMemo(() => {
     const counts: { degree: number; count: number; cumulative: number }[] = [];
-    const grouped = getConnectionsGroupedByDegree(baseSelected, visibleSynapses, 6);
+    const grouped = getConnectionsGroupedByDegree(baseSelected, visibleSynapses, 6, adjacencyMap);
 
     let cumulative = 0;
     for (let i = 1; i <= Math.max(maxAvailableDegree, 1); i++) {
@@ -103,7 +105,7 @@ export function useSelectionScope() {
     }
 
     return counts;
-  }, [baseSelected, visibleSynapses, maxAvailableDegree, currentDegree]);
+  }, [baseSelected, visibleSynapses, maxAvailableDegree, currentDegree, adjacencyMap]);
 
   // Expandera till en viss grad
   const expandToScope = useCallback((degree: number) => {
@@ -115,7 +117,7 @@ export function useSelectionScope() {
       return;
     }
 
-    const allScopedIds = getConnectionsByDegree(baseSelected, visibleSynapses, degree);
+    const allScopedIds = getConnectionsByDegree(baseSelected, visibleSynapses, degree, adjacencyMap);
 
     // Uppdatera scopeDegree på noderna
     setScopeDegreeOnNodes(allScopedIds);
@@ -124,7 +126,7 @@ export function useSelectionScope() {
     if (includeInSelection) {
       selectNodes(Array.from(allScopedIds.keys()));
     }
-  }, [baseSelected, visibleSynapses, includeInSelection, selectNodes, setScopeDegreeOnNodes]);
+  }, [baseSelected, visibleSynapses, includeInSelection, selectNodes, setScopeDegreeOnNodes, adjacencyMap]);
 
   // Toggle "inkludera i urval"
   const toggleIncludeInSelection = useCallback(() => {
@@ -133,10 +135,10 @@ export function useSelectionScope() {
 
     // Om vi slår på och har scope, markera dem
     if (newValue && currentDegree > 0) {
-      const allScopedIds = getConnectionsByDegree(baseSelected, visibleSynapses, currentDegree);
+      const allScopedIds = getConnectionsByDegree(baseSelected, visibleSynapses, currentDegree, adjacencyMap);
       selectNodes(Array.from(allScopedIds.keys()));
     }
-  }, [includeInSelection, currentDegree, baseSelected, visibleSynapses, selectNodes]);
+  }, [includeInSelection, currentDegree, baseSelected, visibleSynapses, selectNodes, adjacencyMap]);
 
   // Toggle panelens synlighet
   const toggleVisibility = useCallback(() => {

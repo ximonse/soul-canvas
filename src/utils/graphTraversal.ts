@@ -3,13 +3,34 @@
 
 import type { Synapse } from '../types/types';
 
+export type AdjacencyMap = Map<string, Set<string>>;
+
+export function buildAdjacencyMap(synapses: Synapse[]): AdjacencyMap {
+  const adjacency = new Map<string, Set<string>>();
+  for (const synapse of synapses) {
+    if (!adjacency.has(synapse.sourceId)) {
+      adjacency.set(synapse.sourceId, new Set());
+    }
+    if (!adjacency.has(synapse.targetId)) {
+      adjacency.set(synapse.targetId, new Set());
+    }
+    adjacency.get(synapse.sourceId)!.add(synapse.targetId);
+    adjacency.get(synapse.targetId)!.add(synapse.sourceId);
+  }
+  return adjacency;
+}
+
 /**
  * Hitta alla noder som är direkt kopplade till en given nod
  */
 export function getDirectConnections(
   nodeId: string,
-  synapses: Synapse[]
+  synapses: Synapse[],
+  adjacencyMap?: AdjacencyMap
 ): Set<string> {
+  if (adjacencyMap) {
+    return adjacencyMap.get(nodeId) ?? new Set<string>();
+  }
   const connected = new Set<string>();
 
   for (const synapse of synapses) {
@@ -30,16 +51,19 @@ export function getDirectConnections(
 export function getConnectionsByDegree(
   baseIds: Set<string>,
   synapses: Synapse[],
-  maxDegree: number = 6
+  maxDegree: number = 6,
+  adjacencyMap?: AdjacencyMap
 ): Map<string, number> {
   const result = new Map<string, number>();
+  const adjacency = adjacencyMap ?? buildAdjacencyMap(synapses);
   let currentFrontier = new Set(baseIds);
 
   for (let degree = 1; degree <= maxDegree; degree++) {
     const nextFrontier = new Set<string>();
 
     for (const nodeId of currentFrontier) {
-      const connected = getDirectConnections(nodeId, synapses);
+      const connected = adjacency.get(nodeId);
+      if (!connected) continue;
 
       for (const connectedId of connected) {
         // Hoppa över bas-noder och redan besökta
@@ -67,9 +91,10 @@ export function getConnectionsByDegree(
 export function getConnectionsGroupedByDegree(
   baseIds: Set<string>,
   synapses: Synapse[],
-  maxDegree: number = 6
+  maxDegree: number = 6,
+  adjacencyMap?: AdjacencyMap
 ): Map<number, string[]> {
-  const allConnections = getConnectionsByDegree(baseIds, synapses, maxDegree);
+  const allConnections = getConnectionsByDegree(baseIds, synapses, maxDegree, adjacencyMap);
   const grouped = new Map<number, string[]>();
 
   allConnections.forEach((degree, nodeId) => {
@@ -103,9 +128,10 @@ export function hasAnyConnections(
 export function getMaxAvailableDegree(
   baseIds: Set<string>,
   synapses: Synapse[],
-  maxSearch: number = 6
+  maxSearch: number = 6,
+  adjacencyMap?: AdjacencyMap
 ): number {
-  const connections = getConnectionsByDegree(baseIds, synapses, maxSearch);
+  const connections = getConnectionsByDegree(baseIds, synapses, maxSearch, adjacencyMap);
 
   let maxDegree = 0;
   connections.forEach((degree) => {
