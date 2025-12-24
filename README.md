@@ -1,27 +1,79 @@
 # Soul Canvas
 
-En lokal, canvas-baserad kunskapsyta för hundratals+ kort (text, bilder, Zotero/HTML) som sparas i en vald mapp via File System Access API. Allt renderas i Konva, med AI-stöd (Claude/OpenAI/Gemini) för taggar, länkar, reflektion och chat.
+En lokal, canvas-baserad kunskapsyta för tusentals kort med AI-driven förståelse och organisation.
 
-## Kom igång
-- Krav: Node 20+, Chrome/Edge (för File System Access API).
-- Installera: `npm install`
-- Starta: `npm run dev` och öppna URL:en Vite visar.
-- Koppla en mapp via **Connect Soul**. Data sparas i `data.json`, bilder i `assets/`.
+## Quick Start
 
-## Centrala funktioner
-- Kort: text, bild (OCR-stöd), Zotero/HTML-import, drag-and-drop.
-- Layout: V/H rader, g+v/g+h grid, g+t kanban, q stack/cirkel, pinnings, fit/reset zoom, G+scroll för graf-gravitation.
-- Relationer: Semantiska synapser med likhetstal, sekvenskedjor (D+håll+klick) med pilar, auto-link på embeddings.
-- AI: Panel för auto-tagg, auto-link, reflektion/cluster-analys; manuell AI-chat (väljer provider själv, markerade kort som kontext).
-- Urval: Selection Scope Panel (grad-expansion av kopplade kort), bulk-taggar, kopiera/klistra/duplicera.
-- Teman och zen-läge; zoom-indikator; Command Palette och contextmeny på kort.
+```bash
+npm install
+npm run dev
+```
 
-## Tangentbordsgenvägar (urval)
-- Navigering/zoom: `-` fit all, `0` reset, drag canvas, scroll för zoom (utan G), `G+scroll` justerar gravity.
-- Arrangemang: `v` vertikal, `h` horisontell, `q` stack/cirkel, `g+v` grid vertikal, `g+h` grid horisontell, `g+t` kanban.
-- AI/UI: `a` AI-chat, `b` AI-panel, `Space` Command Palette, `/` sök, `Ctrl+Enter` spara.
-- Redigering: `Delete` radera, `Ctrl+C/V` kopiera/klistra, `Ctrl+Z/Y` undo/redo, `N` nytt kort, `I` import.
-- Sekvens/scope: håll `D` + klick för sekvenskedja; `Ctrl+` (backtick/§) togglar Selection Scope Panel.
+Krav: Node 20+, Chrome/Edge (File System Access API).
 
-## Test/körning
-Inga automatiska tester definierade. Använd `npm run dev` för manuell körning i browsern.
+## Tech Stack
+
+- **React + TypeScript + Vite**
+- **Konva** (canvas-rendering, skalar till tusentals kort)
+- **Zustand** (state management)
+- **AI**: Claude, OpenAI, Gemini (taggar, embeddings, reflektion, chat)
+
+## Filstruktur
+
+```
+src/
+  components/     # React/Konva-komponenter
+  hooks/          # Custom hooks (logik)
+  store/          # Zustand store
+  utils/          # Hjälpfunktioner
+  types/          # TypeScript-typer
+```
+
+Data sparas lokalt: `data.json` + `assets/`-mapp.
+
+---
+
+## För AI-assistenter
+
+**LÄS FÖRST:** [`CLAUDE.md`](./CLAUDE.md)
+
+Denna fil innehåller:
+- Projektets kärnprinciper och slutvision
+- Tekniska riktlinjer (skalbarhet, canvas-first, etc.)
+- Komplett lista över kortkommandon
+- Sessionsloggar med implementationsdetaljer
+- Utvärderingskriterier för nya features
+
+### Regler
+
+1. **Max 300 rader per fil** - dela upp innan du lägger till kod
+2. **Canvas-first** - inga DOM-element per kort (skalar inte)
+3. **Fråga innan nya kortkommandon** - kolla vilka som är upptagna
+4. **Pusha aldrig utan att fråga**
+
+### Workflow
+
+```
+1. Läs CLAUDE.md
+2. Kolla wc -l på filer du ska ändra
+3. Om fil > 200 rader: fråga om refaktorering först
+4. Koda när du fått OK
+5. Fråga innan git push
+```
+
+---
+
+## Kortkommandon (urval)
+
+| Tangent | Funktion |
+|---------|----------|
+| `Space` | Command Palette |
+| `a` | AI Chat |
+| `b` | AI Panel |
+| `/` | Sök |
+| `v` / `h` | Arrangera vertikalt/horisontellt |
+| `g+v` / `g+h` | Grid layout |
+| `-` / `0` | Fit all / Reset zoom |
+| `N` / `I` | Nytt kort / Import |
+
+Se `CLAUDE.md` för komplett lista.

@@ -116,8 +116,8 @@ export function useFileSystem() {
       loadSessions(data.sessions || []);
       loadTrails(data.trails || []);
       if (data.trails && data.trails.length > 0) {
-        const trailIds = new Set(data.trails.map(t => t.id));
-        const selectedTrailIds = data.trailUi.selectedTrailIds.filter(id => trailIds.has(id));
+        const trailIds = new Set(data.trails.map((t: { id: string }) => t.id));
+        const selectedTrailIds = data.trailUi?.selectedTrailIds?.filter((id: string) => trailIds.has(id)) || [];
         setSelectedTrailIds(selectedTrailIds);
       } else {
         setSelectedTrailIds([]);

@@ -4,7 +4,7 @@ import { Group, Rect, Text, Image as KonvaImage, Circle } from 'react-konva';
 import Konva from 'konva';
 import { useBrainStore } from '../store/useBrainStore';
 import { dKeyState } from '../hooks/useKeyboard';
-import type { MindNode } from '../types/types';
+import type { AIProvider, MindNode } from '../types/types';
 import { type Theme } from '../themes';
 import { CARD } from '../utils/constants';
 import { getScopeColor, getNodeStyles, getGravitatingColor, getSemanticThemeColor } from '../utils/nodeStyles';
@@ -35,6 +35,20 @@ const extractLinkUrl = (markdown: string | undefined): string | null => {
   return match ? match[1] : null;
 };
 
+type RGB = { r: number; g: number; b: number };
+
+const AI_PULSE_PALETTE: Record<AIProvider, RGB[]> = {
+  claude: [{ r: 249, g: 115, b: 22 }],
+  openai: [{ r: 156, g: 163, b: 175 }],
+  gemini: [
+    { r: 250, g: 204, b: 21 },
+    { r: 59, g: 130, b: 246 },
+    { r: 239, g: 68, b: 68 },
+  ],
+};
+
+const toRgb = (color: RGB) => `rgb(${color.r},${color.g},${color.b})`;
+
 const KonvaNode: React.FC<KonvaNodeProps> = ({
   node,
   theme,
@@ -50,7 +64,7 @@ const KonvaNode: React.FC<KonvaNodeProps> = ({
   onContextMenu
 }) => {
   const groupRef = useRef<Konva.Group>(null);
-  const glowRef = useRef<Konva.Circle>(null);
+  const aiPulseRef = useRef<Konva.Circle>(null);
 
   // Extract link URL from comment field
   const linkUrl = useMemo(() => extractLinkUrl(node.comment), [node.comment]);
@@ -64,12 +78,14 @@ const KonvaNode: React.FC<KonvaNodeProps> = ({
   const dragSelectedNodes = useBrainStore((state: any) => state.dragSelectedNodes);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const isTagging = useBrainStore((state: any) => state.taggingNodes.has(node.id));
+  const processingProvider = useBrainStore((state: any) => state.aiProcessingNodes.get(node.id) as AIProvider | undefined);
+  const isSelected = useBrainStore((state) => state.selectedNodeIds.has(node.id));
+  const effectiveProvider: AIProvider | null = processingProvider ?? (isTagging ? 'claude' : null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const updateNode = useBrainStore((state: any) => state.updateNode);
 
   const getSelectedCount = useCallback(() => {
-    const nodes = useBrainStore.getState().nodes;
-    let count = 0;
-    nodes.forEach((n: MindNode) => { if (n.selected) count++; });
-    return count;
+    return useBrainStore.getState().selectedNodeIds.size;
   }, []);
 
   const [imageObj, setImageObj] = useState<HTMLImageElement | undefined>(undefined);
@@ -78,7 +94,6 @@ const KonvaNode: React.FC<KonvaNodeProps> = ({
   const [initialY, setInitialY] = useState(0);
 
   const isImage = node.type === 'image';
-  const isSelected = node.selected || false;
   const isFlipped = node.isFlipped;
   const isScopeSelected = node.scopeDegree && node.scopeDegree > 0;
   const contentX = node.accentColor ? CARD.PADDING + 8 : CARD.PADDING;
@@ -87,9 +102,11 @@ const KonvaNode: React.FC<KonvaNodeProps> = ({
   const contentLineHeight = 1.6;
   const titleLineHeight = 1.2;
   const captionLineHeight = 1.2;
-  const contentFontFamily = 'Inter, sans-serif';
-  const captionFontFamily = "'Noto Serif', Georgia, serif";
-  const backFontFamily = "'Playwrite CA', cursive, 'Noto Serif', Georgia, serif";
+  const cardFontFamily = "'Noto Serif', Georgia, serif";
+  const contentFontFamily = cardFontFamily;
+  const captionFontFamily = cardFontFamily;
+  const backFontFamily = cardFontFamily;
+  const backTitleFontFamily = cardFontFamily;
   const backTitleLineHeight = 1.1;
   const backContentLineHeight = 1.35;
   const backTextWidth = CARD.WIDTH - CARD.PADDING * 2;
@@ -130,11 +147,11 @@ const KonvaNode: React.FC<KonvaNodeProps> = ({
     return measureTextHeight(node.title, {
       width: backTextWidth,
       fontSize: 20, // Sync with JSX
-      fontFamily: backFontFamily,
+      fontFamily: backTitleFontFamily,
       fontStyle: 'bold',
       lineHeight: backTitleLineHeight,
     });
-  }, [node.type, node.title, backTextWidth, backFontFamily, backTitleLineHeight]);
+  }, [node.type, node.title, backTextWidth, backTitleFontFamily, backTitleLineHeight]);
 
   const titleGap = node.title ? CARD.PADDING : 0;
   const contentOffsetY = CARD.PADDING + (node.title ? titleHeight + titleGap : 0);
@@ -209,6 +226,15 @@ const KonvaNode: React.FC<KonvaNodeProps> = ({
     backContentHeight,
     titleGap,
   ]);
+
+  useEffect(() => {
+    if (cardHeight > 0 && node.height !== cardHeight) {
+      // Vi använder en debounce eller koll här för att undvika oändliga loopar
+      // (updateNode triggar om-rendering av KonvaNode, men om höjden är samma avbryts det)
+      updateNode(node.id, { height: cardHeight });
+    }
+  }, [cardHeight, node.id, node.height, updateNode]);
+
   // Drag handlers
   const handleDragStart = useCallback((e: Konva.KonvaEventObject<DragEvent>) => {
     if (!isSelected) { clearSelection(); toggleSelection(node.id, false); }
@@ -222,13 +248,15 @@ const KonvaNode: React.FC<KonvaNodeProps> = ({
     if (getSelectedCount() > 1) {
       const dx = e.target.x() - initialX;
       const dy = e.target.y() - initialY;
-      (Array.from(useBrainStore.getState().nodes.values()) as MindNode[])
-        .filter((n: MindNode) => n.selected && !n.pinned && n.id !== node.id)
-        .forEach((n: MindNode) => {
-          const stage = e.target.getStage();
-          const otherGroup = stage?.findOne(`#konva-node-${n.id}`) as Konva.Group;
-          otherGroup?.position({ x: n.x + dx, y: n.y + dy });
-        });
+      const state = useBrainStore.getState();
+      state.selectedNodeIds.forEach((selectedId) => {
+        if (selectedId === node.id) return;
+        const selectedNode = state.nodes.get(selectedId);
+        if (!selectedNode || selectedNode.pinned) return;
+        const stage = e.target.getStage();
+        const otherGroup = stage?.findOne(`#konva-node-${selectedNode.id}`) as Konva.Group;
+        otherGroup?.position({ x: selectedNode.x + dx, y: selectedNode.y + dy });
+      });
       e.target.getLayer()?.batchDraw();
     }
   }, [getSelectedCount, initialX, initialY, node.id]);
@@ -284,29 +312,44 @@ const KonvaNode: React.FC<KonvaNodeProps> = ({
 
   const handleMouseLeave = useCallback(() => { onHover?.(null); }, [onHover]);
 
-  // Tagging animation
+  // AI processing pulse
   useEffect(() => {
-    if (!isTagging || !glowRef.current) return undefined;
-    const colors = [
-      { r: 147, g: 112, b: 219 }, { r: 100, g: 149, b: 237 },
-      { r: 72, g: 209, b: 204 }, { r: 255, g: 182, b: 193 }, { r: 144, g: 238, b: 144 },
-    ];
+    if (!effectiveProvider || !aiPulseRef.current) return undefined;
+    const palette = AI_PULSE_PALETTE[effectiveProvider];
+    const layer = aiPulseRef.current.getLayer();
+    if (!layer) return undefined;
+
+    const baseColor = palette[0];
+    aiPulseRef.current.fill(toRgb(baseColor));
+    aiPulseRef.current.shadowColor(toRgb(baseColor));
+
     const anim = new Konva.Animation((frame) => {
-      if (!frame || !glowRef.current) return;
-      const colorProgress = (frame.time / 2000) % colors.length;
-      const i = Math.floor(colorProgress);
-      const t = colorProgress - i;
-      const c1 = colors[i], c2 = colors[(i + 1) % colors.length];
-      const r = Math.round(c1.r + (c2.r - c1.r) * t);
-      const g = Math.round(c1.g + (c2.g - c1.g) * t);
-      const b = Math.round(c1.b + (c2.b - c1.b) * t);
-      glowRef.current.fill(`rgb(${r},${g},${b})`);
-      glowRef.current.scale({ x: 1 + Math.sin(frame.time / 400) * 0.2, y: 1 + Math.sin(frame.time / 400) * 0.2 });
-      glowRef.current.opacity(0.5 + Math.sin(frame.time / 500) * 0.3);
-    }, glowRef.current.getLayer());
+      if (!frame || !aiPulseRef.current) return;
+      const pulse = (frame.time / 1400) * Math.PI * 2;
+      const scale = 1 + Math.sin(pulse) * 0.18;
+      const opacity = 0.45 + Math.sin(pulse + Math.PI / 3) * 0.2;
+      aiPulseRef.current.scale({ x: scale, y: scale });
+      aiPulseRef.current.opacity(opacity);
+
+      if (palette.length > 1) {
+        const colorProgress = (frame.time / 2200) % palette.length;
+        const i = Math.floor(colorProgress);
+        const t = colorProgress - i;
+        const c1 = palette[i];
+        const c2 = palette[(i + 1) % palette.length];
+        const blended = {
+          r: Math.round(c1.r + (c2.r - c1.r) * t),
+          g: Math.round(c1.g + (c2.g - c1.g) * t),
+          b: Math.round(c1.b + (c2.b - c1.b) * t),
+        };
+        const rgb = toRgb(blended);
+        aiPulseRef.current.fill(rgb);
+        aiPulseRef.current.shadowColor(rgb);
+      }
+    }, layer);
     anim.start();
     return () => { anim.stop(); };
-  }, [isTagging]);
+  }, [effectiveProvider]);
 
   const styles = useMemo(() =>
     getNodeStyles(theme, node.createdAt, isSelected, node.backgroundColor),
@@ -443,7 +486,7 @@ const KonvaNode: React.FC<KonvaNodeProps> = ({
                   width={backTextWidth}
                   fill={theme.node.flippedText}
                   fontSize={20}
-                  fontFamily={backFontFamily}
+                  fontFamily={backTitleFontFamily}
                   fontStyle="bold"
                   align="left"
                   lineHeight={backTitleLineHeight}
@@ -468,12 +511,12 @@ const KonvaNode: React.FC<KonvaNodeProps> = ({
             <>
               <Text text="Baksida (Redigerbart)" x={CARD.PADDING} y={CARD.PADDING}
                 width={CARD.WIDTH - CARD.PADDING * 2} fill={theme.node.flippedText}
-                fontSize={CARD.FONT_SIZE_SMALL} fontFamily="Inter, sans-serif" align="center"
+                fontSize={CARD.FONT_SIZE_SMALL} fontFamily={cardFontFamily} align="center"
               />
               <Text text={node.ocrText || (node.type === 'zotero' ? node.content : '')}
                 x={CARD.PADDING} y={CARD.PADDING + 30} width={CARD.WIDTH - CARD.PADDING * 2}
                 fill={theme.node.flippedText} fontSize={CARD.FONT_SIZE_TINY}
-                fontFamily="Inter, monospace" align="left" verticalAlign="top" wrap="word"
+                fontFamily={cardFontFamily} align="left" verticalAlign="top" wrap="word"
               />
             </>
           )}
@@ -519,9 +562,16 @@ const KonvaNode: React.FC<KonvaNodeProps> = ({
         />
       )}
 
-      {isTagging && (
-        <Circle ref={glowRef} x={CARD.WIDTH / 2} y={cardHeight / 2} radius={20}
-          fill="rgb(147, 112, 219)" opacity={0.6} shadowColor="white" shadowBlur={15} shadowOpacity={0.8}
+      {effectiveProvider && (
+        <Circle
+          ref={aiPulseRef}
+          x={CARD.WIDTH / 2}
+          y={-12}
+          radius={10}
+          opacity={0.6}
+          shadowBlur={16}
+          shadowOpacity={0.85}
+          listening={false}
         />
       )}
 

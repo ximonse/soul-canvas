@@ -20,6 +20,7 @@ export interface ScopeData {
 export function useSelectionScope() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const nodes = useBrainStore((state: any) => state.nodes);
+  const selectedNodeIds = useBrainStore((state) => state.selectedNodeIds);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const synapses = useBrainStore((state: any) => state.synapses);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -38,13 +39,14 @@ export function useSelectionScope() {
   // Bas-markerade noder (användaren har klickat på dessa)
   const baseSelected = useMemo(() => {
     const selected = new Set<string>();
-    nodes.forEach((node: MindNode, id: string) => {
-      if (node.selected && !node.scopeDegree) {
+    selectedNodeIds.forEach((id) => {
+      const node = nodes.get(id);
+      if (node && !node.scopeDegree) {
         selected.add(id);
       }
     });
     return selected;
-  }, [nodes]);
+  }, [nodes, selectedNodeIds]);
 
   const visibleSynapses = useMemo(() => (
     synapses.filter((s: { similarity?: number }) => (s.similarity || 1) >= synapseVisibilityThreshold)

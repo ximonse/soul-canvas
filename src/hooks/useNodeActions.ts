@@ -25,9 +25,10 @@ export function useNodeActions({ stageRef, canvas, setShowSettings, setContextMe
   // Center camera on selected nodes (or all if none selected)
   const centerCamera = useCallback(() => {
     const allNodes = Array.from(store.nodes.values()) as MindNode[];
-    const targetNodes = allNodes.filter((n: MindNode) => n.selected).length > 0
-      ? allNodes.filter((n: MindNode) => n.selected)
-      : allNodes;
+    const selectedNodes = Array.from(store.selectedNodeIds)
+      .map(id => store.nodes.get(id))
+      .filter(Boolean) as MindNode[];
+    const targetNodes = selectedNodes.length > 0 ? selectedNodes : allNodes;
 
     // Update stage directly instead of via canvas.view
     if (!stageRef.current || targetNodes.length === 0) return;
@@ -50,7 +51,7 @@ export function useNodeActions({ stageRef, canvas, setShowSettings, setContextMe
     stageRef.current.position({ x: nextView.x, y: nextView.y });
     stageRef.current.batchDraw();
     canvas.setView(nextView);
-  }, [store.nodes, stageRef, canvas]);
+  }, [store.nodes, store.selectedNodeIds, stageRef, canvas]);
 
   // Fit all visible nodes in view (zoom to show everything, as large as possible)
   const fitAllNodes = useCallback(() => {
@@ -138,6 +139,7 @@ export function useNodeActions({ stageRef, canvas, setShowSettings, setContextMe
     }
 
     store.updateNode(id, { ocrText: 'Läser...' });
+    store.setNodeAIProcessing(id, 'gemini');
     setContextMenu(null);
 
     try {
@@ -179,13 +181,17 @@ export function useNodeActions({ stageRef, canvas, setShowSettings, setContextMe
       store.updateNode(id, updates);
     } catch (error) {
       store.updateNode(id, { ocrText: 'OCR misslyckades' });
+    } finally {
+      store.setNodeAIProcessing(id, null);
     }
   }, [store, setShowSettings, setContextMenu]);
 
   // Run OCR on all selected image nodes
   const runOCROnSelected = useCallback(async () => {
-    const selectedImages = (Array.from(store.nodes.values()) as MindNode[])
-      .filter((n: MindNode) => n.selected && n.type === 'image');
+    const selectedImages = Array.from(store.selectedNodeIds)
+      .map(id => store.nodes.get(id))
+      .filter((node): node is MindNode => Boolean(node))
+      .filter((n: MindNode) => n.type === 'image');
 
     if (selectedImages.length === 0) return;
 
@@ -204,7 +210,9 @@ export function useNodeActions({ stageRef, canvas, setShowSettings, setContextMe
 
   // Delete selected nodes
   const deleteSelected = useCallback(() => {
-    const selectedNodes = (Array.from(store.nodes.values()) as MindNode[]).filter((n: MindNode) => n.selected);
+    const selectedNodes = Array.from(store.selectedNodeIds)
+      .map(id => store.nodes.get(id))
+      .filter(Boolean) as MindNode[];
     if (selectedNodes.length === 0) return;
     const requiresConfirm = selectedNodes.length >= 10;
     if (requiresConfirm && !confirm(`Radera ${selectedNodes.length} valda kort?`)) return;

@@ -55,7 +55,7 @@ Svara ENDAST med frågan.`;
 
   const message = await claudeLimiter.enqueue(() =>
     anthropic.messages.create({
-      model: 'claude-sonnet-4-20250514',
+      model: 'claude-sonnet-4-5-20250929',
       max_tokens: 200,
       messages: [
         {
@@ -90,6 +90,23 @@ function getWeekNumber(date: Date): number {
   const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
   return Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
 }
+
+const normalizeTag = (tag: string): string => {
+  const normalized = tag
+    .toLowerCase()
+    .replace(/[\/_-]+/g, ' ')
+    .replace(/[^\p{L}\p{N}\s]/gu, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (!normalized) return '';
+  const parts = normalized.split(' ').filter(Boolean);
+  return parts.length > 3 ? parts.slice(0, 3).join(' ') : normalized;
+};
+
+const normalizeTagList = (tags: string[]): string[] => {
+  const cleaned = tags.map(normalizeTag).filter(Boolean);
+  return Array.from(new Set(cleaned));
+};
 
 /**
  * Generate practical + hidden tags for a node
@@ -126,26 +143,29 @@ export const generateSemanticTags = async (
   const weekNum = getWeekNumber(now);
   const currentWeek = `${year}v${weekNum.toString().padStart(2, '0')}`;
 
-  const prompt = `Analysera denna text och kategorisera den. Svara i exakt detta JSON-format:
+  const prompt = `Analyze the text and categorize it. Respond in exactly this JSON format:
 {
-  "praktiska": ["tagg1", "tagg2"],
-  "fördolda": ["tagg1", "tagg2", "tagg3"]
+  "praktiska": ["tag1", "tag2"],
+  "fordolda": ["tag1", "tag2", "tag3"]
 }
 
-TEXT ATT ANALYSERA:
+TEXT TO ANALYZE:
 "${content.substring(0, 800)}"
 
-KORTTYP: ${node.type}
-DAGENS VECKA: ${currentWeek}
+CARD TYPE: ${node.type}
+CURRENT WEEK: ${currentWeek}
 
-Instruktioner:
-- Praktiska taggar (2-4 st): typ (lista, reflektion, möte, todo, forskning, citat, idé, dagbok, planering), weeknum (${currentWeek}), personnamn i lowercase, note-to-self/todo, forskning/zotero.
-- Fördolda taggar (2-4 st): tematiska insikter/känslor/abstrakta mönster.
-Svara ENDAST med JSON.`;
+Instructions:
+- All tags must be English, lowercase.
+- No hyphens or underscores; use spaces instead.
+- Prefer single-word tags; allow 2-3 words only for established terms (e.g. "theory of mind", "predictive coding", "social cognition").
+- Practical tags (2-4): type (note, reflection, meeting, todo, research, quote, idea, journal, planning), week tag (${currentWeek}), person names in lowercase, and optional reminder.
+- Hidden tags (2-4): thematic insights, emotions, abstract patterns.
+Respond ONLY with JSON.`;
 
   const message = await claudeLimiter.enqueue(() =>
     anthropic.messages.create({
-      model: 'claude-sonnet-4-20250514',
+      model: 'claude-sonnet-4-5-20250929',
       max_tokens: 200,
       messages: [
         {
@@ -162,13 +182,14 @@ Svara ENDAST med JSON.`;
     if (!jsonMatch) return emptyResult;
     const parsed = JSON.parse(jsonMatch[0]);
 
-    const practicalTags = (parsed.praktiska || [])
-      .map((tag: string) => tag.trim().toLowerCase())
-      .filter((tag: string) => tag.length > 0);
+    const practicalTags = normalizeTagList(
+      Array.isArray(parsed.praktiska) ? parsed.praktiska : []
+    );
 
-    const hiddenTags = (parsed.fördolda || parsed.fordolda || [])
-      .map((tag: string) => tag.trim().toLowerCase())
-      .filter((tag: string) => tag.length > 0);
+    const rawHiddenTags = Array.isArray(parsed.fordolda)
+      ? parsed.fordolda
+      : (Array.isArray(parsed['f?rdolda']) ? parsed['f?rdolda'] : []);
+    const hiddenTags = normalizeTagList(rawHiddenTags);
 
     return { practicalTags, hiddenTags };
   } catch {
@@ -208,7 +229,7 @@ ${baseText.substring(0, 1200)}
 
   const message = await claudeLimiter.enqueue(() =>
     anthropic.messages.create({
-      model: 'claude-sonnet-4-20250514',
+      model: 'claude-sonnet-4-5-20250929',
       max_tokens: 200,
       messages: [{ role: 'user', content: prompt }],
     })
@@ -249,7 +270,7 @@ ${baseText.substring(0, 800)}
 
   const message = await claudeLimiter.enqueue(() =>
     anthropic.messages.create({
-      model: 'claude-sonnet-4-20250514',
+      model: 'claude-sonnet-4-5-20250929',
       max_tokens: 40,
       messages: [{ role: 'user', content: prompt }],
     })
@@ -304,7 +325,7 @@ Svara på svenska.`;
 
   const message = await claudeLimiter.enqueue(() =>
     anthropic.messages.create({
-      model: 'claude-sonnet-4-20250514',
+      model: 'claude-sonnet-4-5-20250929',
       max_tokens: 150,
       messages: [
         {
@@ -361,7 +382,7 @@ Instruktioner:
 
   const message = await claudeLimiter.enqueue(() =>
     anthropic.messages.create({
-      model: 'claude-sonnet-4-20250514',
+      model: 'claude-sonnet-4-5-20250929',
       max_tokens: 300,
       messages: [{ role: 'user', content: prompt }],
     })
@@ -412,7 +433,7 @@ ${relevantMessages}`;
 
   const message = await claudeLimiter.enqueue(() =>
     anthropic.messages.create({
-      model: 'claude-sonnet-4-20250514',
+      model: 'claude-sonnet-4-5-20250929',
       max_tokens: 30,
       messages: [{ role: 'user', content: prompt }],
     })
@@ -457,32 +478,33 @@ export const summarizeChatToCard = async (
 
   const anthropic = new Anthropic({ apiKey, dangerouslyAllowBrowser: true });
 
-  const prompt = `Analysera detta AI-samtal och dela upp det i separata insikter/ämnen. Svara i exakt detta JSON-format:
+  const prompt = `Analyze this AI conversation and split it into separate insights/topics. Respond in exactly this JSON format:
 {
   "kort": [
     {
-      "sammanfattning": "1-4 kärnfulla meningar om denna del",
-      "taggar": ["tagg1", "tagg2"]
+      "sammanfattning": "1-4 concise sentences about this part",
+      "taggar": ["tag1", "tag2"]
     }
   ]
 }
 
-SAMTAL:
+CONVERSATION:
 ${chatText.substring(0, 3000)}
 
-Instruktioner:
-- Samtalet är ca ${wordCount} ord, föreslaget antal kort: ${suggestedCards}
-- Skapa 1-5 kort beroende på hur många separata ämnen/insikter som diskuteras
-- Korta samtal = 1 kort, långa med flera ämnen = flera kort
-- Varje sammanfattning: 1-4 meningar, max 100 ord
-- Varje kort ska vara självständigt och fånga en distinkt insikt
-- Taggar per kort (2-4 st): ämne, typ (reflektion, fråga, analys, insikt), nyckelbegrepp
-- Skriv på svenska
-- Svara ENDAST med JSON`;
+Instructions:
+- Conversation length is about ${wordCount} words, suggested number of cards: ${suggestedCards}
+- Create 1-5 cards depending on how many distinct topics/insights appear
+- Short conversations = 1 card, longer with multiple topics = multiple cards
+- Each summary: 1-4 sentences, max 100 words
+- Each card should be self-contained and capture one distinct insight
+- Tags per card (2-4): topic, type (reflection, question, analysis, insight), key concepts
+- All tags must be English, lowercase, no hyphens (use spaces).
+- Write the summary in Swedish
+Respond ONLY with JSON`;
 
   const message = await claudeLimiter.enqueue(() =>
     anthropic.messages.create({
-      model: 'claude-sonnet-4-20250514',
+      model: 'claude-sonnet-4-5-20250929',
       max_tokens: 800,
       messages: [{ role: 'user', content: prompt }],
     })
@@ -496,9 +518,7 @@ Instruktioner:
 
     const cards: ChatCardResult[] = (parsed.kort || []).map((card: { sammanfattning?: string; taggar?: string[] }) => ({
       summary: (card.sammanfattning || '').trim(),
-      tags: (card.taggar || [])
-        .map((tag: string) => tag.trim().toLowerCase())
-        .filter((tag: string) => tag.length > 0),
+      tags: normalizeTagList(Array.isArray(card.taggar) ? card.taggar : []),
     })).filter((card: ChatCardResult) => card.summary.length > 0);
 
     return { cards };

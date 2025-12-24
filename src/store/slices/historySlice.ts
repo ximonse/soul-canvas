@@ -8,8 +8,8 @@ const MAX_REDO_STACK = 50;
 
 export interface HistoryState {
   clipboard: MindNode[];
-  undoStack: Array<{ nodes: Map<string, MindNode>; synapses: Synapse[] }>;
-  redoStack: Array<{ nodes: Map<string, MindNode>; synapses: Synapse[] }>;
+  undoStack: Array<{ nodes: Map<string, MindNode>; synapses: Synapse[]; selectedNodeIds: Set<string> }>;
+  redoStack: Array<{ nodes: Map<string, MindNode>; synapses: Synapse[]; selectedNodeIds: Set<string> }>;
   pendingSave: boolean;
 }
 
@@ -24,6 +24,7 @@ export interface HistoryActions {
 interface FullState extends HistoryState {
   nodes: Map<string, MindNode>;
   synapses: Synapse[];
+  selectedNodeIds: Set<string>;
 }
 
 type SetState = (fn: (state: FullState) => Partial<FullState>) => void;
@@ -37,7 +38,9 @@ export const historyInitialState: HistoryState = {
 
 export const createHistorySlice = (set: SetState): HistoryActions => ({
   copySelectedNodes: () => set((state) => {
-    const selectedNodes = Array.from(state.nodes.values()).filter(n => n.selected);
+    const selectedNodes = Array.from(state.selectedNodeIds)
+      .map(id => state.nodes.get(id))
+      .filter((node): node is MindNode => Boolean(node));
     if (selectedNodes.length === 0) return {};
     return { clipboard: selectedNodes };
   }),
@@ -57,13 +60,7 @@ export const createHistorySlice = (set: SetState): HistoryActions => ({
     const clipboardCenterY = (minY + maxY) / 2;
 
     const newNodesMap = new Map(state.nodes);
-
-    // Clear selection on existing nodes
-    newNodesMap.forEach((node, id) => {
-      if (node.selected) {
-        newNodesMap.set(id, { ...node, selected: false });
-      }
-    });
+    const newSelected = new Set<string>();
 
     // Paste nodes with offset
     const pasteTag = 'pasted_' + new Date().toISOString().slice(2, 10).replace(/-/g, '');
@@ -84,7 +81,7 @@ export const createHistorySlice = (set: SetState): HistoryActions => ({
         id: newId,
         x: centerX + offsetX,
         y: centerY + offsetY,
-        selected: true,
+        selected: false,
         tags: [...node.tags, pasteTag],
         createdAt: copiedAt,
         updatedAt: copiedAt,
@@ -93,15 +90,17 @@ export const createHistorySlice = (set: SetState): HistoryActions => ({
         originalCreatedAt,
       };
       newNodesMap.set(newNode.id, newNode);
+      newSelected.add(newNode.id);
     });
 
-    return { nodes: newNodesMap, pendingSave: true };
+    return { nodes: newNodesMap, selectedNodeIds: newSelected, pendingSave: true };
   }),
 
   saveStateForUndo: () => set((state) => {
     const snapshot = {
       nodes: new Map(state.nodes),
-      synapses: [...state.synapses]
+      synapses: [...state.synapses],
+      selectedNodeIds: new Set(state.selectedNodeIds),
     };
 
     const newUndoStack = [...state.undoStack, snapshot];
@@ -120,7 +119,8 @@ export const createHistorySlice = (set: SetState): HistoryActions => ({
 
     const currentSnapshot = {
       nodes: new Map(state.nodes),
-      synapses: [...state.synapses]
+      synapses: [...state.synapses],
+      selectedNodeIds: new Set(state.selectedNodeIds),
     };
 
     const previousState = state.undoStack[state.undoStack.length - 1];
@@ -133,6 +133,7 @@ export const createHistorySlice = (set: SetState): HistoryActions => ({
     return {
       nodes: new Map(previousState.nodes),
       synapses: [...previousState.synapses],
+      selectedNodeIds: new Set(previousState.selectedNodeIds),
       undoStack: newUndoStack,
       redoStack: newRedoStack,
       pendingSave: true
@@ -144,7 +145,8 @@ export const createHistorySlice = (set: SetState): HistoryActions => ({
 
     const currentSnapshot = {
       nodes: new Map(state.nodes),
-      synapses: [...state.synapses]
+      synapses: [...state.synapses],
+      selectedNodeIds: new Set(state.selectedNodeIds),
     };
 
     const nextState = state.redoStack[state.redoStack.length - 1];
@@ -157,6 +159,7 @@ export const createHistorySlice = (set: SetState): HistoryActions => ({
     return {
       nodes: new Map(nextState.nodes),
       synapses: [...nextState.synapses],
+      selectedNodeIds: new Set(nextState.selectedNodeIds),
       undoStack: newUndoStack,
       redoStack: newRedoStack,
       pendingSave: true

@@ -15,7 +15,8 @@ const getNodeSize = (node: MindNode) => {
   }
 
   if (node.type === 'image') {
-    return { width, height: CARD.IMAGE_HEIGHT };
+    // Better default for images if no rendered height exists
+    return { width, height: node.height || CARD.IMAGE_HEIGHT + (node.caption ? 40 : 0) };
   }
 
   // Estimate height for text nodes - MUST match KonvaNode.tsx calculation
@@ -195,8 +196,8 @@ export const arrangeGridVertical = (
       y: columnY[col]
     });
 
-    // Next card in this column starts after this card + gap
-    columnY[col] += height + SPACING.GRID_GAP;
+    // Next card in this column starts after this card + 20px gap (as requested)
+    columnY[col] += height + 20;
   }
 
   return centerArrangement(positions, center);

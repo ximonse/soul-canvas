@@ -21,7 +21,7 @@ export function useAIPanelActions() {
   };
 
   // Counts
-  const selectedCount = (Array.from(store.nodes.values()) as MindNode[]).filter((n: MindNode) => n.selected).length;
+  const selectedCount = store.selectedNodeIds.size;
   const embeddedCount = (Array.from(store.nodes.values()) as MindNode[]).filter((n: MindNode) => n.embedding).length;
   const totalCount = store.nodes.size;
 
@@ -154,7 +154,9 @@ export function useAIPanelActions() {
       return;
     }
 
-    const selectedNodes = (Array.from(store.nodes.values()) as MindNode[]).filter((n: MindNode) => n.selected);
+    const selectedNodes = Array.from(store.selectedNodeIds)
+      .map(id => store.nodes.get(id))
+      .filter(Boolean) as MindNode[];
     if (selectedNodes.length === 0) {
       notify('Välj minst en nod först!', 'info');
       return;

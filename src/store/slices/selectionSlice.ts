@@ -4,7 +4,7 @@
 import type { MindNode } from '../../types/types';
 
 export interface SelectionState {
-  // Selection state is part of nodes (node.selected)
+  selectedNodeIds: Set<string>;
 }
 
 export interface SelectionActions {
@@ -22,57 +22,50 @@ export interface SelectionActions {
   setScopeDegreeOnNodes: (scopeMap: Map<string, number>) => void;
 }
 
-type SetState = (fn: (state: { nodes: Map<string, MindNode> }) => Partial<{ nodes: Map<string, MindNode> }>) => void;
+type SelectionStoreState = {
+  nodes: Map<string, MindNode>;
+  selectedNodeIds: Set<string>;
+};
+
+type SetState = (fn: (state: SelectionStoreState) => Partial<SelectionStoreState>) => void;
 
 export const createSelectionSlice = (set: SetState): SelectionActions => ({
   toggleSelection: (id: string, multi: boolean) => set((state) => {
-    const newNodes = new Map(state.nodes);
+    const nextSelected = new Set(state.selectedNodeIds);
     if (multi) {
-      const node = newNodes.get(id);
-      if (node) {
-        newNodes.set(id, { ...node, selected: !node.selected });
+      if (nextSelected.has(id)) {
+        nextSelected.delete(id);
+      } else {
+        nextSelected.add(id);
       }
     } else {
-      newNodes.forEach((node, nodeId) => {
-        newNodes.set(nodeId, { ...node, selected: nodeId === id });
-      });
+      nextSelected.clear();
+      nextSelected.add(id);
     }
-    return { nodes: newNodes };
+    return { selectedNodeIds: nextSelected };
   }),
 
   selectNodes: (ids: string[]) => set((state) => {
-    const newNodes = new Map(state.nodes);
-    const idSet = new Set(ids);
-    newNodes.forEach((node, nodeId) => {
-      if (idSet.has(nodeId) && !node.selected) {
-        newNodes.set(nodeId, { ...node, selected: true });
-      }
-    });
-    return { nodes: newNodes };
+    if (ids.length === 0) return {};
+    const nextSelected = new Set(state.selectedNodeIds);
+    ids.forEach((id) => nextSelected.add(id));
+    return { selectedNodeIds: nextSelected };
   }),
 
-  selectAll: () => set((state) => {
-    const newNodes = new Map(state.nodes);
-    newNodes.forEach((node, id) => {
-      newNodes.set(id, { ...node, selected: true });
-    });
-    return { nodes: newNodes };
-  }),
+  selectAll: () => set((state) => ({
+    selectedNodeIds: new Set(state.nodes.keys()),
+  })),
 
-  clearSelection: () => set((state) => {
-    const newNodes = new Map(state.nodes);
-    newNodes.forEach((node, id) => {
-      if (node.selected) {
-        newNodes.set(id, { ...node, selected: false });
-      }
-    });
-    return { nodes: newNodes };
-  }),
+  clearSelection: () => set(() => ({
+    selectedNodeIds: new Set(),
+  })),
 
   dragSelectedNodes: (dx, dy) => set((state) => {
+    if (state.selectedNodeIds.size === 0) return {};
     const newNodes = new Map(state.nodes);
-    newNodes.forEach((node, id) => {
-      if (node.selected && !node.pinned) {
+    state.selectedNodeIds.forEach((id) => {
+      const node = newNodes.get(id);
+      if (node && !node.pinned) {
         newNodes.set(id, { ...node, x: node.x + dx, y: node.y + dy });
       }
     });
@@ -80,19 +73,16 @@ export const createSelectionSlice = (set: SetState): SelectionActions => ({
   }),
 
   duplicateSelectedNodes: () => set((state) => {
-    const selectedNodes = Array.from(state.nodes.values()).filter(n => n.selected);
+    const selectedNodes = Array.from(state.selectedNodeIds)
+      .map(id => state.nodes.get(id))
+      .filter((node): node is MindNode => Boolean(node));
     if (selectedNodes.length === 0) return {};
 
     const dateTag = 'card_copy_' + new Date().toISOString().slice(2, 10).replace(/-/g, '');
     const copiedAt = new Date().toISOString();
     const newNodesMap = new Map(state.nodes);
+    const newSelected = new Set<string>();
 
-    // Unselect original nodes
-    selectedNodes.forEach(node => {
-      newNodesMap.set(node.id, { ...node, selected: false });
-    });
-
-    // Add duplicated nodes
     selectedNodes.forEach(node => {
       const newId = crypto.randomUUID();
       const originalCreatedAt = node.originalCreatedAt ?? node.createdAt;
@@ -101,11 +91,11 @@ export const createSelectionSlice = (set: SetState): SelectionActions => ({
           ? node.copyRef.split('-copy-').pop() || node.id
           : node.copyRef)
         : node.id;
-      const newNode = {
+      const newNode: MindNode = {
         ...node,
         id: newId,
         tags: [...node.tags, dateTag],
-        selected: true,
+        selected: false,
         createdAt: copiedAt,
         updatedAt: copiedAt,
         copyRef: originalId,
@@ -113,16 +103,20 @@ export const createSelectionSlice = (set: SetState): SelectionActions => ({
         originalCreatedAt,
       };
       newNodesMap.set(newNode.id, newNode);
+      newSelected.add(newNode.id);
     });
 
-    return { nodes: newNodesMap };
+    return { nodes: newNodesMap, selectedNodeIds: newSelected };
   }),
 
   addTagToSelected: (tag) => set((state) => {
+    const clean = tag.trim();
+    if (!clean) return {};
     const newNodes = new Map(state.nodes);
-    newNodes.forEach((node, id) => {
-      if (node.selected && !node.tags.includes(tag)) {
-        newNodes.set(id, { ...node, tags: [...node.tags, tag] });
+    state.selectedNodeIds.forEach((id) => {
+      const node = newNodes.get(id);
+      if (node && !node.tags.includes(clean)) {
+        newNodes.set(id, { ...node, tags: [...node.tags, clean] });
       }
     });
     return { nodes: newNodes };
@@ -130,8 +124,9 @@ export const createSelectionSlice = (set: SetState): SelectionActions => ({
 
   removeTagFromSelected: (tag) => set((state) => {
     const newNodes = new Map(state.nodes);
-    newNodes.forEach((node, id) => {
-      if (node.selected) {
+    state.selectedNodeIds.forEach((id) => {
+      const node = newNodes.get(id);
+      if (node) {
         newNodes.set(id, { ...node, tags: node.tags.filter(t => t !== tag) });
       }
     });
@@ -149,8 +144,9 @@ export const createSelectionSlice = (set: SetState): SelectionActions => ({
 
   pinSelected: () => set((state) => {
     const newNodes = new Map(state.nodes);
-    newNodes.forEach((node, id) => {
-      if (node.selected) {
+    state.selectedNodeIds.forEach((id) => {
+      const node = newNodes.get(id);
+      if (node) {
         newNodes.set(id, { ...node, pinned: true });
       }
     });
@@ -159,8 +155,9 @@ export const createSelectionSlice = (set: SetState): SelectionActions => ({
 
   unpinSelected: () => set((state) => {
     const newNodes = new Map(state.nodes);
-    newNodes.forEach((node, id) => {
-      if (node.selected) {
+    state.selectedNodeIds.forEach((id) => {
+      const node = newNodes.get(id);
+      if (node) {
         newNodes.set(id, { ...node, pinned: false });
       }
     });
@@ -170,14 +167,14 @@ export const createSelectionSlice = (set: SetState): SelectionActions => ({
   setScopeDegreeOnNodes: (scopeMap: Map<string, number>) => set((state) => {
     const newNodes = new Map(state.nodes);
 
-    // Rensa alla scope-grader fÃ¶rst
+    // Rensa alla scope-grader först
     newNodes.forEach((node, id) => {
       if (node.scopeDegree) {
         newNodes.set(id, { ...node, scopeDegree: undefined });
       }
     });
 
-    // SÃ¤tt nya scope-grader
+    // Sätt nya scope-grader
     scopeMap.forEach((degree, nodeId) => {
       const node = newNodes.get(nodeId);
       if (node) {

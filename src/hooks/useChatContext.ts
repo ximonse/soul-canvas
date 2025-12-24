@@ -39,12 +39,10 @@ export function useChatContext() {
 
   // Lägg till alla markerade kort i chatten
   const addSelectedNodesToContext = useCallback(() => {
-    const selected = (Array.from(store.nodes.values()) as MindNode[])
-      .filter((n: MindNode) => n.selected)
-      .map((n: MindNode) => n.id);
+    const selected = Array.from(store.selectedNodeIds);
     if (selected.length === 0) return;
     setPinnedNodeIds(prev => [...new Set([...prev, ...selected])]);
-  }, [store.nodes]);
+  }, [store.selectedNodeIds]);
 
   // Rensa alla pinnade kort
   const clearPinnedNodes = useCallback(() => {
@@ -54,15 +52,16 @@ export function useChatContext() {
   // Hämta nuvarande kontext-nod-IDs
   const getContextNodeIds = useCallback(() => {
     if (pinnedNodeIds.length > 0) return pinnedNodeIds;
-    const allNodes = Array.from(store.nodes.values()) as MindNode[];
-    const selected = allNodes.filter((n: MindNode) => n.selected);
-    return selected.length > 0 ? selected.map((n: MindNode) => n.id) : [];
-  }, [store.nodes, pinnedNodeIds]);
+    if (store.selectedNodeIds.size > 0) return Array.from(store.selectedNodeIds);
+    return [];
+  }, [store.selectedNodeIds, pinnedNodeIds]);
 
   // Bygg kontext-snippet - LAZY: anropas bara när det behövs
   const buildContextSnippet = useCallback((): ChatContext => {
     const allNodes = Array.from(store.nodes.values()) as MindNode[];
-    const selected = allNodes.filter((n: MindNode) => n.selected);
+    const selected = Array.from(store.selectedNodeIds)
+      .map(id => store.nodes.get(id))
+      .filter(Boolean) as MindNode[];
 
     // Om vi har pinnade noder, använd dem
     if (pinnedNodes.length > 0) {
@@ -101,7 +100,7 @@ export function useChatContext() {
       isSelectedContext: selected.length > 0,
       hasPinnedContext: false
     };
-  }, [store.nodes, pinnedNodes]);
+  }, [store.nodes, store.selectedNodeIds, pinnedNodes]);
 
   return {
     pinnedNodes,

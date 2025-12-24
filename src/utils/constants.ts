@@ -21,7 +21,7 @@ export const CARD = {
 
 // Avstånd och spacing
 export const SPACING = {
-  GRID_GAP: 30, // Gap between cards in grid arrangements
+  GRID_GAP: 20, // Gap between cards in grid arrangements
   GRID_COLUMNS: 5,
   ARRANGEMENT_GAP: 40,
   VIEWPORT_MARGIN: 200, // Extra marginal för viewport culling

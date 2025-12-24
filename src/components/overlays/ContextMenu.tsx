@@ -39,7 +39,9 @@ export function ContextMenu({
 }: ContextMenuProps) {
   const store = useBrainStore();
   const node = store.nodes.get(menu.nodeId);
-  const selectedNodes = (Array.from(store.nodes.values()) as MindNode[]).filter((n: MindNode) => n.selected);
+  const selectedNodes = Array.from(store.selectedNodeIds)
+    .map(id => store.nodes.get(id))
+    .filter(Boolean) as MindNode[];
   const selectedCount = selectedNodes.length;
   const selectedImageCount = selectedNodes.filter((n: MindNode) => n.type === 'image').length;
 
@@ -51,6 +53,16 @@ export function ContextMenu({
 
   const handleFlip = () => {
     store.updateNode(menu.nodeId, { isFlipped: !node.isFlipped });
+    onClose();
+  };
+
+  const handleFlipSelected = () => {
+    // Flippa alla markerade bildkort
+    selectedNodes.forEach((n: MindNode) => {
+      if (n.type === 'image') {
+        store.updateNode(n.id, { isFlipped: !n.isFlipped });
+      }
+    });
     onClose();
   };
 
@@ -110,8 +122,7 @@ export function ContextMenu({
   };
 
   // Check if current node or any selected node has embedding
-  const hasEmbedding = node.embedding ||
-    (Array.from(store.nodes.values()) as MindNode[]).some((n: MindNode) => n.selected && n.embedding);
+  const hasEmbedding = node.embedding || selectedNodes.some((n: MindNode) => n.embedding);
 
   // Session-relaterat
   const isInSession = store.activeSessionId !== null;
@@ -142,6 +153,18 @@ export function ContextMenu({
           Vänd kort
         </button>
       </li>
+
+      {selectedImageCount > 1 && (
+        <li role="none">
+          <button
+            onClick={handleFlipSelected}
+            className="w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-blue-600"
+            role="menuitem"
+          >
+            🔄 Vänd alla markerade ({selectedImageCount})
+          </button>
+        </li>
+      )}
 
       {(node.type === 'image' || selectedImageCount > 0) && (
         <li role="none">

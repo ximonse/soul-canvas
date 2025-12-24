@@ -27,7 +27,7 @@ export interface MindNode {
   comment?: string;        // Dold kommentar (visas vid hover, stödjer markdown/länkar)
   ocrText?: string;        // "Baksidan" av kortet (AI-texten)
   isFlipped?: boolean;     // Om vi tittar på baksidan just nu (sparas ej till fil nödvändigtvis)
-  selected?: boolean;      // För bulk-hantering
+  selected?: boolean;      // Legacy: selection hanteras i store (selectedNodeIds)
   
   // Pin/Lock
   pinned?: boolean;        // Om kortet är låst på plats (kan inte flyttas)

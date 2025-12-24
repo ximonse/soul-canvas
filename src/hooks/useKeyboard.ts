@@ -3,7 +3,6 @@
 
 import { useEffect, useCallback, useRef } from 'react';
 import { useBrainStore } from '../store/useBrainStore';
-import type { MindNode } from '../types/types';
 
 interface KeyboardActions {
   onOpenCommandPalette: () => void;
@@ -50,6 +49,9 @@ interface KeyboardActions {
   onMassImport: () => void;
   onQuoteExtractor: () => void;
   onFocusSearch: () => void;
+  // Flip image cards
+  onFlipAllToText: () => void;
+  onFlipAllToImage: () => void;
 }
 
 function isTyping(): boolean {
@@ -70,6 +72,13 @@ export const gComboState = {
 // Track D key state for sequence chaining (D+click)
 export const dKeyState = {
   pressed: false,
+};
+
+// Track O key state for flip combos (O = show images, O+O = show text)
+export const oComboState = {
+  pressed: false,
+  doublePressed: false,
+  timeout: undefined as number | undefined
 };
 
 export function useKeyboard(
@@ -320,6 +329,33 @@ export function useKeyboard(
       const typing = isTyping();
       const key = e.key.toLowerCase();
 
+      // Handle O+O combo for flipping image cards (only when not typing)
+      if (!typing && key === 'o' && !e.ctrlKey) {
+        if (oComboState.pressed && !oComboState.doublePressed) {
+          // Second O press = O+O (show text on all image cards)
+          e.preventDefault();
+          oComboState.doublePressed = true;
+          if (oComboState.timeout) clearTimeout(oComboState.timeout);
+          actionsRef.current.onFlipAllToText();
+          oComboState.pressed = false;
+          oComboState.doublePressed = false;
+          return;
+        } else if (!oComboState.pressed) {
+          // First O press
+          e.preventDefault();
+          oComboState.pressed = true;
+          oComboState.timeout = window.setTimeout(() => {
+            if (oComboState.pressed && !oComboState.doublePressed) {
+              // Single O (show images on all image cards)
+              actionsRef.current.onFlipAllToImage();
+            }
+            oComboState.pressed = false;
+            oComboState.doublePressed = false;
+          }, 300); // 300ms window for double-press
+          return;
+        }
+      }
+
       // Handle g+combo first (only when not typing)
       if (!typing) {
         // Start g-combo tracking
@@ -340,10 +376,10 @@ export function useKeyboard(
 
         // Check for g+v, g+h, g+t, g+c combos OR standalone v/h
         if (['v', 'h', 't', 'c'].includes(key)) {
-          const currentHasSelection = (Array.from(useBrainStore.getState().nodes.values()) as MindNode[]).some((n: MindNode) => n.selected);
+          const currentHasSelection = useBrainStore.getState().selectedNodeIds.size > 0;
           let handled = false;
 
-          if (gComboState.pressed && currentHasSelection && (key !== 'c' || gComboState.held)) {
+          if (gComboState.held && currentHasSelection && (key !== 'c' || gComboState.held)) {
             // g+key combos: grid arrangements (g+c only when g is held)
             e.preventDefault();
             gComboState.used = true;
@@ -413,9 +449,11 @@ export function useKeyboard(
       const key = e.key.toLowerCase();
       if (key === 'g') {
         if (!isTyping() && !gComboState.used) {
-          const hasSelection = (Array.from(useBrainStore.getState().nodes.values()) as MindNode[]).some(
-            (n: MindNode) => n.selected && !n.pinned,
-          );
+          const state = useBrainStore.getState();
+          const hasSelection = Array.from(state.selectedNodeIds).some((id) => {
+            const node = state.nodes.get(id);
+            return node && !node.pinned;
+          });
           if (hasSelection) {
             actionsRef.current.onArrangeGridVertical();
           }
@@ -454,6 +492,9 @@ export function useKeyboard(
       window.removeEventListener('wheel', handleWheel);
       window.removeEventListener('keyup', handleKeyUp);
       window.removeEventListener('keydown', handleDKeyDown);
+      // Cleanup timers
+      if (gComboState.timeout) clearTimeout(gComboState.timeout);
+      if (oComboState.timeout) clearTimeout(oComboState.timeout);
     };
   }, [handleKeyDown]);
 }

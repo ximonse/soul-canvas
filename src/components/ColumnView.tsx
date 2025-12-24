@@ -46,7 +46,7 @@ export const ColumnView: React.FC<ColumnViewProps> = ({
   onEditCard,
   onContextMenu,
 }) => {
-  const { columnSort, toggleSelection, columnShowComments, columnShowTags } = useBrainStore();
+  const { columnSort, toggleSelection, columnShowComments, columnShowTags, selectedNodeIds } = useBrainStore();
 
   // Sortera nodes
   const sortedNodes = useMemo(
@@ -91,6 +91,7 @@ export const ColumnView: React.FC<ColumnViewProps> = ({
           const connections = countConnections(node.id, synapses);
           const tagCount = (node.tags?.length || 0) + (node.semanticTags?.length || 0);
           const displayTitle = getNodeDisplayTitle(node);
+          const isSelected = selectedNodeIds.has(node.id);
 
           return (
             <div
@@ -99,11 +100,12 @@ export const ColumnView: React.FC<ColumnViewProps> = ({
               onContextMenu={(e) => handleContextMenu(node, e)}
               className="rounded-lg cursor-pointer transition-all hover:scale-[1.01]"
               style={{
-                backgroundColor: node.selected ? theme.node.selectedBg : theme.node.bg,
-                border: `2px solid ${node.selected ? theme.node.selectedBorder : theme.node.border}`,
-                boxShadow: node.selected
+                backgroundColor: isSelected ? theme.node.selectedBg : theme.node.bg,
+                border: `2px solid ${isSelected ? theme.node.selectedBorder : theme.node.border}`,
+                boxShadow: isSelected
                   ? `0 0 12px ${theme.node.selectedShadow}`
                   : `0 2px 4px ${theme.node.shadow}`,
+                fontFamily: "'Noto Serif', Georgia, serif",
               }}
             >
               {/* Accent stripe för Zotero-kort */}
@@ -119,7 +121,7 @@ export const ColumnView: React.FC<ColumnViewProps> = ({
                 <div className="flex items-start gap-3 mb-2">
                   <input
                     type="checkbox"
-                    checked={node.selected || false}
+                    checked={isSelected}
                     onChange={(e) => handleCheckbox(node, e)}
                     onClick={(e) => e.stopPropagation()}
                     className="mt-1 w-4 h-4 cursor-pointer"

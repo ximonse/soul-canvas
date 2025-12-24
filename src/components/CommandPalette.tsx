@@ -94,7 +94,7 @@ export const CommandPalette = ({
     { id: 'embed', name: 'Generate Embeddings', shortcut: 'emb', action: async () => { await intelligence.embedAllNodes(); onClose(); }, category: 'ai', icon: '🧬' },
     { id: 'link', name: 'Auto-Link Similar', shortcut: 'link', action: async () => { await intelligence.autoLinkSimilarNodes(); onClose(); }, category: 'ai', icon: '🔗' },
     { id: 'reflect', name: 'AI Reflection', shortcut: 'ref', action: async () => { await intelligence.reflect(); onClose(); }, category: 'ai', icon: '💭' },
-    { id: 'tags', name: 'Generate Tags', shortcut: 'tag', action: async () => { const selected = (Array.from(store.nodes.values()) as MindNode[]).filter((n: MindNode) => n.selected); for (const n of selected) await intelligence.generateTags(n.id); onClose(); }, category: 'ai', icon: '🏷️' },
+    { id: 'tags', name: 'Generate Tags', shortcut: 'tag', action: async () => { const selected = Array.from(store.selectedNodeIds).map(id => store.nodes.get(id)).filter(Boolean) as MindNode[]; for (const n of selected) await intelligence.generateTags(n.id); onClose(); }, category: 'ai', icon: '🏷️' },
 
     // View Commands
     { id: 'center', name: 'Center Camera', shortcut: '-', action: () => { onCenterCamera(); onClose(); }, category: 'view', icon: '🎯' },
@@ -124,7 +124,7 @@ export const CommandPalette = ({
     { id: 'redo', name: 'Redo', shortcut: 'ctrl+y', action: () => { onRedo(); onClose(); }, category: 'edit', icon: '↪️' },
     { id: 'select-all', name: 'Select All', shortcut: 'ctrl+a', action: () => { store.selectAll(); onClose(); }, category: 'edit', icon: '✨' },
     { id: 'clear', name: 'Clear Selection', shortcut: 'esc', action: () => { store.clearSelection(); onClose(); }, category: 'edit', icon: '❌' },
-    { id: 'delete', name: 'Delete Selected', shortcut: 'del', action: () => { (Array.from(store.nodes.values()) as MindNode[]).filter((n: MindNode) => n.selected).forEach((n: MindNode) => store.removeNode(n.id)); onClose(); }, category: 'edit', icon: '🗑️' },
+    { id: 'delete', name: 'Delete Selected', shortcut: 'del', action: () => { Array.from(store.selectedNodeIds).forEach((id) => store.removeNode(id)); onClose(); }, category: 'edit', icon: '🗑️' },
     { id: 'pin', name: 'Pin/Unpin Selected', shortcut: 'p', action: () => { onTogglePin(); onClose(); }, category: 'edit', icon: '📌' },
 
     // File Commands

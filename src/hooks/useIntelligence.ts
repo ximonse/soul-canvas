@@ -153,6 +153,7 @@ export const useIntelligence = () => {
 
     try {
       setIsProcessing(true);
+      store.setNodeAIProcessing(nodeId, 'claude');
       store.setNodeTagging(nodeId, true);  // Start tagging animation
       const result = await generateSemanticTags(node, store.claudeKey);
 
@@ -174,6 +175,7 @@ export const useIntelligence = () => {
       return { practical: [], hidden: [] };
     } finally {
       store.setNodeTagging(nodeId, false);  // Stop tagging animation
+      store.setNodeAIProcessing(nodeId, null);
       setIsProcessing(false);
     }
   }, [store]);
@@ -186,7 +188,9 @@ export const useIntelligence = () => {
     const key = currentState.claudeKey;
     if (!key) return 0;
 
-    const selected = (Array.from(currentState.nodes.values()) as MindNode[]).filter((n: MindNode) => n.selected);
+    const selected = Array.from(currentState.selectedNodeIds)
+      .map(id => currentState.nodes.get(id))
+      .filter(Boolean) as MindNode[];
     const targets: MindNode[] = nodeId
       ? [currentState.nodes.get(nodeId)].filter(Boolean) as MindNode[]
       : (selected.length > 0 ? selected : []);
@@ -197,10 +201,15 @@ export const useIntelligence = () => {
     setIsProcessing(true);
     try {
       for (const node of targets as MindNode[]) {
-        const summary = await generateNodeSummaryComment(node as MindNode, key);
-        if (summary) {
-          currentState.updateNode(node.id, { comment: summary });
-          updated++;
+        currentState.setNodeAIProcessing(node.id, 'claude');
+        try {
+          const summary = await generateNodeSummaryComment(node as MindNode, key);
+          if (summary) {
+            currentState.updateNode(node.id, { comment: summary });
+            updated++;
+          }
+        } finally {
+          currentState.setNodeAIProcessing(node.id, null);
         }
       }
       return updated;
@@ -217,7 +226,9 @@ export const useIntelligence = () => {
     const key = currentState.claudeKey;
     if (!key) return 0;
 
-    const selected = (Array.from(currentState.nodes.values()) as MindNode[]).filter((n: MindNode) => n.selected);
+    const selected = Array.from(currentState.selectedNodeIds)
+      .map(id => currentState.nodes.get(id))
+      .filter(Boolean) as MindNode[];
     const targets: MindNode[] = nodeId
       ? [currentState.nodes.get(nodeId)].filter(Boolean) as MindNode[]
       : (selected.length > 0 ? selected : []);
@@ -228,10 +239,15 @@ export const useIntelligence = () => {
     setIsProcessing(true);
     try {
       for (const node of targets as MindNode[]) {
-        const title = await generateNodeTitle(node as MindNode, key);
-        if (title) {
-          currentState.updateNode(node.id, { title });
-          updated++;
+        currentState.setNodeAIProcessing(node.id, 'claude');
+        try {
+          const title = await generateNodeTitle(node as MindNode, key);
+          if (title) {
+            currentState.updateNode(node.id, { title });
+            updated++;
+          }
+        } finally {
+          currentState.setNodeAIProcessing(node.id, null);
         }
       }
       return updated;
@@ -246,7 +262,9 @@ export const useIntelligence = () => {
   const reflect = useCallback(async (): Promise<AIReflection | null> => {
     if (!store.claudeKey) return null;
 
-    const selectedNodes = (Array.from(store.nodes.values()) as MindNode[]).filter((n: MindNode) => n.selected);
+    const selectedNodes = Array.from(store.selectedNodeIds)
+      .map(id => store.nodes.get(id))
+      .filter(Boolean) as MindNode[];
     const nodesToAnalyze: MindNode[] = selectedNodes.length > 0 ? selectedNodes : Array.from(store.nodes.values()) as MindNode[];
 
     if (nodesToAnalyze.length === 0) return null;
@@ -270,7 +288,9 @@ export const useIntelligence = () => {
   const analyzeSelectedCluster = useCallback(async (): Promise<string | null> => {
     if (!store.claudeKey) return null;
 
-    const selectedNodes = (Array.from(store.nodes.values()) as MindNode[]).filter((n: MindNode) => n.selected);
+    const selectedNodes = Array.from(store.selectedNodeIds)
+      .map(id => store.nodes.get(id))
+      .filter(Boolean) as MindNode[];
     if (selectedNodes.length < 2) return null;
 
     try {
@@ -338,7 +358,9 @@ export const useIntelligence = () => {
     const currentState = useBrainStore.getState();
     const allNodes = (Array.from(currentState.nodes.values()) as MindNode[])
       .filter((n: MindNode) => !isCopyNode(n));
-    const selectedNodes = allNodes.filter((n: MindNode) => n.selected);
+    const selectedNodes = Array.from(currentState.selectedNodeIds)
+      .map(id => currentState.nodes.get(id))
+      .filter(Boolean) as MindNode[];
 
     if (selectedNodes.length === 0) return 0;
 

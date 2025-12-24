@@ -108,17 +108,17 @@ function App() {
 
   // Computed
   const selectedNodesCount = useMemo(() =>
-    (Array.from(store.nodes.values()) as MindNode[]).filter((n: MindNode) => n.selected).length,
-    [store.nodes]
+    store.selectedNodeIds.size,
+    [store.selectedNodeIds]
   );
   const visibleNodeIds = useMemo(() =>
     new Set(filteredNodesArray.map((n: MindNode) => n.id)),
     [filteredNodesArray]
   );
   const firstSelectedNodeId = useMemo(() => {
-    const selected = (Array.from(store.nodes.values()) as MindNode[]).find((n: MindNode) => n.selected);
-    return selected?.id || null;
-  }, [store.nodes]);
+    const first = store.selectedNodeIds.values().next();
+    return first.done ? null : first.value;
+  }, [store.selectedNodeIds]);
 
   // Import handlers
   const { handleDrop } = useImportHandlers({ canvas, hasFile, saveAsset });
@@ -133,7 +133,9 @@ function App() {
   });
 
   const handleAutoTag = useCallback(async (id: string) => {
-    const selected = (Array.from(store.nodes.values()) as MindNode[]).filter((n: MindNode) => n.selected);
+    const selected = Array.from(store.selectedNodeIds)
+      .map(nodeId => store.nodes.get(nodeId))
+      .filter(Boolean) as MindNode[];
     const targets = selected.length > 0 ? selected : [store.nodes.get(id)].filter(Boolean) as MindNode[];
     if (targets.length === 0) return;
     store.saveStateForUndo();
@@ -159,7 +161,9 @@ function App() {
   }, [store]);
 
   const handleTogglePin = useCallback(() => {
-    const selected = (Array.from(store.nodes.values()) as MindNode[]).filter((n: MindNode) => n.selected);
+    const selected = Array.from(store.selectedNodeIds)
+      .map(nodeId => store.nodes.get(nodeId))
+      .filter(Boolean) as MindNode[];
     if (selected.length === 0) return;
     if (selected.some((n: MindNode) => n.pinned)) {
       store.unpinSelected();

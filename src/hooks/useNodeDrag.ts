@@ -4,7 +4,6 @@
 import { useState, useCallback } from 'react';
 import type Konva from 'konva';
 import { useBrainStore } from '../store/useBrainStore';
-import type { MindNode } from '../types/types';
 
 interface UseNodeDragOptions {
   nodeId: string;
@@ -36,10 +35,7 @@ export function useNodeDrag({
   const [initialY, setInitialY] = useState(0);
 
   const getSelectedCount = useCallback(() => {
-    const nodes = useBrainStore.getState().nodes;
-    let count = 0;
-    nodes.forEach((n: MindNode) => { if (n.selected) count++; });
-    return count;
+    return useBrainStore.getState().selectedNodeIds.size;
   }, []);
 
   const handleDragStart = useCallback((e: Konva.KonvaEventObject<DragEvent>, groupRef: React.RefObject<Konva.Group>) => {
@@ -60,10 +56,11 @@ export function useNodeDrag({
       const dx = currentX - initialX;
       const dy = currentY - initialY;
 
-      const selectedNodes = (Array.from(useBrainStore.getState().nodes.values()) as MindNode[])
-        .filter((n: MindNode) => n.selected && n.id !== nodeId);
-
-      selectedNodes.forEach((selectedNode: MindNode) => {
+      const state = useBrainStore.getState();
+      state.selectedNodeIds.forEach((selectedId) => {
+        if (selectedId === nodeId) return;
+        const selectedNode = state.nodes.get(selectedId);
+        if (!selectedNode) return;
         const stage = e.target.getStage();
         if (!stage) return;
         const otherGroup = stage.findOne(`#konva-node-${selectedNode.id}`) as Konva.Group;

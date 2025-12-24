@@ -122,7 +122,9 @@ export function useKeyboardHandlers({
       }
 
       // Kolla om valda kort är del av en sekvens - ta bort dem från sekvensen
-      const selected = (Array.from(store.nodes.values()) as MindNode[]).filter((n: MindNode) => n.selected);
+      const selected = Array.from(store.selectedNodeIds)
+        .map(id => store.nodes.get(id))
+        .filter(Boolean) as MindNode[];
       if (selected.length > 0) {
         let removedFromSequence = false;
         selected.forEach((node: MindNode) => {
@@ -156,7 +158,9 @@ export function useKeyboardHandlers({
     onToggleAIPanel: () => setShowAIPanel((prev: boolean) => !prev),
 
     onPin: () => {
-      const selected = (Array.from(store.nodes.values()) as MindNode[]).filter((n: MindNode) => n.selected);
+      const selected = Array.from(store.selectedNodeIds)
+        .map(id => store.nodes.get(id))
+        .filter(Boolean) as MindNode[];
       if (selected.some((n: MindNode) => n.pinned)) {
         store.unpinSelected();
       } else {
@@ -175,7 +179,9 @@ export function useKeyboardHandlers({
 
       // Kör om layouten live med färre iterationer för snabbare respons
       const allNodes = Array.from(store.nodes.values()) as MindNode[];
-      const selectedNodes = allNodes.filter((n: MindNode) => n.selected);
+      const selectedNodes = Array.from(store.selectedNodeIds)
+        .map(id => store.nodes.get(id))
+        .filter(Boolean) as MindNode[];
 
       // Filtrera synapser baserat på visibility threshold först
       const visibleSynapses = store.synapses.filter((s: { similarity?: number }) =>
@@ -319,6 +325,16 @@ export function useKeyboardHandlers({
       } else {
         search.openSearch();
       }
+    },
+
+    // Flip image cards
+    onFlipAllToText: () => {
+      store.saveStateForUndo();
+      store.flipAllImageCardsToText();
+    },
+    onFlipAllToImage: () => {
+      store.saveStateForUndo();
+      store.flipAllImageCardsToImage();
     },
   }, selectedNodesCount > 0);
 }
