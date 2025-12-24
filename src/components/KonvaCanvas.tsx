@@ -1,5 +1,5 @@
 // src/components/KonvaCanvas.tsx
-import React, { useRef, useEffect, useState, useMemo } from 'react';
+import React, { useRef, useEffect, useState, useMemo, useCallback } from 'react';
 import { Stage, Layer, Rect, Line } from 'react-konva';
 import type Konva from 'konva';
 import type { KonvaEventObject } from 'konva/lib/Node';
@@ -10,7 +10,7 @@ import { useViewportCulling } from '../hooks/useViewportCulling';
 import KonvaNode from './KonvaNode';
 import { SynapseLines, SequenceArrows } from './canvas';
 import { THEMES } from '../themes';
-import { ZOOM } from '../utils/constants';
+import { VIEWPORT, ZOOM } from '../utils/constants';
 import type { MindNode, GravitatingNode, GravitatingColorMode, Trail } from '../types/types';
 import { getGravitatingColor, getSemanticThemeColor } from '../utils/nodeStyles';
 
@@ -57,7 +57,15 @@ const KonvaCanvas: React.FC<KonvaCanvasProps> = ({
   onContextMenu,
   onZoomChange,
 }) => {
-  const store = useBrainStore();
+  const nodesMap = useBrainStore((state) => state.nodes);
+  const addNode = useBrainStore((state) => state.addNode);
+  const clearSelection = useBrainStore((state) => state.clearSelection);
+  const selectNodes = useBrainStore((state) => state.selectNodes);
+  const showSynapseLines = useBrainStore((state) => state.showSynapseLines);
+  const synapses = useBrainStore((state) => state.synapses);
+  const synapseVisibilityThreshold = useBrainStore((state) => state.synapseVisibilityThreshold);
+  const sequences = useBrainStore((state) => state.sequences);
+  const activeSequence = useBrainStore((state) => state.activeSequence);
   const internalStageRef = useRef<Konva.Stage>(null);
   const stageRef = externalStageRef || internalStageRef;
   const [stageDimensions, setStageDimensions] = useState({
@@ -65,6 +73,8 @@ const KonvaCanvas: React.FC<KonvaCanvasProps> = ({
     height: window.innerHeight
   });
   const [isDraggingNode, setIsDraggingNode] = useState(false);
+  const handleNodeDragStart = useCallback(() => setIsDraggingNode(true), [setIsDraggingNode]);
+  const handleNodeDragEnd = useCallback(() => setIsDraggingNode(false), [setIsDraggingNode]);
 
   // Selection rectangle state
   const [selectionRect, setSelectionRect] = useState<{
@@ -75,13 +85,13 @@ const KonvaCanvas: React.FC<KonvaCanvasProps> = ({
     visible: boolean;
   } | null>(null);
 
-  // Initialize stage position once on mount
+  // Keep stage transform in sync with canvas view
   useEffect(() => {
     if (stageRef.current) {
       stageRef.current.position({ x: canvas.view.x, y: canvas.view.y });
       stageRef.current.scale({ x: canvas.view.k, y: canvas.view.k });
     }
-  }, []); // Only run once on mount
+  }, [canvas.view.x, canvas.view.y, canvas.view.k, stageRef]);
 
   const theme = THEMES[currentThemeKey];
   const filteredNodesMap = useMemo(() => {
@@ -104,7 +114,7 @@ const KonvaCanvas: React.FC<KonvaCanvasProps> = ({
   const { visibleNodes } = useViewportCulling({
     nodes,
     view: canvas.view,
-    enabled: nodes.length > 50,
+    enabled: nodes.length > VIEWPORT.CULLING_THRESHOLD,
   });
 
   useEffect(() => {
@@ -175,7 +185,7 @@ const KonvaCanvas: React.FC<KonvaCanvasProps> = ({
 
       const worldPos = toWorldPosition(stage, pointer);
 
-      store.addNode('', worldPos.x, worldPos.y, 'text');
+      addNode('', worldPos.x, worldPos.y, 'text');
     }
   };
 
@@ -192,7 +202,7 @@ const KonvaCanvas: React.FC<KonvaCanvasProps> = ({
     const worldPos = toWorldPosition(stage, pointer);
 
     if (!e.evt.ctrlKey && !e.evt.metaKey) {
-      store.clearSelection();
+      clearSelection();
     }
 
     if (e.evt.ctrlKey || e.evt.metaKey) {
@@ -206,7 +216,7 @@ const KonvaCanvas: React.FC<KonvaCanvasProps> = ({
     }
   };
 
-  const handleStageMouseMove = (_e: KonvaEventObject<MouseEvent>) => {
+  const handleStageMouseMove = () => {
     const stage = stageRef.current;
     if (!stage) return;
 
@@ -225,7 +235,7 @@ const KonvaCanvas: React.FC<KonvaCanvasProps> = ({
     });
   };
 
-  const handleStageMouseUp = (_e: KonvaEventObject<MouseEvent>) => {
+  const handleStageMouseUp = () => {
     if (!selectionRect || !selectionRect.visible) return;
 
     const x1 = Math.min(selectionRect.x1, selectionRect.x2);
@@ -233,13 +243,13 @@ const KonvaCanvas: React.FC<KonvaCanvasProps> = ({
     const x2 = Math.max(selectionRect.x1, selectionRect.x2);
     const y2 = Math.max(selectionRect.y1, selectionRect.y2);
 
-    const allNodes = Array.from(store.nodes.values()) as MindNode[];
+    const allNodes = Array.from(nodesMap.values()) as MindNode[];
     const idsToSelect = allNodes
       .filter((node: MindNode) => node.x >= x1 && node.x <= x2 && node.y >= y1 && node.y <= y2)
       .map((node: MindNode) => node.id);
 
     if (idsToSelect.length > 0) {
-      store.selectNodes(idsToSelect);
+      selectNodes(idsToSelect);
     }
 
     setSelectionRect(null);
@@ -261,11 +271,11 @@ const KonvaCanvas: React.FC<KonvaCanvasProps> = ({
     >
       <Layer>
         {/* Synapse lines */}
-        {store.showSynapseLines && (
+        {showSynapseLines && (
           <SynapseLines
-            synapses={store.synapses}
+            synapses={synapses}
             nodes={filteredNodesMap}
-            visibilityThreshold={store.synapseVisibilityThreshold}
+            visibilityThreshold={synapseVisibilityThreshold}
             scale={canvas.view.k}
           />
         )}
@@ -368,8 +378,8 @@ const KonvaCanvas: React.FC<KonvaCanvasProps> = ({
               gravitatingSemanticTheme={gravitatingInfo?.semanticTheme}
               gravitatingColorMode={gravitatingColorMode}
               onEditCard={onEditCard}
-              onDragStart={() => setIsDraggingNode(true)}
-              onDragEnd={() => setIsDraggingNode(false)}
+              onDragStart={handleNodeDragStart}
+              onDragEnd={handleNodeDragEnd}
               onContextMenu={onContextMenu}
             />
           );
@@ -391,8 +401,8 @@ const KonvaCanvas: React.FC<KonvaCanvasProps> = ({
 
         {/* Sequence arrows */}
         <SequenceArrows
-          sequences={store.sequences}
-          activeSequence={store.activeSequence}
+          sequences={sequences}
+          activeSequence={activeSequence}
           nodes={filteredNodesMap}
           scale={canvas.view.k}
         />

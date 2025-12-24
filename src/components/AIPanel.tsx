@@ -43,7 +43,6 @@ export const AIPanel = ({ theme, onClose, onDiscussReflection }: AIPanelProps) =
     clusterInsight,
     showReflection,
     setShowReflection,
-    status: _status,
     selectedCount,
     embeddedCount,
     totalCount,

@@ -14,12 +14,12 @@ interface RateLimiterConfig {
 interface QueuedRequest<T> {
   fn: () => Promise<T>;
   resolve: (value: T) => void;
-  reject: (error: any) => void;
+  reject: (error: unknown) => void;
   retries: number;
 }
 
 export class RateLimiter {
-  private queue: QueuedRequest<any>[] = [];
+  private queue: QueuedRequest<unknown>[] = [];
   private processing = false;
   private requestTimes: number[] = [];
   private config: RateLimiterConfig;
@@ -66,7 +66,7 @@ export class RateLimiter {
         const result = await request.fn();
         this.recordRequest();
         request.resolve(result);
-      } catch (error: any) {
+      } catch (error) {
         // Handle rate limit errors (429)
         if (this.isRateLimitError(error) && request.retries < this.config.maxRetries) {
           // Exponential backoff
@@ -123,11 +123,12 @@ export class RateLimiter {
   /**
    * Check if error is a rate limit error
    */
-  private isRateLimitError(error: any): boolean {
+  private isRateLimitError(error: unknown): boolean {
+    const err = error as { status?: number; code?: string; message?: string } | null | undefined;
     return (
-      error?.status === 429 ||
-      error?.code === 'rate_limit_exceeded' ||
-      error?.message?.toLowerCase().includes('rate limit')
+      err?.status === 429 ||
+      err?.code === 'rate_limit_exceeded' ||
+      err?.message?.toLowerCase().includes('rate limit')
     );
   }
 

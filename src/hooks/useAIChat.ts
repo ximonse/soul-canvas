@@ -140,7 +140,7 @@ export function useAIChat({ initialProvider = 'claude' }: UseAIChatOptions = {})
     } finally {
       setIsSending(false);
     }
-  }, [provider, store, messages, context, memory, ensureConversation]);
+  }, [provider, store, messages, context, memory, ensureConversation, openaiModel, geminiModel]);
 
   // Starta chatten med en reflektion
   const startWithReflection = useCallback((reflection: string) => {

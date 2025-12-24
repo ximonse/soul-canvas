@@ -94,7 +94,7 @@ function getWeekNumber(date: Date): number {
 const normalizeTag = (tag: string): string => {
   const normalized = tag
     .toLowerCase()
-    .replace(/[\/_-]+/g, ' ')
+    .replace(/[/_-]+/g, ' ')
     .replace(/[^\p{L}\p{N}\s]/gu, '')
     .replace(/\s+/g, ' ')
     .trim();
@@ -277,7 +277,7 @@ ${baseText.substring(0, 800)}
   );
 
   const text = message.content[0].type === 'text' ? message.content[0].text : '';
-  return text.trim().replace(/^\["'\-\s]+|["'\s]+$/g, '');
+  return text.trim().replace(/^["'\s-]+|["'\s]+$/g, '');
 };
 
 /**

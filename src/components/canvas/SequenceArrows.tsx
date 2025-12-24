@@ -55,7 +55,7 @@ const getEdgeToEdgePoints = (
   return { fromX, fromY, toX, toY };
 };
 
-export const SequenceArrows: React.FC<SequenceArrowsProps> = ({
+const SequenceArrowsComponent: React.FC<SequenceArrowsProps> = ({
   sequences,
   activeSequence,
   nodes,
@@ -113,3 +113,5 @@ export const SequenceArrows: React.FC<SequenceArrowsProps> = ({
     </>
   );
 };
+
+export const SequenceArrows = React.memo(SequenceArrowsComponent);

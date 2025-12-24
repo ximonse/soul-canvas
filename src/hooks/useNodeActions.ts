@@ -179,7 +179,7 @@ export function useNodeActions({ stageRef, canvas, setShowSettings, setContextMe
       }
 
       store.updateNode(id, updates);
-    } catch (error) {
+    } catch {
       store.updateNode(id, { ocrText: 'OCR misslyckades' });
     } finally {
       store.setNodeAIProcessing(id, null);

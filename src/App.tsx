@@ -37,26 +37,57 @@ const THEME_KEYS = Object.keys(THEMES);
 function App() {
   // Core hooks
   const { openFile, saveFile, saveAsset, hasFile } = useFileSystem();
-  const store = useBrainStore();
-  const { pendingSave, setPendingSave } = store;
+  const nodes = useBrainStore((state) => state.nodes);
+  const synapses = useBrainStore((state) => state.synapses);
+  const sessions = useBrainStore((state) => state.sessions);
+  const activeSessionId = useBrainStore((state) => state.activeSessionId);
+  const includeTags = useBrainStore((state) => state.includeTags);
+  const excludeTags = useBrainStore((state) => state.excludeTags);
+  const selectedNodeIds = useBrainStore((state) => state.selectedNodeIds);
+  const claudeKey = useBrainStore((state) => state.claudeKey);
+  const enableAutoLink = useBrainStore((state) => state.enableAutoLink);
+  const viewMode = useBrainStore((state) => state.viewMode);
+  const pendingSave = useBrainStore((state) => state.pendingSave);
+  const setPendingSave = useBrainStore((state) => state.setPendingSave);
+  const saveStateForUndo = useBrainStore((state) => state.saveStateForUndo);
+  const addTagToSelected = useBrainStore((state) => state.addTagToSelected);
+  const clearSelection = useBrainStore((state) => state.clearSelection);
+  const toggleSelection = useBrainStore((state) => state.toggleSelection);
+  const unpinSelected = useBrainStore((state) => state.unpinSelected);
+  const pinSelected = useBrainStore((state) => state.pinSelected);
+  const addNodeWithId = useBrainStore((state) => state.addNodeWithId);
+  const updateNode = useBrainStore((state) => state.updateNode);
+  const addNode = useBrainStore((state) => state.addNode);
+  const toggleViewMode = useBrainStore((state) => state.toggleViewMode);
+  const createSession = useBrainStore((state) => state.createSession);
+  const deleteSession = useBrainStore((state) => state.deleteSession);
+  const switchSession = useBrainStore((state) => state.switchSession);
+  const renameSession = useBrainStore((state) => state.renameSession);
+  const toggleTagFilter = useBrainStore((state) => state.toggleTagFilter);
+  const clearTagFilter = useBrainStore((state) => state.clearTagFilter);
+  const addCardsToSession = useBrainStore((state) => state.addCardsToSession);
+  const copySelectedNodes = useBrainStore((state) => state.copySelectedNodes);
+  const undo = useBrainStore((state) => state.undo);
+  const redo = useBrainStore((state) => state.redo);
+  const pasteNodes = useBrainStore((state) => state.pasteNodes);
   const intelligence = useIntelligence();
   const aiChat = useAIChat();
   const canvas = useCanvas();
   const stageRef = useRef<Konva.Stage>(null);
 
   // Session-filtrering: först session, sedan taggar
-  const allNodesArray = useMemo(() => Array.from(store.nodes.values()) as MindNode[], [store.nodes]);
+  const allNodesArray = useMemo(() => Array.from(nodes.values()) as MindNode[], [nodes]);
   const activeSession = useMemo(
-    () => store.activeSessionId ? store.sessions.find((s: Session) => s.id === store.activeSessionId) || null : null,
-    [store.activeSessionId, store.sessions]
+    () => activeSessionId ? sessions.find((s: Session) => s.id === activeSessionId) || null : null,
+    [activeSessionId, sessions]
   );
   const sessionFilteredNodes = useMemo(
     () => filterNodesBySession(allNodesArray, activeSession),
     [allNodesArray, activeSession]
   );
   const filteredNodesArray = useMemo(() =>
-    filterNodesByTags(sessionFilteredNodes, store.includeTags, store.excludeTags),
-    [sessionFilteredNodes, store.includeTags, store.excludeTags]
+    filterNodesByTags(sessionFilteredNodes, includeTags, excludeTags),
+    [sessionFilteredNodes, includeTags, excludeTags]
   );
   const filteredNodesMap = useMemo(
     () => new Map<string, MindNode>(filteredNodesArray.map((n: MindNode) => [n.id, n] as const)),
@@ -108,17 +139,17 @@ function App() {
 
   // Computed
   const selectedNodesCount = useMemo(() =>
-    store.selectedNodeIds.size,
-    [store.selectedNodeIds]
+    selectedNodeIds.size,
+    [selectedNodeIds]
   );
   const visibleNodeIds = useMemo(() =>
     new Set(filteredNodesArray.map((n: MindNode) => n.id)),
     [filteredNodesArray]
   );
   const firstSelectedNodeId = useMemo(() => {
-    const first = store.selectedNodeIds.values().next();
+    const first = selectedNodeIds.values().next();
     return first.done ? null : first.value;
-  }, [store.selectedNodeIds]);
+  }, [selectedNodeIds]);
 
   // Import handlers
   const { handleDrop } = useImportHandlers({ canvas, hasFile, saveAsset });
@@ -133,16 +164,16 @@ function App() {
   });
 
   const handleAutoTag = useCallback(async (id: string) => {
-    const selected = Array.from(store.selectedNodeIds)
-      .map(nodeId => store.nodes.get(nodeId))
+    const selected = Array.from(selectedNodeIds)
+      .map(nodeId => nodes.get(nodeId))
       .filter(Boolean) as MindNode[];
-    const targets = selected.length > 0 ? selected : [store.nodes.get(id)].filter(Boolean) as MindNode[];
+    const targets = selected.length > 0 ? selected : [nodes.get(id)].filter(Boolean) as MindNode[];
     if (targets.length === 0) return;
-    store.saveStateForUndo();
+    saveStateForUndo();
     for (const node of targets) {
       await intelligence.generateTags(node.id);
     }
-  }, [store, intelligence]);
+  }, [selectedNodeIds, nodes, saveStateForUndo, intelligence]);
 
   const handleSummarizeToComment = useCallback((id: string) => {
     intelligence.summarizeToComment(id);
@@ -155,22 +186,22 @@ function App() {
   const handleTagSelected = useCallback(() => {
     const tag = window.prompt('Ange tagg att lägga till på markerade kort:');
     if (tag && tag.trim()) {
-      store.saveStateForUndo();
-      store.addTagToSelected(tag.trim());
+      saveStateForUndo();
+      addTagToSelected(tag.trim());
     }
-  }, [store]);
+  }, [addTagToSelected, saveStateForUndo]);
 
   const handleTogglePin = useCallback(() => {
-    const selected = Array.from(store.selectedNodeIds)
-      .map(nodeId => store.nodes.get(nodeId))
+    const selected = Array.from(selectedNodeIds)
+      .map(nodeId => nodes.get(nodeId))
       .filter(Boolean) as MindNode[];
     if (selected.length === 0) return;
     if (selected.some((n: MindNode) => n.pinned)) {
-      store.unpinSelected();
+      unpinSelected();
     } else {
-      store.pinSelected();
+      pinSelected();
     }
-  }, [store]);
+  }, [selectedNodeIds, nodes, pinSelected, unpinSelected]);
 
   // Simple callbacks
   const handleManualSave = useCallback(() => {
@@ -185,9 +216,9 @@ function App() {
 
   const handleSearchConfirm = useCallback(() => {
     const ids = search.confirmSearch();
-    store.clearSelection();
-    ids.forEach(id => store.toggleSelection(id, true));
-  }, [search, store]);
+    clearSelection();
+    ids.forEach(id => toggleSelection(id, true));
+  }, [search, clearSelection, toggleSelection]);
 
   // Callback för att starta reflektionschat från AIPanel
   const handleDiscussReflection = useCallback((reflection: string) => {
@@ -197,9 +228,13 @@ function App() {
     setIsChatMinimized(false);
   }, [aiChat]);
 
+  const handleContextMenu = useCallback((nodeId: string, pos: { x: number; y: number }) => {
+    setContextMenu({ nodeId, x: pos.x, y: pos.y });
+  }, [setContextMenu]);
+
   // Callback för att spara chat som kort (ett eller flera beroende på innehåll)
   const handleSaveChatAsCard = useCallback(async () => {
-    if (!store.claudeKey) {
+    if (!claudeKey) {
       alert('Claude API-nyckel saknas för att sammanfatta chatten');
       return;
     }
@@ -207,7 +242,7 @@ function App() {
     setIsSavingChat(true);
     try {
       // Sammanfatta chatten (AI bestämmer antal kort)
-      const { cards } = await summarizeChatToCard(aiChat.messages, store.claudeKey);
+      const { cards } = await summarizeChatToCard(aiChat.messages, claudeKey);
 
       if (cards.length === 0) {
         alert('Kunde inte sammanfatta chatten');
@@ -221,7 +256,7 @@ function App() {
         .join('\n\n---\n\n');
 
       // Skapa kort i mitten av skärmen, arrangerade horisontellt
-      store.saveStateForUndo();
+      saveStateForUndo();
       const centerPos = canvas.screenToWorld(window.innerWidth / 2, window.innerHeight / 2);
       const cardWidth = 280;
       const gap = 40;
@@ -231,10 +266,10 @@ function App() {
       cards.forEach((card, index) => {
         const nodeId = crypto.randomUUID();
         const x = startX + index * (cardWidth + gap);
-        store.addNodeWithId(nodeId, card.summary, x, centerPos.y, 'text');
+        addNodeWithId(nodeId, card.summary, x, centerPos.y, 'text');
 
         // Lägg till comment och tags
-        store.updateNode(nodeId, {
+        updateNode(nodeId, {
           comment: cards.length > 1
             ? `[Del ${index + 1} av ${cards.length}]\n\n${chatMarkdown}`
             : chatMarkdown,
@@ -249,7 +284,7 @@ function App() {
     } finally {
       setIsSavingChat(false);
     }
-  }, [aiChat.messages, store, canvas]);
+  }, [aiChat.messages, claudeKey, saveStateForUndo, addNodeWithId, updateNode, canvas]);
 
   // Keyboard shortcuts
   useKeyboardHandlers({
@@ -279,7 +314,7 @@ function App() {
     onToggleSessionPanel: () => setShowSessionPanel(prev => !prev),
     isSessionPanelOpen: showSessionPanel,
     onCloseSessionPanel: () => setShowSessionPanel(false),
-    onToggleViewMode: store.toggleViewMode,
+    onToggleViewMode: toggleViewMode,
     setZenMode,
     setShowSettings,
     setContextMenu,
@@ -320,13 +355,13 @@ function App() {
 
   // Auto-link effect
   useEffect(() => {
-    if (store.enableAutoLink) {
-      const nodesWithNewEmbeddings = (Array.from(store.nodes.values()) as MindNode[]).filter(
+    if (enableAutoLink) {
+      const nodesWithNewEmbeddings = (Array.from(nodes.values()) as MindNode[]).filter(
         (n: MindNode) => n.embedding && n.lastEmbedded && new Date(n.lastEmbedded).getTime() > Date.now() - 5000
       );
       if (nodesWithNewEmbeddings.length > 0) intelligence.autoLinkSimilarNodes();
     }
-  }, [store.nodes, store.enableAutoLink, intelligence]);
+  }, [nodes, enableAutoLink, intelligence]);
 
   return (
     <div
@@ -335,7 +370,7 @@ function App() {
       onDragLeave={() => setIsDraggingFile(false)}
       onDrop={(e) => { setIsDraggingFile(false); handleDrop(e); }}
     >
-      {store.viewMode === 'canvas' ? (
+      {viewMode === 'canvas' ? (
         <KonvaCanvas
           currentThemeKey={currentThemeKey}
           onEditCard={setEditingCardId}
@@ -350,16 +385,16 @@ function App() {
           activeTrail={wandering.activeTrail}
           selectedTrails={wandering.selectedTrails}
           showActiveTrailLine={wandering.showActiveTrailLine}
-          onContextMenu={(nodeId, pos) => setContextMenu({ nodeId, x: pos.x, y: pos.y })}
+          onContextMenu={handleContextMenu}
           onZoomChange={setCurrentZoom}
         />
       ) : (
         <ColumnView
           nodes={filteredNodesArray}
-          synapses={store.synapses}
+          synapses={synapses}
           theme={theme}
           onEditCard={setEditingCardId}
-          onContextMenu={(nodeId, pos) => setContextMenu({ nodeId, x: pos.x, y: pos.y })}
+          onContextMenu={handleContextMenu}
         />
       )}
 
@@ -389,23 +424,23 @@ function App() {
             localStorage.setItem('soul-canvas-theme', THEME_KEYS[newIndex]);
             return newIndex;
           })}
-          sessions={store.sessions}
-          activeSessionId={store.activeSessionId}
-          onCreateSession={store.createSession}
-          onDeleteSession={store.deleteSession}
-          onSwitchSession={store.switchSession}
-          onRenameSession={store.renameSession}
-          includeTags={store.includeTags}
-          excludeTags={store.excludeTags}
-          onToggleTagFilter={store.toggleTagFilter}
-          onClearTagFilter={store.clearTagFilter}
+          sessions={sessions}
+          activeSessionId={activeSessionId}
+          onCreateSession={createSession}
+          onDeleteSession={deleteSession}
+          onSwitchSession={switchSession}
+          onRenameSession={renameSession}
+          includeTags={includeTags}
+          excludeTags={excludeTags}
+          onToggleTagFilter={toggleTagFilter}
+          onClearTagFilter={clearTagFilter}
           allNodes={allNodesArray}
           outsideSearchQuery={sessionSearch.query}
           outsideSearchResults={sessionSearch.results}
           onOutsideSearchChange={sessionSearch.setQuery}
           onAddCardsToSession={(cardIds) => {
-            if (store.activeSessionId) {
-              store.addCardsToSession(store.activeSessionId, cardIds);
+            if (activeSessionId) {
+              addCardsToSession(activeSessionId, cardIds);
             }
           }}
           selectedCount={selectedNodesCount}
@@ -481,7 +516,7 @@ function App() {
           onSetSelectedTrailIds={wandering.setSelectedTrailIds}
           showActiveTrailLine={wandering.showActiveTrailLine}
           onSetShowActiveTrailLine={wandering.setShowActiveTrailLine}
-          getNode={(id) => store.nodes.get(id)}
+          getNode={(id) => nodes.get(id)}
           selectedNodeId={firstSelectedNodeId}
         />
       )}
@@ -566,9 +601,9 @@ function App() {
             selectionScope.setIsVisible(true);
             selectionScope.expandToScope(degree);
           }}
-          copySelectedNodes={store.copySelectedNodes}
-          undo={store.undo}
-          redo={store.redo}
+          copySelectedNodes={copySelectedNodes}
+          undo={undo}
+          redo={redo}
           setShowSettings={setShowSettings}
           setShowAIPanel={setShowAIPanel}
           setShowCommandPalette={setShowCommandPalette}
@@ -578,9 +613,9 @@ function App() {
           setThemeIndex={setThemeIndex}
           setZenMode={setZenMode}
           hasFile={hasFile}
-          pasteNodes={store.pasteNodes}
-          saveStateForUndo={store.saveStateForUndo}
-          addNode={store.addNode}
+          pasteNodes={pasteNodes}
+          saveStateForUndo={saveStateForUndo}
+          addNode={addNode}
           theme={theme}
         />
       )}

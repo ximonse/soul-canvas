@@ -87,7 +87,9 @@ export function useKeyboard(
 ) {
   // Use ref to access actions in event handler without stale closures
   const actionsRef = useRef(actions);
-  actionsRef.current = actions;
+  useEffect(() => {
+    actionsRef.current = actions;
+  }, [actions]);
 
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
     const typing = isTyping();

@@ -271,7 +271,7 @@ export const ModalManager: React.FC<ModalManagerProps> = ({
                 clientX: window.innerWidth / 2,
                 clientY: window.innerHeight / 2,
                 dataTransfer: { files: Array.from(files) },
-              } as any;
+              } as unknown as React.DragEvent;
               await handleDrop(fakeEvent);
             };
             input.click();

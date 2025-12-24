@@ -58,12 +58,13 @@ export const generateNodeEmbedding = async (
       }
       break;
       
-    case 'zotero':
+    case 'zotero': {
       // Extrahera text från HTML (enkel version)
       const tempDiv = document.createElement('div');
       tempDiv.innerHTML = node.content;
       textToEmbed = tempDiv.textContent || tempDiv.innerText || '';
       break;
+    }
   }
   
   // Lägg till taggar för bättre kontext

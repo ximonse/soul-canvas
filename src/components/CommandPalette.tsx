@@ -153,9 +153,10 @@ export const CommandPalette = ({
     inputRef.current?.focus();
   }, []);
 
-  useEffect(() => {
+  const handleQueryChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setQuery(e.target.value);
     setSelectedIndex(0);
-  }, [query]);
+  };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'ArrowDown') {
@@ -197,7 +198,7 @@ export const CommandPalette = ({
             ref={inputRef}
             type="text"
             value={query}
-            onChange={e => setQuery(e.target.value)}
+            onChange={handleQueryChange}
             onKeyDown={handleKeyDown}
             placeholder="Type a command or search..."
             className="w-full bg-transparent outline-none placeholder-opacity-60 text-lg"

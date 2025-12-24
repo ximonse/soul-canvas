@@ -23,7 +23,7 @@ const getColorByConnections = (count: number, maxConnections: number) => {
   return '#9ca3af'; // Grå
 };
 
-export const SynapseLines: React.FC<SynapseLinesProps> = ({
+const SynapseLinesComponent: React.FC<SynapseLinesProps> = ({
   synapses,
   nodes,
   visibilityThreshold,
@@ -82,3 +82,5 @@ export const SynapseLines: React.FC<SynapseLinesProps> = ({
     </>
   );
 };
+
+export const SynapseLines = React.memo(SynapseLinesComponent);

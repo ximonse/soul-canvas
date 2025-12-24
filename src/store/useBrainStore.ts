@@ -638,11 +638,11 @@ export const useBrainStore = create<BrainStore>()((set) => ({
   toggleColumnShowTags: () => set((state) => ({ columnShowTags: !state.columnShowTags })),
 
   // Selection slice
-  ...createSelectionSlice(set as any),
+  ...createSelectionSlice(set),
 
   // History slice
-  ...createHistorySlice(set as any),
+  ...createHistorySlice(set),
 
   // Trail slice
-  ...createTrailSlice(set as any, (): BrainStore => useBrainStore.getState()),
+  ...createTrailSlice(set, (): BrainStore => useBrainStore.getState()),
 }));

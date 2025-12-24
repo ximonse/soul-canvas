@@ -9,7 +9,6 @@ import {
   hasAnyConnections,
   getMaxAvailableDegree,
 } from '../utils/graphTraversal';
-import type { MindNode } from '../types/types';
 
 export interface ScopeData {
   byDegree: Map<number, string[]>;  // grad -> nodeIds

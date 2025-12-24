@@ -49,7 +49,7 @@ const AI_PULSE_PALETTE: Record<AIProvider, RGB[]> = {
 
 const toRgb = (color: RGB) => `rgb(${color.r},${color.g},${color.b})`;
 
-const KonvaNode: React.FC<KonvaNodeProps> = ({
+const KonvaNodeComponent: React.FC<KonvaNodeProps> = ({
   node,
   theme,
   gravitatingSimilarity,
@@ -68,21 +68,15 @@ const KonvaNode: React.FC<KonvaNodeProps> = ({
 
   // Extract link URL from comment field
   const linkUrl = useMemo(() => extractLinkUrl(node.comment), [node.comment]);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const updateNodePosition = useBrainStore((state: any) => state.updateNodePosition);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const toggleSelection = useBrainStore((state: any) => state.toggleSelection);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const clearSelection = useBrainStore((state: any) => state.clearSelection);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const dragSelectedNodes = useBrainStore((state: any) => state.dragSelectedNodes);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const isTagging = useBrainStore((state: any) => state.taggingNodes.has(node.id));
-  const processingProvider = useBrainStore((state: any) => state.aiProcessingNodes.get(node.id) as AIProvider | undefined);
+  const updateNodePosition = useBrainStore((state) => state.updateNodePosition);
+  const toggleSelection = useBrainStore((state) => state.toggleSelection);
+  const clearSelection = useBrainStore((state) => state.clearSelection);
+  const dragSelectedNodes = useBrainStore((state) => state.dragSelectedNodes);
+  const isTagging = useBrainStore((state) => state.taggingNodes.has(node.id));
+  const processingProvider = useBrainStore((state) => state.aiProcessingNodes.get(node.id));
   const isSelected = useBrainStore((state) => state.selectedNodeIds.has(node.id));
   const effectiveProvider: AIProvider | null = processingProvider ?? (isTagging ? 'claude' : null);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const updateNode = useBrainStore((state: any) => state.updateNode);
+  const updateNode = useBrainStore((state) => state.updateNode);
 
   const getSelectedCount = useCallback(() => {
     return useBrainStore.getState().selectedNodeIds.size;
@@ -168,6 +162,7 @@ const KonvaNode: React.FC<KonvaNodeProps> = ({
   }, [node, backTextWidth, backFontFamily, backContentLineHeight]);
 
   // Image loading & Height calculation
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     const calcBackHeight = () => {
       if (!isFlipped || !isImage) return 0;
@@ -212,6 +207,7 @@ const KonvaNode: React.FC<KonvaNodeProps> = ({
       setCardHeight(Math.max(CARD.MIN_HEIGHT, Math.min(CARD.MAX_HEIGHT, height)));
     }
   }, [
+    node,
     node.content,
     node.type,
     node.imageRef,
@@ -226,6 +222,7 @@ const KonvaNode: React.FC<KonvaNodeProps> = ({
     backContentHeight,
     titleGap,
   ]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   useEffect(() => {
     if (cardHeight > 0 && node.height !== cardHeight) {
@@ -284,7 +281,11 @@ const KonvaNode: React.FC<KonvaNodeProps> = ({
       e.cancelBubble = true;
       if (dKeyState.pressed) {
         const store = useBrainStore.getState();
-        store.activeSequence ? store.addToSequence(node.id) : store.startSequence(node.id);
+        if (store.activeSequence) {
+          store.addToSequence(node.id);
+        } else {
+          store.startSequence(node.id);
+        }
         return;
       }
       const hasModifier = e.evt.shiftKey || e.evt.ctrlKey || e.evt.metaKey || e.evt.altKey;
@@ -586,5 +587,22 @@ const KonvaNode: React.FC<KonvaNodeProps> = ({
     </Group>
   );
 };
+
+const areKonvaNodePropsEqual = (prev: KonvaNodeProps, next: KonvaNodeProps) => (
+  prev.node === next.node &&
+  prev.theme === next.theme &&
+  prev.gravitatingSimilarity === next.gravitatingSimilarity &&
+  prev.gravitatingSemanticTheme === next.gravitatingSemanticTheme &&
+  prev.gravitatingColorMode === next.gravitatingColorMode &&
+  prev.isWandering === next.isWandering &&
+  prev.onWanderStep === next.onWanderStep &&
+  prev.onEditCard === next.onEditCard &&
+  prev.onDragStart === next.onDragStart &&
+  prev.onDragEnd === next.onDragEnd &&
+  prev.onHover === next.onHover &&
+  prev.onContextMenu === next.onContextMenu
+);
+
+const KonvaNode = React.memo(KonvaNodeComponent, areKonvaNodePropsEqual);
 
 export default KonvaNode;

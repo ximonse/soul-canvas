@@ -46,7 +46,11 @@ export const ColumnView: React.FC<ColumnViewProps> = ({
   onEditCard,
   onContextMenu,
 }) => {
-  const { columnSort, toggleSelection, columnShowComments, columnShowTags, selectedNodeIds } = useBrainStore();
+  const columnSort = useBrainStore((state) => state.columnSort);
+  const toggleSelection = useBrainStore((state) => state.toggleSelection);
+  const columnShowComments = useBrainStore((state) => state.columnShowComments);
+  const columnShowTags = useBrainStore((state) => state.columnShowTags);
+  const selectedNodeIds = useBrainStore((state) => state.selectedNodeIds);
 
   // Sortera nodes
   const sortedNodes = useMemo(

@@ -22,6 +22,7 @@ export const CardEditor = ({ cardId, onClose, theme }: CardEditorProps) => {
 
   const card = cardId ? store.nodes.get(cardId) : null;
 
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     if (card) {
       setContent(card.content || '');
@@ -41,6 +42,7 @@ export const CardEditor = ({ cardId, onClose, theme }: CardEditorProps) => {
       return () => clearTimeout(timeoutId);
     }
   }, [card]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   const handleSave = () => {
     if (!cardId) return;

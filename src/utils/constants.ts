@@ -27,6 +27,11 @@ export const SPACING = {
   VIEWPORT_MARGIN: 200, // Extra marginal för viewport culling
 } as const;
 
+// Viewport culling
+export const VIEWPORT = {
+  CULLING_THRESHOLD: 10,
+} as const;
+
 // Zoom-gränser
 export const ZOOM = {
   MIN: 0.02,
