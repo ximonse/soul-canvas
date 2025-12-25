@@ -99,6 +99,7 @@ export function useKeyboardHandlers({
   const sequences = useBrainStore((state) => state.sequences);
   const removeFromSequence = useBrainStore((state) => state.removeFromSequence);
   const toggleSelection = useBrainStore((state) => state.toggleSelection);
+  const selectNodes = useBrainStore((state) => state.selectNodes);
   const clearSelection = useBrainStore((state) => state.clearSelection);
   const unpinSelected = useBrainStore((state) => state.unpinSelected);
   const pinSelected = useBrainStore((state) => state.pinSelected);
@@ -126,9 +127,9 @@ export function useKeyboardHandlers({
     onDeleteSelected: deleteSelected,
     // Markera bara kort som är synliga (filtrerade efter session + taggar)
     onSelectAll: () => {
-      visibleNodeIds.forEach(id => {
-        toggleSelection(id, true);
-      });
+      if (visibleNodeIds.size === 0) return;
+      clearSelection();
+      selectNodes(Array.from(visibleNodeIds));
     },
 
     onEscape: () => {

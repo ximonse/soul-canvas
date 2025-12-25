@@ -63,7 +63,6 @@ const KonvaCanvas: React.FC<KonvaCanvasProps> = ({
   onContextMenu,
   onZoomChange,
 }) => {
-  const nodesMap = useBrainStore((state) => state.nodes);
   const addNode = useBrainStore((state) => state.addNode);
   const clearSelection = useBrainStore((state) => state.clearSelection);
   const selectNodes = useBrainStore((state) => state.selectNodes);
@@ -426,8 +425,7 @@ const KonvaCanvas: React.FC<KonvaCanvasProps> = ({
     const x2 = Math.max(selectionRect.x1, selectionRect.x2);
     const y2 = Math.max(selectionRect.y1, selectionRect.y2);
 
-    const allNodes = Array.from(nodesMap.values()) as MindNode[];
-    const idsToSelect = allNodes
+    const idsToSelect = nodes
       .filter((node: MindNode) => node.x >= x1 && node.x <= x2 && node.y >= y1 && node.y <= y2)
       .map((node: MindNode) => node.id);
 

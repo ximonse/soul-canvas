@@ -81,6 +81,16 @@ src/
 
 ---
 
+## Aktuell status (kort - uppdateras varje session)
+
+- Fokus: TBD
+- Plan (max 3 steg): TBD
+- Frågor/blockers: TBD
+- Senast uppdaterad: 2025-12-25
+- Detaljer: se WORKLOG.md
+
+---
+
 ## Sessionslogg 2025-12-13
 
 ### Implementerat idag:

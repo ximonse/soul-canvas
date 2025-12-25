@@ -268,6 +268,7 @@ const KonvaNodeInner: React.FC<KonvaNodeInnerProps> = ({
   const isSelected = useBrainStore((state) => state.selectedNodeIds.has(node.id));
   const effectiveProvider: AIProvider | null = processingProvider ?? (isTagging ? 'claude' : null);
   const updateNode = useBrainStore((state) => state.updateNode);
+  const assets = useBrainStore((state) => state.assets);
 
   const getSelectedCount = useCallback(() => {
     return useBrainStore.getState().selectedNodeIds.size;
@@ -371,7 +372,7 @@ const KonvaNodeInner: React.FC<KonvaNodeInnerProps> = ({
     };
 
     if (isImage) {
-      const assetUrl = resolveImageUrl(node, useBrainStore.getState().assets);
+      const assetUrl = resolveImageUrl(node, assets);
       if (!assetUrl) {
         setImageObj(undefined);
         const backH = calcBackHeight();
@@ -422,6 +423,7 @@ const KonvaNodeInner: React.FC<KonvaNodeInnerProps> = ({
     backContentHeight,
     titleGap,
     hasTitle,
+    assets,
   ]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
