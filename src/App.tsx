@@ -27,6 +27,7 @@ import { SelectionScopePanel } from './components/overlays/SelectionScopePanel';
 import MassImportOverlay from './components/overlays/MassImportOverlay';
 import { QuoteExtractorOverlay } from './components/overlays/QuoteExtractorOverlay';
 import { TrailPanel } from './components/overlays/TrailPanel';
+import { MiniMap } from './components/overlays/MiniMap';
 import { SessionPanel } from './components/SessionPanel';
 import type { ContextMenuState } from './components/overlays/ContextMenu';
 import { filterNodesByTags, filterNodesBySession } from './utils/nodeFilters';
@@ -188,6 +189,20 @@ function App() {
       addTagToSelected(tag.trim());
     }
   }, [addTagToSelected, saveStateForUndo]);
+
+  const centerOnWorldPoint = useCallback((x: number, y: number) => {
+    const stage = stageRef.current;
+    if (!stage) return;
+    const k = stage.scaleX();
+    const nextView = {
+      x: (window.innerWidth / 2) - x * k,
+      y: (window.innerHeight / 2) - y * k,
+      k,
+    };
+    stage.position({ x: nextView.x, y: nextView.y });
+    stage.batchDraw();
+    canvas.setView(nextView);
+  }, [canvas, stageRef]);
 
   const handleTogglePin = useCallback(() => {
     const selected = Array.from(selectedNodeIds)
@@ -459,6 +474,16 @@ function App() {
         >
           {Math.round(currentZoom * 100)}%
         </div>
+      )}
+
+      {showChrome && viewMode === 'canvas' && (
+        <MiniMap
+          nodes={filteredNodesArray}
+          selectedNodeIds={selectedNodeIds}
+          view={canvas.view}
+          theme={theme}
+          onCenterPoint={centerOnWorldPoint}
+        />
       )}
 
       {/* Selection Scope Panel - vänster sida */}

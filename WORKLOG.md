@@ -22,4 +22,7 @@ Detailed progress log. Keep `CLAUDE.md` "Aktuell status" short; capture details 
 - AI selection consistency:
   - OCR in the context menu now prefers selected images when any are selected (`src/components/overlays/ContextMenu.tsx`).
   - Summarize/title menu labels now show selection counts (`src/components/overlays/ContextMenu.tsx`).
+- UX:
+  - Added a minimap overlay for canvas view with viewport rectangle and click/drag pan (`src/components/overlays/MiniMap.tsx`, `src/App.tsx`).
+  - Increased minimap contrast for better readability (`src/components/overlays/MiniMap.tsx`).
 - Next: confirm optimization goals and hotspots; review relevant diffs or profiling notes.
