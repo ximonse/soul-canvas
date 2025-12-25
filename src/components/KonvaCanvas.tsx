@@ -85,6 +85,56 @@ const KonvaCanvas: React.FC<KonvaCanvasProps> = ({
     y2: number;
     visible: boolean;
   } | null>(null);
+  const viewRafRef = useRef<number | null>(null);
+  const pendingViewRef = useRef<{ x: number; y: number; k: number } | null>(null);
+  const cursorRafRef = useRef<number | null>(null);
+  const pendingCursorRef = useRef<{ x: number; y: number } | null>(null);
+  const lastZoomRef = useRef(canvas.view.k);
+
+  useEffect(() => {
+    lastZoomRef.current = canvas.view.k;
+  }, [canvas.view.k]);
+
+  useEffect(() => {
+    return () => {
+      if (viewRafRef.current) {
+        window.cancelAnimationFrame(viewRafRef.current);
+        viewRafRef.current = null;
+      }
+      if (cursorRafRef.current) {
+        window.cancelAnimationFrame(cursorRafRef.current);
+        cursorRafRef.current = null;
+      }
+    };
+  }, []);
+
+  const scheduleViewUpdate = useCallback((nextView: { x: number; y: number; k: number }) => {
+    pendingViewRef.current = nextView;
+    if (viewRafRef.current !== null) return;
+    viewRafRef.current = window.requestAnimationFrame(() => {
+      viewRafRef.current = null;
+      const view = pendingViewRef.current;
+      if (!view) return;
+      pendingViewRef.current = null;
+      canvas.setView(view);
+      if (view.k !== lastZoomRef.current) {
+        lastZoomRef.current = view.k;
+        onZoomChange?.(view.k);
+      }
+    });
+  }, [canvas, onZoomChange]);
+
+  const scheduleCursorPos = useCallback((nextPos: { x: number; y: number }) => {
+    pendingCursorRef.current = nextPos;
+    if (cursorRafRef.current !== null) return;
+    cursorRafRef.current = window.requestAnimationFrame(() => {
+      cursorRafRef.current = null;
+      const pos = pendingCursorRef.current;
+      if (!pos) return;
+      pendingCursorRef.current = null;
+      canvas.setCursorPos(pos);
+    });
+  }, [canvas]);
 
   const adjustGraphGravity = useCallback((delta: number) => {
     const state = useBrainStore.getState();
@@ -223,7 +273,7 @@ const KonvaCanvas: React.FC<KonvaCanvasProps> = ({
       const nextY = stage.y() - e.evt.deltaY;
       stage.position({ x: stage.x(), y: nextY });
       stage.batchDraw();
-      canvas.setView({ x: stage.x(), y: nextY, k: stage.scaleX() });
+      scheduleViewUpdate({ x: stage.x(), y: nextY, k: stage.scaleX() });
       return;
     }
 
@@ -246,8 +296,7 @@ const KonvaCanvas: React.FC<KonvaCanvasProps> = ({
     stage.position(newPos);
     stage.batchDraw();
 
-    canvas.setView({ x: newPos.x, y: newPos.y, k: clampedScale });
-    onZoomChange?.(clampedScale);
+    scheduleViewUpdate({ x: newPos.x, y: newPos.y, k: clampedScale });
   };
 
   const handleStageDblClick = (e: KonvaEventObject<MouseEvent>) => {
@@ -299,7 +348,7 @@ const KonvaCanvas: React.FC<KonvaCanvasProps> = ({
     if (!pointer) return;
 
     const worldPos = toWorldPosition(stage, pointer);
-    canvas.setCursorPos(worldPos);
+    scheduleCursorPos(worldPos);
 
     if (!selectionRect || !selectionRect.visible) return;
 
