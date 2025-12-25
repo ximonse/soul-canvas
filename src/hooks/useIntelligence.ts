@@ -27,6 +27,7 @@ export const useIntelligence = () => {
   const openaiKey = useBrainStore((state) => state.openaiKey);
   const claudeKey = useBrainStore((state) => state.claudeKey);
   const updateNode = useBrainStore((state) => state.updateNode);
+  const updateNodesBulk = useBrainStore((state) => state.updateNodesBulk);
   const setNodeTagging = useBrainStore((state) => state.setNodeTagging);
   const setNodeAIProcessing = useBrainStore((state) => state.setNodeAIProcessing);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -79,13 +80,16 @@ export const useIntelligence = () => {
         (current, total) => setProgress({ current, total })
       );
 
-      // Update all nodes with their embeddings
-      embeddings.forEach((embedding, nodeId) => {
-        updateNode(nodeId, {
+      const now = new Date().toISOString();
+      const updates = Array.from(embeddings.entries()).map(([nodeId, embedding]) => ({
+        id: nodeId,
+        updates: {
           embedding,
-          lastEmbedded: new Date().toISOString(),
-        });
-      });
+          lastEmbedded: now,
+          updatedAt: now,
+        },
+      }));
+      updateNodesBulk(updates);
 
       return embeddings.size;
     } catch (error) {
@@ -95,7 +99,7 @@ export const useIntelligence = () => {
       setIsProcessing(false);
       setProgress({ current: 0, total: 0 });
     }
-  }, [nodes, openaiKey, updateNode]);
+  }, [nodes, openaiKey, updateNodesBulk]);
 
   /**
    * Find and create links between semantically similar nodes
