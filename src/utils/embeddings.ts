@@ -34,6 +34,71 @@ export const generateEmbedding = async (
 };
 
 /**
+ * Generate embeddings for multiple texts in a single request
+ */
+export const generateEmbeddingsBatch = async (
+  contents: string[],
+  apiKey: string
+): Promise<number[][]> => {
+  if (!apiKey) throw new Error('OpenAI API key saknas');
+  if (contents.length === 0) return [];
+
+  try {
+    return await openaiLimiter.enqueue(async () => {
+      const openai = new OpenAI({ apiKey, dangerouslyAllowBrowser: true });
+
+      const response = await openai.embeddings.create({
+        model: 'text-embedding-3-small',
+        input: contents,
+        encoding_format: 'float',
+      });
+
+      return response.data.map(item => item.embedding);
+    });
+  } catch (error) {
+    console.error('Embedding Batch Error:', error);
+    throw new Error('Kunde inte generera embeddings');
+  }
+};
+
+const getEmbeddingText = (node: MindNode): string => {
+  let textToEmbed = '';
+
+  switch (node.type) {
+    case 'text':
+      textToEmbed = node.content;
+      break;
+
+    case 'image':
+      // Prioritera OCR-text, annars anvand kommentar
+      textToEmbed = getImageText(node);
+      if (!textToEmbed) {
+        throw new Error('Bilden saknar text (kor OCR forst)');
+      }
+      break;
+
+    case 'zotero': {
+      // Extrahera text fran HTML (enkel version)
+      const tempDiv = document.createElement('div');
+      tempDiv.innerHTML = node.content;
+      textToEmbed = tempDiv.textContent || tempDiv.innerText || '';
+      break;
+    }
+  }
+
+  // Lagg till taggar for battre kontext
+  if (node.tags.length > 0) {
+    textToEmbed += '\n\nTaggar: ' + node.tags.join(', ');
+  }
+
+  if (!textToEmbed.trim()) {
+    throw new Error('Inget innehall att skapa embedding fran');
+  }
+
+  return textToEmbed;
+};
+
+/**
  * Generate embeddings for a node based on its type
  * - text: uses content directly
  * - image: uses ocrText if available, otherwise comment
@@ -43,39 +108,7 @@ export const generateNodeEmbedding = async (
   node: MindNode,
   apiKey: string
 ): Promise<number[]> => {
-  let textToEmbed = '';
-  
-  switch (node.type) {
-    case 'text':
-      textToEmbed = node.content;
-      break;
-      
-    case 'image':
-      // Prioritera OCR-text, annars använd kommentar
-      textToEmbed = getImageText(node);
-      if (!textToEmbed) {
-        throw new Error('Bilden saknar text (kör OCR först)');
-      }
-      break;
-      
-    case 'zotero': {
-      // Extrahera text från HTML (enkel version)
-      const tempDiv = document.createElement('div');
-      tempDiv.innerHTML = node.content;
-      textToEmbed = tempDiv.textContent || tempDiv.innerText || '';
-      break;
-    }
-  }
-  
-  // Lägg till taggar för bättre kontext
-  if (node.tags.length > 0) {
-    textToEmbed += '\n\nTaggar: ' + node.tags.join(', ');
-  }
-  
-  if (!textToEmbed.trim()) {
-    throw new Error('Inget innehåll att skapa embedding från');
-  }
-  
+  const textToEmbed = getEmbeddingText(node);
   return generateEmbedding(textToEmbed, apiKey);
 };
 
@@ -202,24 +235,60 @@ export const batchGenerateEmbeddings = async (
   onProgress?: (current: number, total: number) => void
 ): Promise<Map<string, number[]>> => {
   const embeddings = new Map<string, number[]>();
-  
+  const total = nodes.length;
+  let processedCount = 0;
+  const batchSize = 20;
+  const batchInputs: Array<{ nodeId: string; text: string }> = [];
+
   for (let i = 0; i < nodes.length; i++) {
     const node = nodes[i];
-    
+
     try {
-      const embedding = await generateNodeEmbedding(node, apiKey);
-      embeddings.set(node.id, embedding);
-      
-      if (onProgress) {
-        onProgress(i + 1, nodes.length);
-      }
-      
-      // Rate limiter handles delays automatically
+      const textToEmbed = getEmbeddingText(node);
+      batchInputs.push({ nodeId: node.id, text: textToEmbed });
     } catch (error) {
-      console.warn(`Kunde inte skapa embedding för nod ${node.id}:`, error);
-      // Fortsätt med nästa nod
+      console.warn(`Kunde inte skapa embedding for nod ${node.id}:`, error);
+      processedCount += 1;
+      if (onProgress) {
+        onProgress(processedCount, total);
+      }
     }
   }
-  
+
+  for (let i = 0; i < batchInputs.length; i += batchSize) {
+    const batch = batchInputs.slice(i, i + batchSize);
+
+    try {
+      const batchEmbeddings = await generateEmbeddingsBatch(
+        batch.map(item => item.text),
+        apiKey
+      );
+
+      batchEmbeddings.forEach((embedding, idx) => {
+        const nodeId = batch[idx]?.nodeId;
+        if (nodeId) {
+          embeddings.set(nodeId, embedding);
+        }
+      });
+    } catch (error) {
+      console.warn('Batch-embedding misslyckades, forsoker individuellt:', error);
+      for (const item of batch) {
+        try {
+          const embedding = await generateEmbedding(item.text, apiKey);
+          embeddings.set(item.nodeId, embedding);
+        } catch (innerError) {
+          console.warn(`Kunde inte skapa embedding for nod ${item.nodeId}:`, innerError);
+        }
+      }
+    }
+
+    processedCount += batch.length;
+    if (onProgress) {
+      onProgress(processedCount, total);
+    }
+  }
+
   return embeddings;
 };
+
+

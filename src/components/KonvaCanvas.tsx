@@ -43,8 +43,8 @@ const GRAVITY_SCROLL_MAX_STEP = 0.6;
 const VIEW_COMMIT_DELAY_MS = 80;
 const WHEEL_DELTA_CLAMP = 120;
 const WHEEL_ZOOM_SENSITIVITY = 0.0015;
-const WHEEL_ZOOM_DAMPING = 0.28;
-const WHEEL_PAN_DAMPING = 0.35;
+const WHEEL_ZOOM_DAMPING = 0.42;
+const WHEEL_PAN_DAMPING = 0.55;
 
 const KonvaCanvas: React.FC<KonvaCanvasProps> = ({
   currentThemeKey,
