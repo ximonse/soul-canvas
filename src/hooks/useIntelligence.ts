@@ -1,5 +1,5 @@
 // src/hooks/useIntelligence.ts
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { useBrainStore } from '../store/useBrainStore';
 import {
   generateNodeEmbedding,
@@ -17,9 +17,26 @@ import {
   generateNodeTitle 
 } from '../utils/claude';
 import { GRAVITY } from '../utils/constants';
+import { getNodeDisplayTitle } from '../utils/nodeDisplay';
 import type { MindNode, AIReflection, Synapse } from '../types/types';
 
 const isCopyNode = (node?: MindNode | null) => Boolean(node?.copyRef);
+
+export type AIBatchType = 'tags' | 'summary' | 'title';
+export type AIBatchItemStatus = 'queued' | 'processing' | 'done' | 'error' | 'skipped';
+export interface AIBatchItem {
+  id: string;
+  title: string;
+  status: AIBatchItemStatus;
+}
+export interface AIBatchState {
+  type: AIBatchType;
+  status: 'running' | 'done' | 'cancelled';
+  isCancelling: boolean;
+  total: number;
+  current: number;
+  items: AIBatchItem[];
+}
 
 export const useIntelligence = () => {
   const nodes = useBrainStore((state) => state.nodes);
@@ -33,6 +50,8 @@ export const useIntelligence = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [progress, setProgress] = useState({ current: 0, total: 0 });
   const [lastReflection, setLastReflection] = useState<AIReflection | null>(null);
+  const [batch, setBatch] = useState<AIBatchState | null>(null);
+  const cancelBatchRef = useRef(false);
 
   const resolveTargets = useCallback((nodeId?: string): MindNode[] => {
     const currentState = useBrainStore.getState();
@@ -46,6 +65,95 @@ export const useIntelligence = () => {
     }
     return [];
   }, []);
+
+  const getBatchTitle = useCallback((node: MindNode): string => {
+    const title = getNodeDisplayTitle(node);
+    if (title) return title;
+    if (node.caption?.trim()) return node.caption.trim();
+    const raw = (node.content || '').replace(/\s+/g, ' ').trim();
+    if (raw) return raw.slice(0, 60);
+    return node.id.slice(0, 8);
+  }, []);
+
+  const updateBatchItem = useCallback((id: string, status: AIBatchItemStatus) => {
+    setBatch((prev) => {
+      if (!prev) return prev;
+      const items = prev.items.map((item) => (
+        item.id === id ? { ...item, status } : item
+      ));
+      return { ...prev, items };
+    });
+  }, []);
+
+  const cancelBatch = useCallback(() => {
+    cancelBatchRef.current = true;
+    setBatch((prev) => {
+      if (!prev || prev.status !== 'running') return prev;
+      return { ...prev, isCancelling: true };
+    });
+  }, []);
+
+  const clearBatch = useCallback(() => {
+    cancelBatchRef.current = false;
+    setBatch(null);
+  }, []);
+
+  const runBatch = useCallback(async (
+    type: AIBatchType,
+    targets: MindNode[],
+    processor: (node: MindNode) => Promise<boolean>
+  ): Promise<number> => {
+    if (targets.length === 0 || isProcessing) return 0;
+
+    cancelBatchRef.current = false;
+    setIsProcessing(true);
+    setProgress({ current: 0, total: targets.length });
+    setBatch({
+      type,
+      status: 'running',
+      isCancelling: false,
+      total: targets.length,
+      current: 0,
+      items: targets.map((node) => ({
+        id: node.id,
+        title: getBatchTitle(node),
+        status: 'queued',
+      })),
+    });
+
+    let updated = 0;
+    try {
+      for (let i = 0; i < targets.length; i++) {
+        const node = targets[i];
+        if (cancelBatchRef.current) {
+          setBatch((prev) => {
+            if (!prev) return prev;
+            const items = prev.items.map((item) => (
+              item.status === 'queued' ? { ...item, status: 'skipped' } : item
+            ));
+            return { ...prev, status: 'cancelled', isCancelling: false, items };
+          });
+          break;
+        }
+
+        updateBatchItem(node.id, 'processing');
+        const ok = await processor(node);
+        updateBatchItem(node.id, ok ? 'done' : 'error');
+        updated += ok ? 1 : 0;
+        setProgress({ current: i + 1, total: targets.length });
+        setBatch((prev) => (prev ? { ...prev, current: i + 1 } : prev));
+      }
+    } finally {
+      setIsProcessing(false);
+      setBatch((prev) => {
+        if (!prev) return prev;
+        if (prev.status === 'cancelled') return prev;
+        return { ...prev, status: 'done', isCancelling: false };
+      });
+    }
+
+    return updated;
+  }, [getBatchTitle, isProcessing, updateBatchItem]);
 
   const tagSingleNode = useCallback(async (node: MindNode, key: string): Promise<{ practical: string[]; hidden: string[] }> => {
     try {
@@ -217,21 +325,16 @@ export const useIntelligence = () => {
     const targets = resolveTargets(nodeId);
     if (targets.length === 0) return { processed: 0, totalTags: 0 };
 
-    let processed = 0;
     let totalTags = 0;
-    setIsProcessing(true);
-    try {
-      for (const node of targets) {
-        const result = await tagSingleNode(node, key);
-        totalTags += result.practical.length + result.hidden.length;
-        processed += 1;
-      }
-    } finally {
-      setIsProcessing(false);
-    }
+    currentState.saveStateForUndo?.();
+    const processed = await runBatch('tags', targets, async (node) => {
+      const result = await tagSingleNode(node, key);
+      totalTags += result.practical.length + result.hidden.length;
+      return result.practical.length + result.hidden.length > 0;
+    });
 
     return { processed, totalTags };
-  }, [resolveTargets, tagSingleNode]);
+  }, [resolveTargets, runBatch, tagSingleNode]);
 
   /**
    * Generate a short summary and write to node.comment
@@ -245,26 +348,21 @@ export const useIntelligence = () => {
     if (targets.length === 0) return 0;
 
     currentState.saveStateForUndo?.();
-    let updated = 0;
-    setIsProcessing(true);
-    try {
-      for (const node of targets as MindNode[]) {
-        currentState.setNodeAIProcessing(node.id, 'claude');
-        try {
-          const summary = await generateNodeSummaryComment(node as MindNode, key);
-          if (summary) {
-            currentState.updateNode(node.id, { comment: summary });
-            updated++;
-          }
-        } finally {
-          currentState.setNodeAIProcessing(node.id, null);
+    const updated = await runBatch('summary', targets, async (node) => {
+      currentState.setNodeAIProcessing(node.id, 'claude');
+      try {
+        const summary = await generateNodeSummaryComment(node as MindNode, key);
+        if (summary) {
+          currentState.updateNode(node.id, { comment: summary });
+          return true;
         }
+        return false;
+      } finally {
+        currentState.setNodeAIProcessing(node.id, null);
       }
-      return updated;
-    } finally {
-      setIsProcessing(false);
-    }
-  }, []);
+    });
+    return updated;
+  }, [resolveTargets, runBatch]);
 
   /**
    * Generate a concise title for nodes
@@ -278,26 +376,21 @@ export const useIntelligence = () => {
     if (targets.length === 0) return 0;
 
     currentState.saveStateForUndo?.();
-    let updated = 0;
-    setIsProcessing(true);
-    try {
-      for (const node of targets as MindNode[]) {
-        currentState.setNodeAIProcessing(node.id, 'claude');
-        try {
-          const title = await generateNodeTitle(node as MindNode, key);
-          if (title) {
-            currentState.updateNode(node.id, { title });
-            updated++;
-          }
-        } finally {
-          currentState.setNodeAIProcessing(node.id, null);
+    const updated = await runBatch('title', targets, async (node) => {
+      currentState.setNodeAIProcessing(node.id, 'claude');
+      try {
+        const title = await generateNodeTitle(node as MindNode, key);
+        if (title) {
+          currentState.updateNode(node.id, { title });
+          return true;
         }
+        return false;
+      } finally {
+        currentState.setNodeAIProcessing(node.id, null);
       }
-      return updated;
-    } finally {
-      setIsProcessing(false);
-    }
-  }, []);
+    });
+    return updated;
+  }, [resolveTargets, runBatch]);
 
   /**
    * Generate a reflective question based on selected or all nodes
@@ -487,6 +580,7 @@ export const useIntelligence = () => {
     isProcessing,
     progress,
     lastReflection,
+    batch,
 
     // Actions
     embedNode,
@@ -496,6 +590,8 @@ export const useIntelligence = () => {
     generateTagsForSelection,
     summarizeToComment,
     suggestTitle,
+    cancelBatch,
+    clearBatch,
     reflect,
     analyzeSelectedCluster,
     semanticSearch,

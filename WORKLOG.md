@@ -25,4 +25,6 @@ Detailed progress log. Keep `CLAUDE.md` "Aktuell status" short; capture details 
 - UX:
   - Added a minimap overlay for canvas view with viewport rectangle and click/drag pan (`src/components/overlays/MiniMap.tsx`, `src/App.tsx`).
   - Increased minimap contrast for better readability (`src/components/overlays/MiniMap.tsx`).
+- UX:
+  - Added AI batch status overlay with per-card status plus cancel/close controls (`src/components/overlays/AIBatchStatus.tsx`, `src/App.tsx`, `src/hooks/useIntelligence.ts`).
 - Next: confirm optimization goals and hotspots; review relevant diffs or profiling notes.

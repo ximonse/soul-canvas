@@ -27,6 +27,7 @@ import { SelectionScopePanel } from './components/overlays/SelectionScopePanel';
 import MassImportOverlay from './components/overlays/MassImportOverlay';
 import { QuoteExtractorOverlay } from './components/overlays/QuoteExtractorOverlay';
 import { TrailPanel } from './components/overlays/TrailPanel';
+import { AIBatchStatus } from './components/overlays/AIBatchStatus';
 import { MiniMap } from './components/overlays/MiniMap';
 import { SessionPanel } from './components/SessionPanel';
 import type { ContextMenuState } from './components/overlays/ContextMenu';
@@ -165,14 +166,8 @@ function App() {
   });
 
   const handleAutoTag = useCallback(async (id: string) => {
-    const selected = Array.from(selectedNodeIds)
-      .map(nodeId => nodes.get(nodeId))
-      .filter(Boolean) as MindNode[];
-    const targets = selected.length > 0 ? selected : [nodes.get(id)].filter(Boolean) as MindNode[];
-    if (targets.length === 0) return;
-    saveStateForUndo();
     await intelligence.generateTagsForSelection(id);
-  }, [selectedNodeIds, nodes, saveStateForUndo, intelligence]);
+  }, [intelligence]);
 
   const handleSummarizeToComment = useCallback((id: string) => {
     intelligence.summarizeToComment(id);
@@ -474,6 +469,15 @@ function App() {
         >
           {Math.round(currentZoom * 100)}%
         </div>
+      )}
+
+      {showChrome && intelligence.batch && (
+        <AIBatchStatus
+          theme={theme}
+          batch={intelligence.batch}
+          onCancel={intelligence.cancelBatch}
+          onClear={intelligence.clearBatch}
+        />
       )}
 
       {showChrome && viewMode === 'canvas' && (
