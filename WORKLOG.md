@@ -19,4 +19,7 @@ Detailed progress log. Keep `CLAUDE.md` "Aktuell status" short; capture details 
   - Adjusted text card height clamping so captions are no longer clipped (`src/components/KonvaNode.tsx`).
 - AI batch:
   - AI actions now prioritize selected nodes and process them sequentially to avoid request bursts (`src/hooks/useIntelligence.ts`, `src/App.tsx`, `src/hooks/useAIPanelActions.ts`, `src/components/CommandPalette.tsx`).
+- AI selection consistency:
+  - OCR in the context menu now prefers selected images when any are selected (`src/components/overlays/ContextMenu.tsx`).
+  - Summarize/title menu labels now show selection counts (`src/components/overlays/ContextMenu.tsx`).
 - Next: confirm optimization goals and hotspots; review relevant diffs or profiling notes.

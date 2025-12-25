@@ -49,6 +49,7 @@ export function ContextMenu({
     .filter(Boolean) as MindNode[];
   const selectedCount = selectedNodes.length;
   const selectedImageCount = selectedNodes.filter((n: MindNode) => n.type === 'image').length;
+  const useSelectedImages = selectedImageCount > 0 && Boolean(onRunOCROnSelected);
 
   // Early return if node was deleted while menu was open
   if (!node) {
@@ -175,7 +176,7 @@ export function ContextMenu({
         <li role="none">
           <button
             onClick={() => {
-              if (selectedImageCount > 1 && onRunOCROnSelected) {
+              if (useSelectedImages && onRunOCROnSelected) {
                 onRunOCROnSelected();
               } else {
                 handleOCR();
@@ -231,7 +232,7 @@ export function ContextMenu({
             className="w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-indigo-600"
             role="menuitem"
           >
-            AI: Summera → kommentar
+            AI: Summera → kommentar{selectedCount > 1 ? ` (${selectedCount})` : ''}
           </button>
         </li>
       )}
@@ -243,7 +244,7 @@ export function ContextMenu({
             className="w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-indigo-600"
             role="menuitem"
           >
-            AI: Föreslå rubrik
+            AI: Föreslå rubrik{selectedCount > 1 ? ` (${selectedCount})` : ''}
           </button>
         </li>
       )}
