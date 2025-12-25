@@ -11,15 +11,15 @@ interface RateLimiterConfig {
   initialRetryDelay: number; // ms
 }
 
-interface QueuedRequest<T> {
-  fn: () => Promise<T>;
-  resolve: (value: T) => void;
+interface QueuedRequest {
+  fn: () => Promise<unknown>;
+  resolve: (value: unknown) => void;
   reject: (error: unknown) => void;
   retries: number;
 }
 
 export class RateLimiter {
-  private queue: QueuedRequest<unknown>[] = [];
+  private queue: QueuedRequest[] = [];
   private processing = false;
   private requestTimes: number[] = [];
   private config: RateLimiterConfig;
@@ -36,8 +36,13 @@ export class RateLimiter {
    * Add request to queue
    */
   async enqueue<T>(fn: () => Promise<T>): Promise<T> {
-    return new Promise((resolve, reject) => {
-      this.queue.push({ fn, resolve, reject, retries: 0 });
+    return new Promise<T>((resolve, reject) => {
+      this.queue.push({
+        fn: fn as () => Promise<unknown>,
+        resolve: resolve as (value: unknown) => void,
+        reject,
+        retries: 0
+      });
       this.processQueue();
     });
   }
@@ -125,10 +130,11 @@ export class RateLimiter {
    */
   private isRateLimitError(error: unknown): boolean {
     const err = error as { status?: number; code?: string; message?: string } | null | undefined;
+    const message = err?.message?.toLowerCase();
     return (
       err?.status === 429 ||
       err?.code === 'rate_limit_exceeded' ||
-      err?.message?.toLowerCase().includes('rate limit')
+      (message?.includes('rate limit') ?? false)
     );
   }
 

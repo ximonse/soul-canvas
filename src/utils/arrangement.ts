@@ -124,18 +124,12 @@ export const arrangeGridHorizontal = (nodes: MindNode[], columns: number = SPACI
 
   // Calculate max height for each row
   const numRows = Math.ceil(sortedNodes.length / columns);
-  const rowHeights: number[] = [];
-
-  for (let row = 0; row < numRows; row++) {
-    let maxHeight = 0;
-    for (let col = 0; col < columns; col++) {
-      const idx = row * columns + col;
-      if (idx >= sortedNodes.length) break;
-      const { height } = nodeDims.get(sortedNodes[idx].id)!;
-      maxHeight = Math.max(maxHeight, height);
-    }
-    rowHeights.push(maxHeight);
-  }
+  const rowHeights: number[] = new Array(numRows).fill(0);
+  sortedNodes.forEach((node, idx) => {
+    const row = Math.floor(idx / columns);
+    const { height } = nodeDims.get(node.id)!;
+    rowHeights[row] = Math.max(rowHeights[row], height);
+  });
 
   // Calculate Y position for each row (cumulative)
   const rowY: number[] = [startY];
