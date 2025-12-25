@@ -27,4 +27,6 @@ Detailed progress log. Keep `CLAUDE.md` "Aktuell status" short; capture details 
   - Increased minimap contrast for better readability (`src/components/overlays/MiniMap.tsx`).
 - UX:
   - Added AI batch status overlay with per-card status plus cancel/close controls (`src/components/overlays/AIBatchStatus.tsx`, `src/App.tsx`, `src/hooks/useIntelligence.ts`).
+- UX:
+  - Added compact/expand mode for AI batch overlay (`src/components/overlays/AIBatchStatus.tsx`).
 - Next: confirm optimization goals and hotspots; review relevant diffs or profiling notes.

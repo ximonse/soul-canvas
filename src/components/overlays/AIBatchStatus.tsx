@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import type { Theme } from '../../themes';
 import type { AIBatchItemStatus, AIBatchState } from '../../hooks/useIntelligence';
 
@@ -46,11 +46,83 @@ export const AIBatchStatus: React.FC<AIBatchStatusProps> = ({
 }) => {
   if (!batch) return null;
 
+  const [isExpanded, setIsExpanded] = useState(false);
+
+  useEffect(() => {
+    if (batch.status === 'running' && batch.current === 0) {
+      setIsExpanded(false);
+    }
+  }, [batch.current, batch.status, batch.total, batch.type]);
+
   const progress = batch.total > 0 ? Math.round((batch.current / batch.total) * 100) : 0;
   const maxStart = Math.max(batch.items.length - MAX_VISIBLE_ITEMS, 0);
   const startIndex = Math.min(Math.max(batch.current - 1, 0), maxStart);
   const visibleItems = batch.items.slice(startIndex, startIndex + MAX_VISIBLE_ITEMS);
   const showRange = batch.items.length > MAX_VISIBLE_ITEMS;
+
+  if (!isExpanded) {
+    return (
+      <div
+        className="absolute left-4 bottom-14 z-40 w-72 rounded-xl border shadow-lg backdrop-blur pointer-events-auto"
+        style={{
+          backgroundColor: theme.node.bg + 'f2',
+          borderColor: theme.node.border,
+          color: theme.node.text,
+        }}
+        onMouseDown={(event) => event.stopPropagation()}
+      >
+        <div className="flex items-center gap-3 px-3 py-2">
+          <button
+            type="button"
+            className="flex-1 text-left"
+            onClick={() => setIsExpanded(true)}
+          >
+            <div className="text-[10px] uppercase tracking-wide opacity-70">AI Batch</div>
+            <div className="text-xs font-semibold">{TYPE_LABELS[batch.type]}</div>
+            <div className="mt-1 h-1 w-full rounded-full bg-black/10 overflow-hidden">
+              <div
+                className="h-full bg-gradient-to-r from-indigo-500 to-blue-500 transition-all"
+                style={{ width: `${progress}%` }}
+              />
+            </div>
+            <div className="mt-1 text-[10px] font-mono">
+              {STATUS_LABELS[batch.status]} {batch.current}/{batch.total}
+            </div>
+          </button>
+          <div className="flex flex-col items-end gap-1 text-[10px]">
+            <button
+              type="button"
+              onClick={() => setIsExpanded(true)}
+              className="rounded-md px-2 py-1 border"
+              style={{ borderColor: theme.node.border }}
+            >
+              Expand
+            </button>
+            {batch.status === 'running' ? (
+              <button
+                type="button"
+                onClick={onCancel}
+                disabled={batch.isCancelling}
+                className="rounded-md px-2 py-1 border"
+                style={{ borderColor: theme.node.border }}
+              >
+                {batch.isCancelling ? 'Cancelling' : 'Cancel'}
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={onClear}
+                className="rounded-md px-2 py-1 border"
+                style={{ borderColor: theme.node.border }}
+              >
+                Close
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div
@@ -102,9 +174,18 @@ export const AIBatchStatus: React.FC<AIBatchStatusProps> = ({
           </div>
         )}
 
-        <div className="mt-3 flex justify-end gap-2">
+        <div className="mt-3 flex justify-between gap-2">
+          <button
+            type="button"
+            onClick={() => setIsExpanded(false)}
+            className="rounded-md px-2 py-1 text-xs border"
+            style={{ borderColor: theme.node.border }}
+          >
+            Collapse
+          </button>
           {batch.status === 'running' ? (
             <button
+              type="button"
               onClick={onCancel}
               disabled={batch.isCancelling}
               className="rounded-md px-2 py-1 text-xs border"
@@ -114,6 +195,7 @@ export const AIBatchStatus: React.FC<AIBatchStatusProps> = ({
             </button>
           ) : (
             <button
+              type="button"
               onClick={onClear}
               className="rounded-md px-2 py-1 text-xs border"
               style={{ borderColor: theme.node.border }}

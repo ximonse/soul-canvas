@@ -83,8 +83,8 @@ src/
 
 ## Aktuell status (kort - uppdateras varje session)
 
-- Fokus: AI batch status overlay + cancel for multi-card actions
-- Plan (max 3 steg): 1) Add overlay UI 2) Wire batch state/cancel 3) Commit/push
+- Fokus: AI batch overlay compact/expand
+- Plan (max 3 steg): 1) Add compact mode 2) Wire expand/collapse 3) Commit/push
 - Fragor/blockers: None
 - Senast uppdaterad: 2025-12-25
 - Detaljer: se WORKLOG.md
