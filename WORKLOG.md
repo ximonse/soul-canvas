@@ -15,4 +15,6 @@ Detailed progress log. Keep `CLAUDE.md` "Aktuell status" short; capture details 
   - Image assets now re-trigger loads when assets change (`src/components/KonvaNode.tsx`).
   - Select-all uses bulk selection instead of per-node toggles (`src/hooks/useKeyboardHandlers.ts`).
   - Drag-select respects filtered nodes (session/tag filters) (`src/components/KonvaCanvas.tsx`).
+- Fixes:
+  - Adjusted text card height clamping so captions are no longer clipped (`src/components/KonvaNode.tsx`).
 - Next: confirm optimization goals and hotspots; review relevant diffs or profiling notes.

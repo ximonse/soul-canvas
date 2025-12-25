@@ -401,14 +401,16 @@ const KonvaNodeInner: React.FC<KonvaNodeInnerProps> = ({
       return () => { cancelled = true; };
     } else {
       setImageObj(undefined);
-      let height = CARD.PADDING * 2 + contentLayout.height;
+      let baseHeight = CARD.PADDING * 2 + contentLayout.height;
       if (hasTitle) {
-        height += titleHeight + titleGap;
+        baseHeight += titleHeight + titleGap;
       }
+      const clampedBase = Math.min(CARD.MAX_HEIGHT, baseHeight);
+      let height = clampedBase;
       if (captionHeight > 0) {
         height += captionHeight + CARD.PADDING;
       }
-      setCardHeight(Math.max(CARD.MIN_HEIGHT, Math.min(CARD.MAX_HEIGHT, height)));
+      setCardHeight(Math.max(CARD.MIN_HEIGHT, height));
     }
     return () => { cancelled = true; };
   }, [
