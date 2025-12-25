@@ -99,7 +99,7 @@ export const CommandPalette = ({
     { id: 'embed', name: 'Generate Embeddings', shortcut: 'emb', action: async () => { await intelligence.embedAllNodes(); onClose(); }, category: 'ai', icon: '🧬' },
     { id: 'link', name: 'Auto-Link Similar', shortcut: 'link', action: async () => { await intelligence.autoLinkSimilarNodes(); onClose(); }, category: 'ai', icon: '🔗' },
     { id: 'reflect', name: 'AI Reflection', shortcut: 'ref', action: async () => { await intelligence.reflect(); onClose(); }, category: 'ai', icon: '💭' },
-    { id: 'tags', name: 'Generate Tags', shortcut: 'tag', action: async () => { const selected = Array.from(selectedNodeIds).map(id => nodes.get(id)).filter(Boolean) as MindNode[]; for (const n of selected) await intelligence.generateTags(n.id); onClose(); }, category: 'ai', icon: '🏷️' },
+    { id: 'tags', name: 'Generate Tags', shortcut: 'tag', action: async () => { await intelligence.generateTagsForSelection(); onClose(); }, category: 'ai', icon: '🏷️' },
 
     // View Commands
     { id: 'center', name: 'Center Camera', shortcut: '-', action: () => { onCenterCamera(); onClose(); }, category: 'view', icon: '🎯' },

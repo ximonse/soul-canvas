@@ -170,9 +170,7 @@ function App() {
     const targets = selected.length > 0 ? selected : [nodes.get(id)].filter(Boolean) as MindNode[];
     if (targets.length === 0) return;
     saveStateForUndo();
-    for (const node of targets) {
-      await intelligence.generateTags(node.id);
-    }
+    await intelligence.generateTagsForSelection(id);
   }, [selectedNodeIds, nodes, saveStateForUndo, intelligence]);
 
   const handleSummarizeToComment = useCallback((id: string) => {

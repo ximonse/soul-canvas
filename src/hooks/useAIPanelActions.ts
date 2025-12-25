@@ -170,12 +170,7 @@ export function useAIPanelActions() {
     }
 
     try {
-      let totalTags = 0;
-      for (const node of selectedNodes as MindNode[]) {
-        const tags = await intelligence.generateTags(node.id);
-        totalTags += tags.practical.length + tags.hidden.length;
-      }
-
+      const { totalTags } = await intelligence.generateTagsForSelection();
       if (totalTags > 0) {
         notify(`Genererade ${totalTags} semantiska taggar!`, 'success');
       } else {

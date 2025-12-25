@@ -17,4 +17,6 @@ Detailed progress log. Keep `CLAUDE.md` "Aktuell status" short; capture details 
   - Drag-select respects filtered nodes (session/tag filters) (`src/components/KonvaCanvas.tsx`).
 - Fixes:
   - Adjusted text card height clamping so captions are no longer clipped (`src/components/KonvaNode.tsx`).
+- AI batch:
+  - AI actions now prioritize selected nodes and process them sequentially to avoid request bursts (`src/hooks/useIntelligence.ts`, `src/App.tsx`, `src/hooks/useAIPanelActions.ts`, `src/components/CommandPalette.tsx`).
 - Next: confirm optimization goals and hotspots; review relevant diffs or profiling notes.

@@ -34,6 +34,46 @@ export const useIntelligence = () => {
   const [progress, setProgress] = useState({ current: 0, total: 0 });
   const [lastReflection, setLastReflection] = useState<AIReflection | null>(null);
 
+  const resolveTargets = useCallback((nodeId?: string): MindNode[] => {
+    const currentState = useBrainStore.getState();
+    const selected = Array.from(currentState.selectedNodeIds)
+      .map(id => currentState.nodes.get(id))
+      .filter(Boolean) as MindNode[];
+    if (selected.length > 0) return selected;
+    if (nodeId) {
+      const node = currentState.nodes.get(nodeId);
+      return node ? [node] : [];
+    }
+    return [];
+  }, []);
+
+  const tagSingleNode = useCallback(async (node: MindNode, key: string): Promise<{ practical: string[]; hidden: string[] }> => {
+    try {
+      setNodeAIProcessing(node.id, 'claude');
+      setNodeTagging(node.id, true);
+      const result = await generateSemanticTags(node, key);
+
+      const existingTags = node.tags || [];
+      const newPracticalTags = result.practicalTags.filter(
+        (tag: string) => !existingTags.some((existing: string) => existing.toLowerCase() === tag.toLowerCase())
+      );
+      const mergedTags = [...existingTags, ...newPracticalTags];
+
+      updateNode(node.id, {
+        tags: mergedTags,
+        semanticTags: result.hiddenTags,
+      });
+
+      return { practical: result.practicalTags, hidden: result.hiddenTags };
+    } catch (error) {
+      console.error('Tag generation error:', error);
+      return { practical: [], hidden: [] };
+    } finally {
+      setNodeTagging(node.id, false);
+      setNodeAIProcessing(node.id, null);
+    }
+  }, [setNodeAIProcessing, setNodeTagging, updateNode]);
+
   /**
    * Generate embedding for a single node
    */
@@ -163,32 +203,35 @@ export const useIntelligence = () => {
 
     try {
       setIsProcessing(true);
-      setNodeAIProcessing(nodeId, 'claude');
-      setNodeTagging(nodeId, true);  // Start tagging animation
-      const result = await generateSemanticTags(node, claudeKey);
-
-      // Merge practical tags with existing tags (avoid duplicates)
-      const existingTags = node.tags || [];
-      const newPracticalTags = result.practicalTags.filter(
-        (tag: string) => !existingTags.some((existing: string) => existing.toLowerCase() === tag.toLowerCase())
-      );
-      const mergedTags = [...existingTags, ...newPracticalTags];
-
-      updateNode(nodeId, {
-        tags: mergedTags,
-        semanticTags: result.hiddenTags,
-      });
-
-      return { practical: result.practicalTags, hidden: result.hiddenTags };
-    } catch (error) {
-      console.error('Tag generation error:', error);
-      return { practical: [], hidden: [] };
+      return await tagSingleNode(node, claudeKey);
     } finally {
-      setNodeTagging(nodeId, false);  // Stop tagging animation
-      setNodeAIProcessing(nodeId, null);
       setIsProcessing(false);
     }
-  }, [nodes, claudeKey, setNodeAIProcessing, setNodeTagging, updateNode]);
+  }, [nodes, claudeKey, tagSingleNode]);
+
+  const generateTagsForSelection = useCallback(async (nodeId?: string): Promise<{ processed: number; totalTags: number }> => {
+    const currentState = useBrainStore.getState();
+    const key = currentState.claudeKey;
+    if (!key) return { processed: 0, totalTags: 0 };
+
+    const targets = resolveTargets(nodeId);
+    if (targets.length === 0) return { processed: 0, totalTags: 0 };
+
+    let processed = 0;
+    let totalTags = 0;
+    setIsProcessing(true);
+    try {
+      for (const node of targets) {
+        const result = await tagSingleNode(node, key);
+        totalTags += result.practical.length + result.hidden.length;
+        processed += 1;
+      }
+    } finally {
+      setIsProcessing(false);
+    }
+
+    return { processed, totalTags };
+  }, [resolveTargets, tagSingleNode]);
 
   /**
    * Generate a short summary and write to node.comment
@@ -198,12 +241,7 @@ export const useIntelligence = () => {
     const key = currentState.claudeKey;
     if (!key) return 0;
 
-    const selected = Array.from(currentState.selectedNodeIds)
-      .map(id => currentState.nodes.get(id))
-      .filter(Boolean) as MindNode[];
-    const targets: MindNode[] = nodeId
-      ? [currentState.nodes.get(nodeId)].filter(Boolean) as MindNode[]
-      : (selected.length > 0 ? selected : []);
+    const targets = resolveTargets(nodeId);
     if (targets.length === 0) return 0;
 
     currentState.saveStateForUndo?.();
@@ -236,12 +274,7 @@ export const useIntelligence = () => {
     const key = currentState.claudeKey;
     if (!key) return 0;
 
-    const selected = Array.from(currentState.selectedNodeIds)
-      .map(id => currentState.nodes.get(id))
-      .filter(Boolean) as MindNode[];
-    const targets: MindNode[] = nodeId
-      ? [currentState.nodes.get(nodeId)].filter(Boolean) as MindNode[]
-      : (selected.length > 0 ? selected : []);
+    const targets = resolveTargets(nodeId);
     if (targets.length === 0) return 0;
 
     currentState.saveStateForUndo?.();
@@ -460,6 +493,7 @@ export const useIntelligence = () => {
     embedAllNodes,
     autoLinkSimilarNodes,
     generateTags,
+    generateTagsForSelection,
     summarizeToComment,
     suggestTitle,
     reflect,
