@@ -1,6 +1,6 @@
 // src/components/KonvaCanvas.tsx
 import React, { useRef, useEffect, useState, useMemo, useCallback } from 'react';
-import { Stage, Layer, Rect, Line } from 'react-konva';
+import { Stage, Layer, Rect, Line, FastLayer } from 'react-konva';
 import type Konva from 'konva';
 import type { KonvaEventObject } from 'konva/lib/Node';
 import { useBrainStore } from '../store/useBrainStore';
@@ -344,9 +344,9 @@ const KonvaCanvas: React.FC<KonvaCanvasProps> = ({
       onMouseUp={handleStageMouseUp}
       style={{ backgroundColor: theme.canvasColor }}
     >
-      <Layer>
-        {/* Synapse lines */}
-        {showSynapseLines && (
+      {/* Synapse lines */}
+      {showSynapseLines && (
+        <FastLayer listening={false}>
           <SynapseLines
             synapses={synapses}
             nodes={filteredNodesMap}
@@ -354,8 +354,10 @@ const KonvaCanvas: React.FC<KonvaCanvasProps> = ({
             visibilityThreshold={synapseVisibilityThreshold}
             scale={canvas.view.k}
           />
-        )}
+        </FastLayer>
+      )}
 
+      <Layer>
         {/* Gravitating lines - från current wandering node till gravitating nodes */}
         {wanderingCurrentNodeId && gravitatingNodes.length > 0 && (() => {
           const currentNode = filteredNodesMap.get(wanderingCurrentNodeId);
