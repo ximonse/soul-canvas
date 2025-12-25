@@ -283,8 +283,9 @@ const KonvaCanvas: React.FC<KonvaCanvasProps> = ({
 
     const mousePointTo = toWorldPosition(stage, pointer);
 
-    const direction = e.evt.deltaY > 0 ? -1 : 1;
-    const newScale = direction > 0 ? oldScale * 1.1 : oldScale / 1.1;
+    const wheelDelta = Math.max(-100, Math.min(100, e.evt.deltaY));
+    const scaleBy = Math.exp(-wheelDelta * 0.002);
+    const newScale = oldScale * scaleBy;
     const clampedScale = Math.max(ZOOM.MIN, Math.min(ZOOM.MAX, newScale));
 
     const newPos = {
