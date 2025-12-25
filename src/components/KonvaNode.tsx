@@ -8,13 +8,14 @@ import type { AIProvider, MindNode } from '../types/types';
 import { type Theme } from '../themes';
 import { CARD } from '../utils/constants';
 import { getScopeColor, getNodeStyles, getGravitatingColor, getSemanticThemeColor } from '../utils/nodeStyles';
-import { layoutMarkdownText, measureTextHeight } from '../utils/textLayout';
+import { layoutMarkdownText, measureTextHeight, type MarkdownLineLayout } from '../utils/textLayout';
 import { getImageText, resolveImageUrl } from '../utils/imageRefs';
+import { loadCachedImage } from '../utils/imageCache';
 import type { GravitatingColorMode } from '../types/types';
 import MarkdownText from './MarkdownText';
 
 interface KonvaNodeProps {
-  node: MindNode;
+  nodeId: string;
   theme: Theme;
   gravitatingSimilarity?: number;  // Om noden är en gravitating node, dess similarity (0-1)
   gravitatingSemanticTheme?: string;  // Semantiskt tema (existential, practical, etc.)
@@ -27,6 +28,10 @@ interface KonvaNodeProps {
   onHover?: (nodeId: string | null) => void;
   onContextMenu?: (nodeId: string, screenPos: { x: number; y: number }) => void;
 }
+
+type KonvaNodeInnerProps = Omit<KonvaNodeProps, 'nodeId'> & {
+  node: MindNode;
+};
 
 // Extract URL from markdown link format [text](url)
 const extractLinkUrl = (markdown: string | undefined): string | null => {
@@ -48,8 +53,193 @@ const AI_PULSE_PALETTE: Record<AIProvider, RGB[]> = {
 };
 
 const toRgb = (color: RGB) => `rgb(${color.r},${color.g},${color.b})`;
+const HEIGHT_SYNC_DELAY_MS = 120;
 
-const KonvaNodeComponent: React.FC<KonvaNodeProps> = ({
+interface FrontTextContentProps {
+  title?: string;
+  content: string;
+  contentLines: MarkdownLineLayout[];
+  contentX: number;
+  contentOffsetY: number;
+  contentWidth: number;
+  contentFontFamily: string;
+  captionFontFamily: string;
+  contentLineHeight: number;
+  titleLineHeight: number;
+  captionLineHeight: number;
+  textColor: string;
+  cardHeight: number;
+  caption?: string;
+  captionHeight: number;
+}
+
+const FrontTextContent: React.FC<FrontTextContentProps> = React.memo(({
+  title,
+  content,
+  contentLines,
+  contentX,
+  contentOffsetY,
+  contentWidth,
+  contentFontFamily,
+  captionFontFamily,
+  contentLineHeight,
+  titleLineHeight,
+  captionLineHeight,
+  textColor,
+  cardHeight,
+  caption,
+  captionHeight,
+}) => (
+  <>
+    {title && (
+      <Text
+        text={title}
+        x={contentX}
+        y={CARD.PADDING}
+        width={contentWidth}
+        fill={textColor}
+        fontSize={CARD.FONT_SIZE}
+        fontFamily={contentFontFamily}
+        fontStyle="bold"
+        wrap="word"
+        lineHeight={titleLineHeight}
+      />
+    )}
+
+    <MarkdownText
+      text={content}
+      lines={contentLines}
+      x={contentX}
+      y={contentOffsetY}
+      width={contentWidth}
+      fill={textColor}
+      fontSize={CARD.FONT_SIZE}
+      fontFamily={contentFontFamily}
+      align="left"
+      lineHeight={contentLineHeight}
+    />
+
+    {caption?.trim() && (
+      <Text
+        text={caption}
+        x={contentX}
+        y={cardHeight - CARD.PADDING - captionHeight}
+        width={contentWidth}
+        fill={textColor}
+        fontSize={CARD.FONT_SIZE_SMALL}
+        fontFamily={captionFontFamily}
+        fontStyle="italic"
+        align="center"
+        wrap="word"
+        lineHeight={captionLineHeight}
+      />
+    )}
+  </>
+));
+
+interface FlippedContentProps {
+  isImage: boolean;
+  cardHeight: number;
+  theme: Theme;
+  backTextWidth: number;
+  hasTitle: boolean;
+  title?: string;
+  backTitleHeight: number;
+  backTitleFontFamily: string;
+  backTitleLineHeight: number;
+  backFontFamily: string;
+  backContentLineHeight: number;
+  imageText: string;
+  backSideText: string;
+  cardFontFamily: string;
+}
+
+const FlippedContent: React.FC<FlippedContentProps> = React.memo(({
+  isImage,
+  cardHeight,
+  theme,
+  backTextWidth,
+  hasTitle,
+  title,
+  backTitleHeight,
+  backTitleFontFamily,
+  backTitleLineHeight,
+  backFontFamily,
+  backContentLineHeight,
+  imageText,
+  backSideText,
+  cardFontFamily,
+}) => (
+  <>
+    <Rect
+      x={0}
+      y={0}
+      width={CARD.WIDTH}
+      height={cardHeight}
+      fill={theme.node.flippedBg}
+      cornerRadius={CARD.CORNER_RADIUS}
+    />
+    {isImage ? (
+      <>
+        {hasTitle && (
+          <Text
+            text={title}
+            x={CARD.PADDING}
+            y={CARD.PADDING}
+            width={backTextWidth}
+            fill={theme.node.flippedText}
+            fontSize={20}
+            fontFamily={backTitleFontFamily}
+            fontStyle="bold"
+            align="left"
+            lineHeight={backTitleLineHeight}
+            wrap="word"
+          />
+        )}
+        <Text
+          text={imageText}
+          x={CARD.PADDING}
+          y={CARD.PADDING + (hasTitle ? backTitleHeight + CARD.PADDING / 2 : 0)}
+          width={backTextWidth}
+          fill={theme.node.flippedText}
+          fontSize={18}
+          fontFamily={backFontFamily}
+          align="left"
+          verticalAlign="top"
+          wrap="word"
+          lineHeight={backContentLineHeight}
+        />
+      </>
+    ) : (
+      <>
+        <Text
+          text="Baksida (Redigerbart)"
+          x={CARD.PADDING}
+          y={CARD.PADDING}
+          width={CARD.WIDTH - CARD.PADDING * 2}
+          fill={theme.node.flippedText}
+          fontSize={CARD.FONT_SIZE_SMALL}
+          fontFamily={cardFontFamily}
+          align="center"
+        />
+        <Text
+          text={backSideText}
+          x={CARD.PADDING}
+          y={CARD.PADDING + 30}
+          width={CARD.WIDTH - CARD.PADDING * 2}
+          fill={theme.node.flippedText}
+          fontSize={CARD.FONT_SIZE_TINY}
+          fontFamily={cardFontFamily}
+          align="left"
+          verticalAlign="top"
+          wrap="word"
+        />
+      </>
+    )}
+  </>
+));
+
+const KonvaNodeInner: React.FC<KonvaNodeInnerProps> = ({
   node,
   theme,
   gravitatingSimilarity,
@@ -65,6 +255,7 @@ const KonvaNodeComponent: React.FC<KonvaNodeProps> = ({
 }) => {
   const groupRef = useRef<Konva.Group>(null);
   const aiPulseRef = useRef<Konva.Circle>(null);
+  const heightSyncTimeoutRef = useRef<number | null>(null);
 
   // Extract link URL from comment field
   const linkUrl = useMemo(() => extractLinkUrl(node.comment), [node.comment]);
@@ -104,6 +295,7 @@ const KonvaNodeComponent: React.FC<KonvaNodeProps> = ({
   const backTitleLineHeight = 1.1;
   const backContentLineHeight = 1.35;
   const backTextWidth = CARD.WIDTH - CARD.PADDING * 2;
+  const hasTitle = Boolean(node.title?.trim());
 
   const titleHeight = useMemo(() => {
     if (!node.title?.trim()) return 0;
@@ -147,26 +339,35 @@ const KonvaNodeComponent: React.FC<KonvaNodeProps> = ({
     });
   }, [node.type, node.title, backTextWidth, backTitleFontFamily, backTitleLineHeight]);
 
-  const titleGap = node.title ? CARD.PADDING : 0;
-  const contentOffsetY = CARD.PADDING + (node.title ? titleHeight + titleGap : 0);
+  const titleGap = hasTitle ? CARD.PADDING : 0;
+  const contentOffsetY = CARD.PADDING + (hasTitle ? titleHeight + titleGap : 0);
+
+  const imageText = useMemo(
+    () => getImageText(node),
+    [node.type, node.content, node.imageRef, node.ocrText, node.comment]
+  );
+  const backSideText = useMemo(
+    () => node.ocrText || (node.type === 'zotero' ? node.content : ''),
+    [node.ocrText, node.type, node.content]
+  );
 
   const backContentHeight = useMemo(() => {
     if (node.type !== 'image') return 0;
-    const text = getImageText(node);
-    return measureTextHeight(text, {
+    return measureTextHeight(imageText, {
       width: backTextWidth,
       fontSize: 18, // Sync with JSX
       fontFamily: backFontFamily,
       lineHeight: backContentLineHeight,
     });
-  }, [node, backTextWidth, backFontFamily, backContentLineHeight]);
+  }, [node.type, imageText, backTextWidth, backFontFamily, backContentLineHeight]);
 
   // Image loading & Height calculation
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
+    let cancelled = false;
     const calcBackHeight = () => {
       if (!isFlipped || !isImage) return 0;
-      return CARD.PADDING * 2 + backTitleHeight + (node.title?.trim() ? CARD.PADDING / 2 : 0) + backContentHeight;
+      return CARD.PADDING * 2 + backTitleHeight + (hasTitle ? CARD.PADDING / 2 : 0) + backContentHeight;
     };
 
     if (isImage) {
@@ -175,30 +376,32 @@ const KonvaNodeComponent: React.FC<KonvaNodeProps> = ({
         setImageObj(undefined);
         const backH = calcBackHeight();
         setCardHeight(Math.max(CARD.MIN_HEIGHT, backH));
-        return;
+        return () => { cancelled = true; };
       }
-      const img = new window.Image();
-      img.src = assetUrl;
-      img.onload = () => {
-        setImageObj(img);
-        const aspectRatio = img.height / img.width;
-        let totalHeight = CARD.WIDTH * aspectRatio;
-        if (captionHeight > 0) {
-          totalHeight += captionHeight + CARD.PADDING;
-        }
+      loadCachedImage(assetUrl)
+        .then((img) => {
+          if (cancelled) return;
+          setImageObj(img);
+          const aspectRatio = img.height / img.width;
+          let totalHeight = CARD.WIDTH * aspectRatio;
+          if (captionHeight > 0) {
+            totalHeight += captionHeight + CARD.PADDING;
+          }
 
-        const backH = calcBackHeight();
-        setCardHeight(Math.max(CARD.MIN_HEIGHT, Math.max(totalHeight, backH)));
-      };
-      img.onerror = () => {
-        setImageObj(undefined);
-        const backH = calcBackHeight();
-        setCardHeight(Math.max(CARD.MIN_HEIGHT, backH));
-      };
+          const backH = calcBackHeight();
+          setCardHeight(Math.max(CARD.MIN_HEIGHT, Math.max(totalHeight, backH)));
+        })
+        .catch(() => {
+          if (cancelled) return;
+          setImageObj(undefined);
+          const backH = calcBackHeight();
+          setCardHeight(Math.max(CARD.MIN_HEIGHT, backH));
+        });
+      return () => { cancelled = true; };
     } else {
       setImageObj(undefined);
       let height = CARD.PADDING * 2 + contentLayout.height;
-      if (node.title) {
+      if (hasTitle) {
         height += titleHeight + titleGap;
       }
       if (captionHeight > 0) {
@@ -206,13 +409,10 @@ const KonvaNodeComponent: React.FC<KonvaNodeProps> = ({
       }
       setCardHeight(Math.max(CARD.MIN_HEIGHT, Math.min(CARD.MAX_HEIGHT, height)));
     }
+    return () => { cancelled = true; };
   }, [
-    node,
     node.content,
-    node.type,
     node.imageRef,
-    node.title,
-    node.caption,
     isImage,
     isFlipped,
     captionHeight,
@@ -221,15 +421,26 @@ const KonvaNodeComponent: React.FC<KonvaNodeProps> = ({
     backTitleHeight,
     backContentHeight,
     titleGap,
+    hasTitle,
   ]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
   useEffect(() => {
     if (cardHeight > 0 && node.height !== cardHeight) {
-      // Vi använder en debounce eller koll här för att undvika oändliga loopar
-      // (updateNode triggar om-rendering av KonvaNode, men om höjden är samma avbryts det)
-      updateNode(node.id, { height: cardHeight });
+      if (heightSyncTimeoutRef.current) {
+        window.clearTimeout(heightSyncTimeoutRef.current);
+      }
+      heightSyncTimeoutRef.current = window.setTimeout(() => {
+        updateNode(node.id, { height: cardHeight });
+        heightSyncTimeoutRef.current = null;
+      }, HEIGHT_SYNC_DELAY_MS);
     }
+    return () => {
+      if (heightSyncTimeoutRef.current) {
+        window.clearTimeout(heightSyncTimeoutRef.current);
+        heightSyncTimeoutRef.current = null;
+      }
+    };
   }, [cardHeight, node.id, node.height, updateNode]);
 
   // Drag handlers
@@ -434,94 +645,43 @@ const KonvaNodeComponent: React.FC<KonvaNodeProps> = ({
         />
       )}
 
-      {!isImage && !isFlipped && node.title && (
-        <Text
-          text={node.title}
-          x={contentX}
-          y={CARD.PADDING}
-          width={contentWidth}
-          fill={styles.text}
-          fontSize={CARD.FONT_SIZE}
-          fontFamily={contentFontFamily}
-          fontStyle="bold"
-          wrap="word"
-          lineHeight={titleLineHeight}
-        />
-      )}
-
       {!isImage && !isFlipped && (
-        <MarkdownText
-          text={node.content}
-          x={contentX} y={contentOffsetY}
-          width={contentWidth}
-          fill={styles.text} fontSize={CARD.FONT_SIZE} fontFamily={contentFontFamily} align="left"
-          lineHeight={contentLineHeight}
+        <FrontTextContent
+          title={node.title}
+          content={node.content}
+          contentLines={contentLayout.lines}
+          contentX={contentX}
+          contentOffsetY={contentOffsetY}
+          contentWidth={contentWidth}
+          contentFontFamily={contentFontFamily}
+          captionFontFamily={captionFontFamily}
+          contentLineHeight={contentLineHeight}
+          titleLineHeight={titleLineHeight}
+          captionLineHeight={captionLineHeight}
+          textColor={styles.text}
+          cardHeight={cardHeight}
+          caption={node.caption}
+          captionHeight={captionHeight}
         />
       )}
-
-      {!isImage && !isFlipped && node.caption?.trim() && (() => {
-        return (
-          <Text text={node.caption}
-            x={contentX}
-            y={cardHeight - CARD.PADDING - captionHeight}
-            width={contentWidth}
-            fill={styles.text} fontSize={CARD.FONT_SIZE_SMALL}
-            fontFamily={captionFontFamily} fontStyle="italic" align="center" wrap="word"
-            lineHeight={captionLineHeight}
-          />
-        );
-      })()}
 
       {isFlipped && (
-        <>
-          <Rect x={0} y={0} width={CARD.WIDTH} height={cardHeight}
-            fill={theme.node.flippedBg} cornerRadius={CARD.CORNER_RADIUS}
-          />
-          {node.type === 'image' ? (
-            <>
-              {node.title?.trim() && (
-                <Text
-                  text={node.title}
-                  x={CARD.PADDING}
-                  y={CARD.PADDING}
-                  width={backTextWidth}
-                  fill={theme.node.flippedText}
-                  fontSize={20}
-                  fontFamily={backTitleFontFamily}
-                  fontStyle="bold"
-                  align="left"
-                  lineHeight={backTitleLineHeight}
-                  wrap="word"
-                />
-              )}
-              <Text
-                text={getImageText(node)}
-                x={CARD.PADDING}
-                y={CARD.PADDING + (node.title?.trim() ? backTitleHeight + CARD.PADDING / 2 : 0)}
-                width={backTextWidth}
-                fill={theme.node.flippedText}
-                fontSize={18}
-                fontFamily={backFontFamily}
-                align="left"
-                verticalAlign="top"
-                wrap="word"
-                lineHeight={backContentLineHeight}
-              />
-            </>
-          ) : (
-            <>
-              <Text text="Baksida (Redigerbart)" x={CARD.PADDING} y={CARD.PADDING}
-                width={CARD.WIDTH - CARD.PADDING * 2} fill={theme.node.flippedText}
-                fontSize={CARD.FONT_SIZE_SMALL} fontFamily={cardFontFamily} align="center"
-              />
-              <Text text={node.ocrText || (node.type === 'zotero' ? node.content : '')}
-                x={CARD.PADDING} y={CARD.PADDING + 30} width={CARD.WIDTH - CARD.PADDING * 2}
-                fill={theme.node.flippedText} fontSize={CARD.FONT_SIZE_TINY}
-                fontFamily={cardFontFamily} align="left" verticalAlign="top" wrap="word"
-              />
-            </>
-          )}
-        </>
+        <FlippedContent
+          isImage={node.type === 'image'}
+          cardHeight={cardHeight}
+          theme={theme}
+          backTextWidth={backTextWidth}
+          hasTitle={hasTitle}
+          title={node.title}
+          backTitleHeight={backTitleHeight}
+          backTitleFontFamily={backTitleFontFamily}
+          backTitleLineHeight={backTitleLineHeight}
+          backFontFamily={backFontFamily}
+          backContentLineHeight={backContentLineHeight}
+          imageText={imageText}
+          backSideText={backSideText}
+          cardFontFamily={cardFontFamily}
+        />
       )}
 
       {node.pinned && <Circle x={CARD.WIDTH - 15} y={15} radius={5} fill={theme.lineColor} />}
@@ -588,8 +748,14 @@ const KonvaNodeComponent: React.FC<KonvaNodeProps> = ({
   );
 };
 
+const KonvaNodeComponent: React.FC<KonvaNodeProps> = ({ nodeId, ...rest }) => {
+  const node = useBrainStore((state) => state.nodes.get(nodeId));
+  if (!node) return null;
+  return <KonvaNodeInner {...rest} node={node} />;
+};
+
 const areKonvaNodePropsEqual = (prev: KonvaNodeProps, next: KonvaNodeProps) => (
-  prev.node === next.node &&
+  prev.nodeId === next.nodeId &&
   prev.theme === next.theme &&
   prev.gravitatingSimilarity === next.gravitatingSimilarity &&
   prev.gravitatingSemanticTheme === next.gravitatingSemanticTheme &&

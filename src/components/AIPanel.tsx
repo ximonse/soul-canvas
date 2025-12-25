@@ -1,5 +1,5 @@
 // src/components/AIPanel.tsx
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useAIPanelActions } from '../hooks/useAIPanelActions';
 import { useBrainStore } from '../store/useBrainStore';
 import { APIKeyStatus } from './ai';
@@ -65,11 +65,32 @@ export const AIPanel = ({ theme, onClose, onDiscussReflection }: AIPanelProps) =
   const setAutoLinkThreshold = useBrainStore((state) => state.setAutoLinkThreshold);
   const setSynapseVisibilityThreshold = useBrainStore((state) => state.setSynapseVisibilityThreshold);
 
+  const sortedSynapseSimilarities = useMemo(() => (
+    synapses
+      .map((s: { similarity?: number }) => s.similarity ?? 1)
+      .sort((a, b) => a - b)
+  ), [synapses]);
+
   // Beräkna synliga kopplingar baserat på threshold
   const visibleSynapseCount = synapses.filter(
     (s: { similarity?: number }) => (s.similarity || 1) >= (synapseVisibilityThreshold || 0)
   ).length;
   const totalSynapseCount = synapses.length;
+  const MIN_VISIBILITY_PERCENT = 1;
+  const MAX_VISIBILITY_PERCENT = 100;
+  const visibilityPercent = useMemo(() => {
+    if (totalSynapseCount === 0) return MAX_VISIBILITY_PERCENT;
+    const percent = Math.round((visibleSynapseCount / totalSynapseCount) * 100);
+    return Math.max(MIN_VISIBILITY_PERCENT, Math.min(MAX_VISIBILITY_PERCENT, percent));
+  }, [visibleSynapseCount, totalSynapseCount]);
+  const visibilitySliderValue = MAX_VISIBILITY_PERCENT + MIN_VISIBILITY_PERCENT - visibilityPercent;
+  const getThresholdForPercent = (percent: number) => {
+    if (sortedSynapseSimilarities.length === 0) return 0;
+    const clamped = Math.max(MIN_VISIBILITY_PERCENT, Math.min(MAX_VISIBILITY_PERCENT, percent));
+    const keepCount = Math.max(1, Math.ceil(sortedSynapseSimilarities.length * (clamped / 100)));
+    const index = Math.max(0, sortedSynapseSimilarities.length - keepCount);
+    return sortedSynapseSimilarities[index];
+  };
 
   // Helper styles for inputs/panels based on theme darkness
   const isDarkTheme = theme.bg.includes('black') || theme.bg.includes('gray-9') || theme.bg.includes('#050505') || theme.bg.includes('#30362f') || theme.bg.includes('#1f2937');
@@ -182,15 +203,19 @@ export const AIPanel = ({ theme, onClose, onDiscussReflection }: AIPanelProps) =
           <div className="mb-3">
             <div className="flex justify-between text-xs mb-1">
               <span style={{ color: subTextColor }}>Synlighet</span>
-              <span className="font-mono" style={{ color: theme.node.text }}>≥{Math.round((synapseVisibilityThreshold || 0) * 100)}%</span>
+              <span className="font-mono" style={{ color: theme.node.text }}>{visibilityPercent}%</span>
             </div>
             <input
               type="range"
-              min="0"
-              max="0.95"
-              step="0.05"
-              value={synapseVisibilityThreshold || 0}
-              onChange={e => setSynapseVisibilityThreshold(parseFloat(e.target.value))}
+              min={MIN_VISIBILITY_PERCENT}
+              max={MAX_VISIBILITY_PERCENT}
+              step="1"
+              value={visibilitySliderValue}
+              onChange={e => {
+                const sliderValue = parseFloat(e.target.value);
+                const targetPercent = MAX_VISIBILITY_PERCENT + MIN_VISIBILITY_PERCENT - sliderValue;
+                setSynapseVisibilityThreshold(getThresholdForPercent(targetPercent));
+              }}
               className="w-full h-2 rounded-lg appearance-none cursor-pointer accent-purple-500 bg-gray-300 dark:bg-gray-700"
             />
             <p className="text-xs mt-1" style={{ color: subTextColor }}>

@@ -9,7 +9,7 @@ import { useViewportCulling } from '../hooks/useViewportCulling';
 import KonvaNode from './KonvaNode';
 import { SynapseLines, SequenceArrows } from './canvas';
 import { THEMES } from '../themes';
-import { VIEWPORT, ZOOM } from '../utils/constants';
+import { GRAVITY, VIEWPORT, ZOOM } from '../utils/constants';
 import type { MindNode, GravitatingNode, GravitatingColorMode, Trail } from '../types/types';
 import { getGravitatingColor, getSemanticThemeColor } from '../utils/nodeStyles';
 
@@ -38,6 +38,8 @@ const toWorldPosition = (stage: Konva.Stage, pointer: { x: number; y: number }) 
     y: (pointer.y - stage.y()) / scale,
   };
 };
+const GRAVITY_SCROLL_SCALE = 0.003;
+const GRAVITY_SCROLL_MAX_STEP = 0.6;
 
 const KonvaCanvas: React.FC<KonvaCanvasProps> = ({
   currentThemeKey,
@@ -84,6 +86,61 @@ const KonvaCanvas: React.FC<KonvaCanvasProps> = ({
     visible: boolean;
   } | null>(null);
 
+  const adjustGraphGravity = useCallback((delta: number) => {
+    const state = useBrainStore.getState();
+    const newGravity = Math.max(GRAVITY.MIN, Math.min(GRAVITY.MAX, state.graphGravity + delta));
+    state.setGraphGravity(newGravity);
+
+    const allNodes = Array.from(state.nodes.values()) as MindNode[];
+    const selectedNodes = Array.from(state.selectedNodeIds)
+      .map(id => state.nodes.get(id))
+      .filter(Boolean) as MindNode[];
+
+    const visibleSynapses = state.synapses.filter((s) =>
+      (s.similarity || 1) >= state.synapseVisibilityThreshold
+    );
+
+    const hasSelection = selectedNodes.length > 0;
+    const selectedIds = new Set(selectedNodes.map((n) => n.id));
+    const relevantSynapses = hasSelection
+      ? visibleSynapses.filter((s) => selectedIds.has(s.sourceId) || selectedIds.has(s.targetId))
+      : visibleSynapses;
+
+    const nodesToLayout: MindNode[] = hasSelection
+      ? allNodes.filter((n) => {
+          if (selectedIds.has(n.id)) return true;
+          return relevantSynapses.some((s) =>
+            (s.sourceId === n.id && selectedIds.has(s.targetId)) ||
+            (s.targetId === n.id && selectedIds.has(s.sourceId))
+          );
+        })
+      : allNodes;
+
+    if (relevantSynapses.length === 0 || nodesToLayout.length === 0) return;
+
+    import('../utils/forceLayout').then(({ calculateConnectedNodesLayout }) => {
+      const connectedIds = new Set<string>();
+      relevantSynapses.forEach((s) => {
+        connectedIds.add(s.sourceId);
+        connectedIds.add(s.targetId);
+      });
+      const connectedNodes = nodesToLayout.filter((n) => connectedIds.has(n.id));
+      if (connectedNodes.length === 0) return;
+
+      const cx = connectedNodes.reduce((sum, n) => sum + n.x, 0) / connectedNodes.length;
+      const cy = connectedNodes.reduce((sum, n) => sum + n.y, 0) / connectedNodes.length;
+
+      const positions = calculateConnectedNodesLayout(
+        nodesToLayout,
+        relevantSynapses,
+        { centerX: cx, centerY: cy, iterations: 120, gravity: newGravity }
+      );
+      if (positions.size > 0) {
+        state.updateNodePositions(positions);
+      }
+    });
+  }, []);
+
   // Keep stage transform in sync with canvas view
   useEffect(() => {
     if (stageRef.current) {
@@ -115,6 +172,15 @@ const KonvaCanvas: React.FC<KonvaCanvasProps> = ({
     view: canvas.view,
     enabled: nodes.length > VIEWPORT.CULLING_THRESHOLD,
   });
+  const visibleNodeIds = useMemo(() => (
+    [...visibleNodes]
+      .sort((a, b) => a.y - b.y)
+      .map((node) => node.id)
+  ), [visibleNodes]);
+  const visibleNodeIdSet = useMemo(
+    () => new Set(visibleNodeIds),
+    [visibleNodeIds]
+  );
 
   useEffect(() => {
     const handleResize = () => {
@@ -146,7 +212,14 @@ const KonvaCanvas: React.FC<KonvaCanvasProps> = ({
     const stage = stageRef.current;
     if (!stage) return;
 
-    if (e.evt.altKey || e.evt.metaKey || e.evt.ctrlKey) {
+    if (e.evt.ctrlKey) {
+      const rawDelta = -e.evt.deltaY * GRAVITY_SCROLL_SCALE;
+      const delta = Math.max(-GRAVITY_SCROLL_MAX_STEP, Math.min(GRAVITY_SCROLL_MAX_STEP, rawDelta));
+      adjustGraphGravity(delta);
+      return;
+    }
+
+    if (e.evt.altKey || e.evt.metaKey) {
       const nextY = stage.y() - e.evt.deltaY;
       stage.position({ x: stage.x(), y: nextY });
       stage.batchDraw();
@@ -277,6 +350,7 @@ const KonvaCanvas: React.FC<KonvaCanvasProps> = ({
           <SynapseLines
             synapses={synapses}
             nodes={filteredNodesMap}
+            visibleNodeIds={visibleNodeIdSet}
             visibilityThreshold={synapseVisibilityThreshold}
             scale={canvas.view.k}
           />
@@ -367,12 +441,12 @@ const KonvaCanvas: React.FC<KonvaCanvasProps> = ({
         })()}
 
         {/* Visible nodes sorted by Y position */}
-        {[...visibleNodes].sort((a, b) => a.y - b.y).map((node: MindNode) => {
-          const gravitatingInfo = gravitatingMap.get(node.id);
+        {visibleNodeIds.map((nodeId: string) => {
+          const gravitatingInfo = gravitatingMap.get(nodeId);
           return (
             <KonvaNode
-              key={node.id}
-              node={node}
+              key={nodeId}
+              nodeId={nodeId}
               theme={theme}
               isWandering={isWandering}
               onWanderStep={onWanderStep}

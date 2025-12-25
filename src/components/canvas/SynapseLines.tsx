@@ -8,6 +8,7 @@ import type { MindNode, Synapse } from '../../types/types';
 interface SynapseLinesProps {
   synapses: Synapse[];
   nodes: Map<string, MindNode>;
+  visibleNodeIds?: Set<string>;
   visibilityThreshold: number;
   scale: number;
 }
@@ -26,13 +27,18 @@ const getColorByConnections = (count: number, maxConnections: number) => {
 const SynapseLinesComponent: React.FC<SynapseLinesProps> = ({
   synapses,
   nodes,
+  visibleNodeIds,
   visibilityThreshold,
   scale,
 }) => {
   // Filtrera synapser baserat pǾ visibility threshold
   const visibleSynapses = useMemo(() => (
-    synapses.filter(s => (s.similarity || 1) >= visibilityThreshold)
-  ), [synapses, visibilityThreshold]);
+    synapses.filter((s) => {
+      if ((s.similarity || 1) < visibilityThreshold) return false;
+      if (!visibleNodeIds) return true;
+      return visibleNodeIds.has(s.sourceId) && visibleNodeIds.has(s.targetId);
+    })
+  ), [synapses, visibilityThreshold, visibleNodeIds]);
 
   const { connectionCount, maxConnections } = useMemo(() => {
     const counts = new Map<string, number>();

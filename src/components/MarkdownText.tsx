@@ -4,10 +4,11 @@
 import React, { useMemo } from 'react';
 import { Group, Text } from 'react-konva';
 import { CARD } from '../utils/constants';
-import { layoutMarkdownText } from '../utils/textLayout';
+import { layoutMarkdownText, type MarkdownLineLayout } from '../utils/textLayout';
 
 interface MarkdownTextProps {
   text: string;
+  lines?: MarkdownLineLayout[];
   x: number;
   y: number;
   width: number;
@@ -28,10 +29,12 @@ const MarkdownText: React.FC<MarkdownTextProps> = ({
   fontFamily = 'Noto Serif, Georgia, serif',
   align = 'left',
   lineHeight = 1.6,
+  lines,
 }) => {
   const renderedLines = useMemo(() => {
+    if (lines) return lines;
     return layoutMarkdownText(text, { width, fontSize, fontFamily, lineHeight }).lines;
-  }, [text, width, fontSize, fontFamily, lineHeight]);
+  }, [lines, text, width, fontSize, fontFamily, lineHeight]);
 
   return (
     <Group x={x} y={y}>
@@ -55,4 +58,4 @@ const MarkdownText: React.FC<MarkdownTextProps> = ({
   );
 };
 
-export default MarkdownText;
+export default React.memo(MarkdownText);
