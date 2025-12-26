@@ -83,8 +83,8 @@ src/
 
 ## Aktuell status (kort - uppdateras varje session)
 
-- Fokus: AI batch overlay compact/expand
-- Plan (max 3 steg): 1) Add compact mode 2) Wire expand/collapse 3) Commit/push
+- Fokus: Align left panels + compact AI batch overlay tweaks
+- Plan (max 3 steg): 1) Restyle AI batch overlay 2) Align panel shells 3) Commit/push
 - Fragor/blockers: None
 - Senast uppdaterad: 2025-12-25
 - Detaljer: se WORKLOG.md

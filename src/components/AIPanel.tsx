@@ -37,6 +37,7 @@ const StepSection = ({
 );
 
 export const AIPanel = ({ theme, onClose, onDiscussReflection }: AIPanelProps) => {
+  const panelAccent = '#a855f7';
   const {
     searchQuery,
     setSearchQuery,
@@ -102,10 +103,11 @@ export const AIPanel = ({ theme, onClose, onDiscussReflection }: AIPanelProps) =
 
   return (
     <div
-      className="fixed left-0 top-0 h-full w-80 z-50 border-r shadow-2xl overflow-y-auto"
+      className="fixed left-0 top-0 h-full w-80 z-50 border-r-2 shadow-2xl overflow-y-auto"
       style={{
         backgroundColor: theme.node.bg, // Removed transparency for better contrast consistency
         borderColor: theme.node.border,
+        borderRightColor: panelAccent,
         color: theme.node.text,
       }}
       role="dialog"

@@ -29,4 +29,7 @@ Detailed progress log. Keep `CLAUDE.md` "Aktuell status" short; capture details 
   - Added AI batch status overlay with per-card status plus cancel/close controls (`src/components/overlays/AIBatchStatus.tsx`, `src/App.tsx`, `src/hooks/useIntelligence.ts`).
 - UX:
   - Added compact/expand mode for AI batch overlay (`src/components/overlays/AIBatchStatus.tsx`).
+- UX:
+  - Tightened AI batch overlay layout and auto-expands on errors/cancel; moved to avoid zoom indicator (`src/components/overlays/AIBatchStatus.tsx`).
+  - Standardized left panels (AI, Session, Wandering) with shared sizing and accent border colors (`src/components/AIPanel.tsx`, `src/components/SessionPanel.tsx`, `src/components/overlays/TrailPanel.tsx`).
 - Next: confirm optimization goals and hotspots; review relevant diffs or profiling notes.

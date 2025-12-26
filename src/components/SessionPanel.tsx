@@ -75,6 +75,7 @@ export const SessionPanel: React.FC<SessionPanelProps> = ({
   isExpanded,
   onToggleExpanded,
 }) => {
+  const panelAccent = '#3b82f6';
   const [newSessionName, setNewSessionName] = useState('');
   const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
@@ -289,28 +290,29 @@ export const SessionPanel: React.FC<SessionPanelProps> = ({
     <>
       {infoBar}
       <div
-        className="fixed left-0 top-0 h-full w-80 z-50 border-r shadow-2xl backdrop-blur overflow-hidden flex flex-col"
+        className="fixed left-0 top-0 h-full w-80 z-50 border-r-2 shadow-2xl overflow-hidden flex flex-col"
         style={{
-          backgroundColor: theme.node.bg + 'f2',
+          backgroundColor: theme.node.bg,
           borderColor: theme.node.border,
+          borderRightColor: panelAccent,
           color: theme.node.text,
         }}
         onMouseDown={(e) => e.stopPropagation()}
       >
-      {/* Header */}
-      <div
-        className="flex items-center justify-between px-4 py-3 border-b"
-        style={{ borderColor: theme.node.border }}
-      >
-        <span className="font-semibold">Session <span className="text-xs opacity-50 font-normal">(S)</span></span>
-        <button
-          onClick={onToggleExpanded}
-          className="opacity-60 hover:opacity-100 text-sm"
-          title="Stäng"
+        {/* Header */}
+        <div
+          className="sticky top-0 backdrop-blur-sm p-4 border-b flex items-center justify-between"
+          style={{ backgroundColor: theme.node.bg, borderColor: theme.node.border }}
         >
-          ✕
-        </button>
-      </div>
+          <span className="font-semibold">Session <span className="text-xs opacity-50 font-normal">(S)</span></span>
+          <button
+            onClick={onToggleExpanded}
+            className="opacity-60 hover:opacity-100 text-xl w-8 h-8 flex items-center justify-center rounded hover:bg-black/10 dark:hover:bg-white/10"
+            title="Stäng"
+          >
+            ✕
+          </button>
+        </div>
 
       <div className="p-4 space-y-4 flex-1 overflow-y-auto">
         {/* Session-lista */}
