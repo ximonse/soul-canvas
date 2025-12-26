@@ -33,6 +33,5 @@ my_eternal_mind/
 
 # WIP features (local only)
 src/hooks/useWandering.ts
-src/components/overlays/TrailPanel.tsx
 src/store/slices/trailSlice.ts
 src/utils/trailPathfinding.ts
