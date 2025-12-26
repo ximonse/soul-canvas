@@ -83,8 +83,8 @@ src/
 
 ## Aktuell status (kort - uppdateras varje session)
 
-- Fokus: Align left panels + compact AI batch overlay tweaks
-- Plan (max 3 steg): 1) Restyle AI batch overlay 2) Align panel shells 3) Commit/push
+- Fokus: Panel parity + batch overlay polish done
+- Plan (max 3 steg): 1) TBD 2) TBD 3) TBD
 - Fragor/blockers: None
 - Senast uppdaterad: 2025-12-25
 - Detaljer: se WORKLOG.md

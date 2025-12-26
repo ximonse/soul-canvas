@@ -32,4 +32,6 @@ Detailed progress log. Keep `CLAUDE.md` "Aktuell status" short; capture details 
 - UX:
   - Tightened AI batch overlay layout and auto-expands on errors/cancel; moved to avoid zoom indicator (`src/components/overlays/AIBatchStatus.tsx`).
   - Standardized left panels (AI, Session, Wandering) with shared sizing and accent border colors (`src/components/AIPanel.tsx`, `src/components/SessionPanel.tsx`, `src/components/overlays/TrailPanel.tsx`).
+- Repo hygiene:
+  - Stopped ignoring `src/components/overlays/TrailPanel.tsx` and tracked it in git (keep personal trail data elsewhere).
 - Next: confirm optimization goals and hotspots; review relevant diffs or profiling notes.
