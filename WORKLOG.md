@@ -2,6 +2,32 @@
 
 Detailed progress log. Keep `CLAUDE.md` "Aktuell status" short; capture details here.
 
+## 2025-12-26 - Zotero MCP Integration (PHASE 1-2 påbörjad)
+
+**Branch:** `feature/zotero-integration` (fork från main)
+
+**Mål:** Integrera Zotero via MCP för att söka, läsa och importera från forskningsbiblioteket.
+
+**PHASE 1 - Backend Bridge: ✅ KLAR**
+- Skapat `backend/` med Node.js + TypeScript
+- WebSocket server på port 3001
+- MCP client som pratar med zotero-mcp-server via stdio
+- Message router för search, annotations, fullText, collections
+- In-memory cache med TTL
+- Health endpoint fungerar
+- Windows-fix: använder `node` direkt med path till zotero-mcp
+- Commit: `1a4b148`
+
+**PHASE 2 - Frontend Panel: ⏳ PÅGÅENDE**
+- ✅ Skapat `src/types/zotero.ts` (types för items, annotations, WS messages)
+- ✅ Skapat `src/store/slices/zoteroSlice.ts` (Zustand state)
+- ✅ Skapat `src/utils/zoteroClient.ts` (WebSocket wrapper med auto-reconnect)
+- ⏳ Kvar: useZotero hook, ZoteroPanel UI, App.tsx integration, keyboard shortcuts
+
+**Nästa:** Se ZOTERO_STATUS.md för full status och nästa steg.
+
+---
+
 ## 2025-12-25
 - Setup: added the "Aktuell status" section in `CLAUDE.md` and created this log.
 - Context: optimization work was in progress; goal and target files are not confirmed yet.

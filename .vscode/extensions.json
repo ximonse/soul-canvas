@@ -1,6 +1,8 @@
 {
     "recommendations": [
         "google.geminicodeassist",
-        "google.gemini-cli-vscode-ide-companion"
+        "google.gemini-cli-vscode-ide-companion",
+        "openai.chatgpt",
+        "anthropic.claude-code"
     ]
 }

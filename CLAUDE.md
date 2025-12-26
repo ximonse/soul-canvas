@@ -83,11 +83,11 @@ src/
 
 ## Aktuell status (kort - uppdateras varje session)
 
-- Fokus: Panel parity + batch overlay polish done
-- Plan (max 3 steg): 1) TBD 2) TBD 3) TBD
+- Fokus: Zotero MCP integration (feature/zotero-integration branch)
+- Plan (max 3 steg): 1) ✅ Backend bridge klar 2) ⏳ ZoteroPanel UI 3) Import highlights
 - Fragor/blockers: None
-- Senast uppdaterad: 2025-12-25
-- Detaljer: se WORKLOG.md
+- Senast uppdaterad: 2025-12-26
+- Detaljer: se ZOTERO_STATUS.md och WORKLOG.md
 
 ---
 
