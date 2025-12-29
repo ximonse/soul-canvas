@@ -1,5 +1,5 @@
 // src/components/ImageCropper.tsx
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import type { Theme } from '../themes';
 
 interface ImageCropperProps {
@@ -92,6 +92,19 @@ export const ImageCropper = ({ imageUrl, onSave, onClose, theme }: ImageCropperP
         onSave(croppedImageData);
     }, [cropArea, onSave]);
 
+    // Handle keyboard shortcuts
+    useEffect(() => {
+        const handleKeyPress = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') {
+                onClose();
+            } else if (e.key === 'Enter' && cropArea.width > 10 && cropArea.height > 10) {
+                handleCrop();
+            }
+        };
+        window.addEventListener('keydown', handleKeyPress);
+        return () => window.removeEventListener('keydown', handleKeyPress);
+    }, [cropArea, handleCrop, onClose]);
+
     return (
         <div
             className="fixed inset-0 z-[300] flex items-center justify-center bg-black/80"
@@ -134,17 +147,17 @@ export const ImageCropper = ({ imageUrl, onSave, onClose, theme }: ImageCropperP
                                 className="absolute inset-0 bg-black/50 pointer-events-none"
                                 style={{
                                     clipPath: `polygon(
-                    0 0,
-                    100% 0,
-                    100% 100%,
-                    0 100%,
-                    0 0,
-                    ${cropArea.x}px ${cropArea.y}px,
-                    ${cropArea.x}px ${cropArea.y + cropArea.height}px,
-                    ${cropArea.x + cropArea.width}px ${cropArea.y + cropArea.height}px,
-                    ${cropArea.x + cropArea.width}px ${cropArea.y}px,
-                    ${cropArea.x}px ${cropArea.y}px
-                  )`
+    0 0,
+    100 % 0,
+    100 % 100 %,
+    0 100 %,
+    0 0,
+    ${cropArea.x}px ${cropArea.y}px,
+    ${cropArea.x}px ${cropArea.y + cropArea.height}px,
+    ${cropArea.x + cropArea.width}px ${cropArea.y + cropArea.height}px,
+    ${cropArea.x + cropArea.width}px ${cropArea.y}px,
+    ${cropArea.x}px ${cropArea.y}px
+)`
                                 }}
                             />
 
