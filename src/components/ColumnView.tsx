@@ -232,14 +232,14 @@ export const ColumnView: React.FC<ColumnViewProps> = ({
               }}
               onContextMenu={(e) => handleContextMenu(node, e)}
               className="rounded-lg cursor-pointer transition-all"
-                style={{
-                  backgroundColor: isSelected ? theme.node.selectedBg : theme.node.bg,
-                  border: `1px solid ${isSelected ? theme.node.selectedBorder : theme.node.border}`,
-                  boxShadow: isSelected
-                    ? `0 0 6px ${theme.node.selectedShadow}`
-                    : `0 1px 3px ${theme.node.shadow}`,
-                  fontFamily: "'Noto Serif', Georgia, serif",
-                }}
+              style={{
+                backgroundColor: isSelected ? theme.node.selectedBg : theme.node.bg,
+                border: `1px solid ${isSelected ? theme.node.selectedBorder : theme.node.border}`,
+                boxShadow: isSelected
+                  ? `0 0 6px ${theme.node.selectedShadow}`
+                  : `0 1px 3px ${theme.node.shadow}`,
+                fontFamily: "'Noto Serif', Georgia, serif",
+              }}
             >
               {/* Accent stripe för Zotero-kort */}
               {node.accentColor && (

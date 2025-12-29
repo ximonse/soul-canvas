@@ -1,7 +1,7 @@
 // src/components/overlays/SearchOverlay.tsx
 // Sök-overlay som följer aktivt tema
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { MindNode } from '../../types/types';
 import type { Theme } from '../../themes';
 import { useBrainStore } from '../../store/useBrainStore';
@@ -13,6 +13,7 @@ const FIELD_COMPLETIONS = [
   'content',
   'caption',
   'comment',
+  'link',
   'ocr',
   'tags',
   'semantic',
@@ -22,6 +23,16 @@ const FIELD_COMPLETIONS = [
   'copyref',
   'copied',
   'originalcreated',
+];
+
+const DATE_OPERATOR_COMPLETIONS = [
+  { prefix: 'fö', completion: 'före:', template: 'ÅÅÅÅ-MM-DD' },
+  { prefix: 'in', completion: 'innan:', template: 'ÅÅÅÅ-MM-DD' },
+  { prefix: 'be', completion: 'before:', template: 'YYYY-MM-DD' },
+  { prefix: 'ef', completion: 'efter:', template: 'ÅÅÅÅ-MM-DD' },
+  { prefix: 'af', completion: 'after:', template: 'YYYY-MM-DD' },
+  { prefix: 'me', completion: 'mellan:', template: 'ÅÅÅÅ-MM-DD:ÅÅÅÅ-MM-DD' },
+  { prefix: 'bt', completion: 'between:', template: 'YYYY-MM-DD:YYYY-MM-DD' },
 ];
 
 const expandPartialField = (value: string) => {
@@ -35,6 +46,19 @@ const expandPartialField = (value: string) => {
 };
 
 const applyFieldCompletion = (value: string) => {
+  // Kolla först om vi är efter ett datum-fält och ska komplettera en operator
+  const dateFieldMatch = value.match(/(^|\s)(created|createdat|updated|updatedat|copied|copiedat|originalcreated|originalcreatedat):([^()\s]*)$/i);
+  if (dateFieldMatch) {
+    const operatorPrefix = dateFieldMatch[3].toLowerCase();
+    if (operatorPrefix.length >= 2) {
+      const completion = DATE_OPERATOR_COMPLETIONS.find((op) => op.prefix === operatorPrefix.slice(0, 2));
+      if (completion) {
+        return value.slice(0, value.length - operatorPrefix.length) + completion.template;
+      }
+    }
+  }
+
+  // Annars, vanlig fält-komplettering
   const match = value.match(/(^|\s)([^()\s:]+)$/);
   if (!match) return value;
   const prefix = match[2].toLowerCase();
@@ -45,6 +69,19 @@ const applyFieldCompletion = (value: string) => {
 };
 
 const getFieldCompletionHint = (value: string) => {
+  // Kolla först om vi är efter ett datum-fält och ska visa operator-hint
+  const dateFieldMatch = value.match(/(^|\s)(created|createdat|updated|updatedat|copied|copiedat|originalcreated|originalcreatedat):([^()\s]*)$/i);
+  if (dateFieldMatch) {
+    const operatorPrefix = dateFieldMatch[3].toLowerCase();
+    if (operatorPrefix.length >= 2) {
+      const completion = DATE_OPERATOR_COMPLETIONS.find((op) => op.prefix === operatorPrefix.slice(0, 2));
+      if (completion) {
+        return value.slice(0, value.length - operatorPrefix.length) + completion.template;
+      }
+    }
+  }
+
+  // Annars, vanlig fält-hint
   const match = value.match(/(^|\s)([^()\s:]+)$/);
   if (!match) return null;
   const prefix = match[2].toLowerCase();
@@ -74,6 +111,7 @@ export function SearchOverlay({
   const inputRef = useRef<HTMLInputElement>(null);
   const assets = useBrainStore((state) => state.assets);
   const toggleSelection = useBrainStore((state) => state.toggleSelection);
+  const [showHelp, setShowHelp] = useState(false);
 
   // Fokusera input när overlay öppnas
   useEffect(() => {
@@ -188,11 +226,94 @@ export function SearchOverlay({
           <span className="text-sm pr-2" style={hintStyle}>
             {results.length} träffar
           </span>
+          <button
+            onClick={() => setShowHelp(!showHelp)}
+            className="text-sm px-2 py-1 rounded hover:bg-opacity-10 hover:bg-white transition-colors"
+            style={{ color: theme.node.text, opacity: 0.6 }}
+            title="Visa hjälp"
+          >
+            ?
+          </button>
         </div>
-        <div className="text-center text-xs mt-2" style={hintStyle}>
-          Enter = markera ・ Escape = avbryt ・ Tab = fält (t.ex. title:)
+        <div className="text-center text-xs mt-2 space-y-1" style={hintStyle}>
+          <div>Enter = markera ・ Escape = avbryt ・ Tab = fält (t.ex. title:, createdat:)</div>
+          <div className="opacity-75">Datum: createdat:före:ÅÅÅÅ-MM-DD, createdat:efter:ÅÅÅÅ-MM-DD, createdat:mellan:ÅÅÅÅ-MM-DD:ÅÅÅÅ-MM-DD</div>
         </div>
       </div>
+
+      {/* Hjälp-overlay */}
+      {showHelp && (
+        <div
+          className="absolute top-32 right-8 z-20 rounded-xl shadow-2xl p-6 border max-w-md"
+          style={inputShellStyle}
+        >
+          <div className="space-y-4">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-semibold text-lg" style={{ color: theme.node.text }}>
+                Söksyntax
+              </h3>
+              <button
+                onClick={() => setShowHelp(false)}
+                className="text-sm px-2 py-1 rounded hover:bg-opacity-10 hover:bg-white transition-colors"
+                style={{ color: theme.node.text, opacity: 0.6 }}
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-4 text-sm" style={{ color: theme.node.text }}>
+              <div>
+                <div className="font-medium mb-1 opacity-90">Fältsökning:</div>
+                <div className="text-xs opacity-60 mb-2">Sök i specifika fält genom att ange fältnamn följt av kolon.</div>
+                <div className="text-xs opacity-75 space-y-1">
+                  <div><span className="font-mono">title:</span> ord i rubriker</div>
+                  <div><span className="font-mono">content:</span> ord i innehållstexten</div>
+                  <div><span className="font-mono">tags:</span> taggar som kortet givits (t.ex. viktigt, todo, relationer, arbete)</div>
+                </div>
+              </div>
+
+              <div>
+                <div className="font-medium mb-1 opacity-90">Datumsökning:</div>
+                <div className="text-xs opacity-60 mb-2">Hitta kort baserat på när de skapades. Använd svenska (före/efter/mellan) eller engelska (before/after/between).</div>
+                <div className="font-mono text-xs opacity-75 space-y-1">
+                  <div>created:after:2025-01-01</div>
+                  <div>created:before:2025-12-31</div>
+                  <div>created:between:2025-01-01:2025-12-31</div>
+                  <div className="opacity-60">// Fristående: after:2025-01-01</div>
+                </div>
+              </div>
+
+              <div>
+                <div className="font-medium mb-1 opacity-90">Boolean-operatorer:</div>
+                <div className="text-xs opacity-60 mb-2">Kombinera söktermer med AND, OR och NOT. Använd parenteser för att gruppera.</div>
+                <div className="text-xs opacity-75 space-y-1.5">
+                  <div><span className="font-mono">ord1 AND ord2</span> - t.ex. <span className="italic">spelning AND Eric</span>. Visar alla kort där spelning OCH Eric nämns.</div>
+                  <div><span className="font-mono">ord1 OR ord2</span> - t.ex. <span className="italic">skog OR utflykt</span>. Visar kort där skog och/eller utflykt nämns.</div>
+                  <div><span className="font-mono">NOT ord</span> - utesluter kort som innehåller ordet.</div>
+                  <div><span className="font-mono">(ord1 OR ord2) AND NOT ord3</span> - t.ex. <span className="italic">(skog OR utflykt) AND NOT korv</span>. Visar kort där skog och/eller utflykt nämns men där korv inte står med.</div>
+                </div>
+              </div>
+
+              <div>
+                <div className="font-medium mb-1 opacity-90">Wildcard-sökning:</div>
+                <div className="text-xs opacity-60 mb-2">Använd <span className="font-mono">*</span> som jokertecken för att matcha vilka tecken som helst.</div>
+                <div className="text-xs opacity-75 space-y-1">
+                  <div><span className="font-mono">test*</span> - matchar test, testing, tester, etc.</div>
+                  <div><span className="font-mono">*tion</span> - matchar nation, station, relation, etc.</div>
+                  <div><span className="font-mono">pro*ing</span> - matchar programming, processing, etc.</div>
+                </div>
+              </div>
+
+              <div>
+                <div className="font-medium mb-1 opacity-90">Autokomplettering:</div>
+                <div className="text-xs opacity-75">
+                  Tryck <span className="font-mono">Tab</span> efter att ha skrivit början av ett fältnamn (t.ex. <span className="font-mono">cre</span> → <span className="font-mono">createdat:</span>)
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Resultat-kort */}
       <div className="absolute inset-0 overflow-auto pt-32 pointer-events-none">

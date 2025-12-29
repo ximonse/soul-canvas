@@ -21,6 +21,8 @@ export const CardEditor = ({ cardId, onClose, theme }: CardEditorProps) => {
   const [title, setTitle] = useState('');
   const [caption, setCaption] = useState('');
   const [comment, setComment] = useState('');
+  const [linkUrl, setLinkUrl] = useState('');
+  const [linkName, setLinkName] = useState(''); // Keep existing name from Zotero
   const [semanticTags, setSemanticTags] = useState<string[]>([]);
   const [showAITags, setShowAITags] = useState(false);
   const [showCropper, setShowCropper] = useState(false);
@@ -36,6 +38,22 @@ export const CardEditor = ({ cardId, onClose, theme }: CardEditorProps) => {
       setTitle(card.title || '');
       setCaption(card.caption || '');
       setComment(card.comment || '');
+
+      // Parse link field if it exists
+      if (card.link) {
+        const linkMatch = card.link.match(/\[(.*)\]\((.*)\)/);
+        if (linkMatch) {
+          setLinkName(linkMatch[1] || 'Link');
+          setLinkUrl(linkMatch[2] || '');
+        } else {
+          setLinkName('Link');
+          setLinkUrl(card.link);
+        }
+      } else {
+        setLinkName('Link');
+        setLinkUrl('');
+      }
+
       setSemanticTags(card.semanticTags || []);
 
       // Focus textarea after a short delay
@@ -64,6 +82,7 @@ export const CardEditor = ({ cardId, onClose, theme }: CardEditorProps) => {
       title: title.trim(),
       caption: caption.trim(),
       comment: comment.trim(),
+      link: linkUrl.trim() ? `[${linkName || 'Link'}](${linkUrl.trim()})` : '',
       semanticTags: semanticTags,
     });
 
@@ -215,6 +234,21 @@ export const CardEditor = ({ cardId, onClose, theme }: CardEditorProps) => {
             placeholder="Anteckning (visas vid hover, stödjer [länkar](url) och #rubriker)"
             className="px-4 py-2 rounded-lg outline-none text-sm resize-none"
             rows={3}
+            style={{
+              backgroundColor: theme.canvasColor,
+              color: theme.node.text,
+              borderColor: theme.node.border,
+              borderWidth: '1px',
+              borderStyle: 'solid'
+            }}
+          />
+
+          <input
+            type="text"
+            value={linkUrl}
+            onChange={e => setLinkUrl(e.target.value)}
+            placeholder="Länk (t.ex: https://example.com eller zotero://...)"
+            className="px-4 py-2 rounded-lg outline-none text-sm"
             style={{
               backgroundColor: theme.canvasColor,
               color: theme.node.text,

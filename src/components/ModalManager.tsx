@@ -81,7 +81,8 @@ interface ModalManagerProps {
   arrangeGridVertical: () => void;
   arrangeGridHorizontal: () => void;
   arrangeCircle: () => void;
-  arrangeKanban: () => void;
+  arrangeGridHorizontal: () => void;
+  arrangeCentrality: () => void;
   onExpandScopeDegree?: (degree: number) => void;
 
   // Clipboard & state
@@ -104,6 +105,17 @@ interface ModalManagerProps {
   pasteNodes: (x: number, y: number) => void;
   saveStateForUndo: () => void;
   addNode: (content: string, x: number, y: number, type: 'text' | 'image' | 'zotero') => void;
+  duplicateSelectedNodes: () => void;
+  flipAllImageCardsToText: () => void;
+  flipAllImageCardsToImage: () => void;
+  fitAllNodes: () => void;
+  onOpenMassImport: () => void;
+  onOpenQuoteExtractor: () => void;
+  onToggleSessionPanel: () => void;
+  onToggleWandering: () => void;
+  onToggleSynapseLines: () => void;
+  onToggleViewMode: () => void;
+  onToggleScopePanel: () => void;
 
   // Theme
   theme: Theme;
@@ -170,6 +182,7 @@ export const ModalManager: React.FC<ModalManagerProps> = ({
   arrangeGridHorizontal,
   arrangeCircle,
   arrangeKanban,
+  arrangeCentrality,
   onExpandScopeDegree,
   copySelectedNodes,
   undo,
@@ -187,6 +200,17 @@ export const ModalManager: React.FC<ModalManagerProps> = ({
   pasteNodes,
   saveStateForUndo,
   addNode,
+  duplicateSelectedNodes,
+  flipAllImageCardsToText,
+  flipAllImageCardsToImage,
+  fitAllNodes,
+  onOpenMassImport,
+  onOpenQuoteExtractor,
+  onToggleSessionPanel,
+  onToggleWandering,
+  onToggleSynapseLines,
+  onToggleViewMode,
+  onToggleScopePanel,
   theme,
   onQuoteExtractor,
   onToggleViewMode,
@@ -253,6 +277,7 @@ export const ModalManager: React.FC<ModalManagerProps> = ({
           onArrangeHorizontal={arrangeHorizontal}
           onArrangeGridVertical={arrangeGridVertical}
           onArrangeGridHorizontal={arrangeGridHorizontal}
+          onArrangeCentrality={arrangeCentrality}
           onExpandScopeDegree={onExpandScopeDegree}
           onCopy={copySelectedNodes}
           onPaste={() => {
@@ -278,8 +303,8 @@ export const ModalManager: React.FC<ModalManagerProps> = ({
               const files = (e.target as HTMLInputElement).files;
               if (!files) return;
               const fakeEvent = {
-                preventDefault: () => {},
-                stopPropagation: () => {},
+                preventDefault: () => { },
+                stopPropagation: () => { },
                 clientX: window.innerWidth / 2,
                 clientY: window.innerHeight / 2,
                 dataTransfer: { files: Array.from(files) },
@@ -301,6 +326,15 @@ export const ModalManager: React.FC<ModalManagerProps> = ({
               search.openSearch();
             }
           }}
+          onFitAllNodes={fitAllNodes}
+          onToggleSessionPanel={onToggleSessionPanel}
+          onToggleWandering={onToggleWandering}
+          onDuplicate={duplicateSelectedNodes}
+          onFlipToText={flipAllImageCardsToText}
+          onFlipToImage={flipAllImageCardsToImage}
+          onToggleSynapseLines={onToggleSynapseLines}
+          onToggleViewMode={onToggleViewMode}
+          onToggleScopePanel={onToggleScopePanel}
           theme={theme}
         />
       )}

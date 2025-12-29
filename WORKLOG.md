@@ -35,3 +35,4 @@ Detailed progress log. Keep `CLAUDE.md` "Aktuell status" short; capture details 
 - Repo hygiene:
   - Stopped ignoring `src/components/overlays/TrailPanel.tsx` and tracked it in git (keep personal trail data elsewhere).
 - Next: confirm optimization goals and hotspots; review relevant diffs or profiling notes.
+

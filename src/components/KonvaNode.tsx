@@ -27,18 +27,39 @@ interface KonvaNodeProps {
   onDragEnd?: () => void;
   onHover?: (nodeId: string | null) => void;
   onContextMenu?: (nodeId: string, screenPos: { x: number; y: number }) => void;
+  onLinkHover?: (linkInfo: { name: string; url: string; x: number; y: number } | null) => void;
 }
 
 type KonvaNodeInnerProps = Omit<KonvaNodeProps, 'nodeId'> & {
   node: MindNode;
 };
 
-// Extract URL from markdown link format [text](url)
-const extractLinkUrl = (markdown: string | undefined): string | null => {
-  if (!markdown) return null;
-  const match = markdown.match(/\[.*?\]\((.*?)\)/);
-  return match ? match[1] : null;
+// Extract URL and name from markdown link format [text](url)
+const extractLinkInfo = (linkField: string | undefined, commentField: string | undefined): { name: string; url: string } | null => {
+  // First try the link field
+  let linkText = linkField;
+
+  // Fallback to comment field if link field is empty
+  if (!linkText && commentField) {
+    linkText = commentField;
+  }
+
+  if (!linkText) return null;
+
+  const match = linkText.match(/\[([^\]]+)\]\(([^)]+)\)/);
+  if (match) {
+    return { name: match[1], url: match[2] };
+  }
+  return null;
 };
+
+// Legacy function for backwards compatibility
+// This function is no longer needed as extractLinkInfo now handles the fallback
+// and the linkUrl is derived directly from node.link and node.comment.
+// const extractLinkUrl = (markdown: string | undefined): string | null => {
+//   const info = extractLinkInfo(markdown);
+//   return info ? info.url : null;
+// };
 
 type RGB = { r: number; g: number; b: number };
 
@@ -251,14 +272,16 @@ const KonvaNodeInner: React.FC<KonvaNodeInnerProps> = ({
   onDragStart: onDragStartProp,
   onDragEnd: onDragEndProp,
   onHover,
-  onContextMenu
+  onContextMenu,
+  onLinkHover
 }) => {
   const groupRef = useRef<Konva.Group>(null);
   const aiPulseRef = useRef<Konva.Circle>(null);
   const heightSyncTimeoutRef = useRef<number | null>(null);
 
-  // Extract link URL from comment field
-  const linkUrl = useMemo(() => extractLinkUrl(node.comment), [node.comment]);
+  // Extract link info from link field (not comment)
+  const linkInfo = useMemo(() => extractLinkInfo(node.link, node.comment), [node.link, node.comment]);
+  const linkUrl = linkInfo?.url || '';
   const updateNodePosition = useBrainStore((state) => state.updateNodePosition);
   const toggleSelection = useBrainStore((state) => state.toggleSelection);
   const clearSelection = useBrainStore((state) => state.clearSelection);
@@ -340,7 +363,7 @@ const KonvaNodeInner: React.FC<KonvaNodeInnerProps> = ({
     });
   }, [node.type, node.title, backTextWidth, backTitleFontFamily, backTitleLineHeight]);
 
-  const titleGap = hasTitle ? CARD.PADDING : 0;
+  const titleGap = hasTitle ? CARD.TITLE_GAP : 0;
   const contentOffsetY = CARD.PADDING + (hasTitle ? titleHeight + titleGap : 0);
 
   const imageText = useMemo(
@@ -401,16 +424,23 @@ const KonvaNodeInner: React.FC<KonvaNodeInnerProps> = ({
       return () => { cancelled = true; };
     } else {
       setImageObj(undefined);
-      let baseHeight = CARD.PADDING * 2 + contentLayout.height;
+      // Calculate total height including all elements
+      // Add small buffer (4px) to prevent text from clipping at edges
+      const HEIGHT_BUFFER = 4;
+      let baseHeight = CARD.PADDING * 2 + contentLayout.height + HEIGHT_BUFFER;
+
+      // Add title height and gap if present
       if (hasTitle) {
         baseHeight += titleHeight + titleGap;
       }
-      const clampedBase = Math.min(CARD.MAX_HEIGHT, baseHeight);
-      let height = clampedBase;
+
+      // Add caption height and gap if present
       if (captionHeight > 0) {
-        height += captionHeight + CARD.PADDING;
+        baseHeight += captionHeight + CARD.CAPTION_GAP;
       }
-      setCardHeight(Math.max(CARD.MIN_HEIGHT, height));
+
+      // No max height limit - let cards grow to fit content
+      setCardHeight(Math.max(CARD.MIN_HEIGHT, baseHeight));
     }
     return () => { cancelled = true; };
   }, [
@@ -447,12 +477,30 @@ const KonvaNodeInner: React.FC<KonvaNodeInnerProps> = ({
     };
   }, [cardHeight, node.id, node.height, updateNode]);
 
+  // Cache refs at drag start for O(1) lookup during drag
+  const dragRefsCache = useRef<Map<string, Konva.Group>>(new Map());
+
   // Drag handlers
   const handleDragStart = useCallback((e: Konva.KonvaEventObject<DragEvent>) => {
     if (!isSelected) { clearSelection(); toggleSelection(node.id, false); }
     setInitialX(e.target.x());
     setInitialY(e.target.y());
     groupRef.current?.moveToTop();
+
+    // Cache refs for all selected nodes ONCE at drag start (O(n) once, not O(n) per frame)
+    const stage = e.target.getStage();
+    if (stage) {
+      const state = useBrainStore.getState();
+      dragRefsCache.current.clear();
+      state.selectedNodeIds.forEach((selectedId) => {
+        if (selectedId === node.id) return;
+        const group = stage.findOne(`#konva-node-${selectedId}`) as Konva.Group;
+        if (group) {
+          dragRefsCache.current.set(selectedId, group);
+        }
+      });
+    }
+
     onDragStartProp?.();
   }, [isSelected, clearSelection, toggleSelection, node.id, onDragStartProp]);
 
@@ -465,8 +513,8 @@ const KonvaNodeInner: React.FC<KonvaNodeInnerProps> = ({
         if (selectedId === node.id) return;
         const selectedNode = state.nodes.get(selectedId);
         if (!selectedNode || selectedNode.pinned) return;
-        const stage = e.target.getStage();
-        const otherGroup = stage?.findOne(`#konva-node-${selectedNode.id}`) as Konva.Group;
+        // Use cached ref (populated at dragStart) for O(1) lookup
+        const otherGroup = dragRefsCache.current.get(selectedId);
         otherGroup?.position({ x: selectedNode.x + dx, y: selectedNode.y + dy });
       });
       e.target.getLayer()?.batchDraw();
@@ -692,14 +740,17 @@ const KonvaNodeInner: React.FC<KonvaNodeInnerProps> = ({
 
       {/* Link icon - clickable to open URL or copy file path */}
       {linkUrl && !isFlipped && (
-        <Text
-          text="🔗"
+        <Group
           x={CARD.WIDTH - (node.pinned ? 40 : 28)}
           y={8}
-          fontSize={14}
           onClick={(e) => {
             e.cancelBubble = true;
             let urlToOpen = linkUrl;
+
+            // Add https:// if URL doesn't have a protocol
+            if (urlToOpen && !urlToOpen.match(/^[a-zA-Z]+:\/\//)) {
+              urlToOpen = 'https://' + urlToOpen;
+            }
 
             if (linkUrl.startsWith('file:///')) {
               // Convert file:// to zotero:// format
@@ -719,12 +770,54 @@ const KonvaNodeInner: React.FC<KonvaNodeInnerProps> = ({
           onMouseEnter={(e) => {
             const container = e.target.getStage()?.container();
             if (container) container.style.cursor = 'pointer';
+
+            // Hide comment tooltip when hovering link icon
+            if (onHover) onHover(null);
+
+            // Send link tooltip info
+            if (linkInfo && onLinkHover) {
+              const stage = e.target.getStage();
+              const pointer = stage?.getPointerPosition();
+              if (pointer) {
+                // For Zotero links, use author + year from tags
+                // For other links, show the URL
+                const isZoteroLink = linkInfo.url.startsWith('zotero://') || linkInfo.url.startsWith('file:///');
+                let displayName = linkInfo.url; // Default: show URL
+
+                if (isZoteroLink && node.tags && node.tags.length >= 2) {
+                  // First two tags are author and year
+                  displayName = `${node.tags[0]} (${node.tags[1]})`;
+                }
+
+                onLinkHover({
+                  name: displayName,
+                  url: linkInfo.url,
+                  x: pointer.x,
+                  y: pointer.y,
+                });
+              }
+            }
           }}
           onMouseLeave={(e) => {
             const container = e.target.getStage()?.container();
             if (container) container.style.cursor = 'default';
+            // Clear tooltip
+            if (onLinkHover) onLinkHover(null);
           }}
-        />
+        >
+          {/* Invisible hitbox for better hover detection */}
+          <Rect
+            x={-4}
+            y={-4}
+            width={22}
+            height={22}
+            fill="transparent"
+          />
+          <Text
+            text="🔗"
+            fontSize={14}
+          />
+        </Group>
       )}
 
       {effectiveProvider && (
