@@ -297,48 +297,64 @@ export const arrangeCentrality = (
   });
 
   const positions = new Map<string, Position>();
+  const nodeDims = new Map<string, { width: number; height: number }>();
+  sortedNodes.forEach(node => nodeDims.set(node.id, getNodeSize(node)));
 
-  // Calculate rectangle dimensions (16:9 aspect ratio)
-  // Tuned for better compactness while preventing overlaps
-  // avgWidth: 250 (card) + 20 (gap) + 30 (padding) = 300
-  const avgWidth = CARD.WIDTH + SPACING.GRID_GAP + 30;
-  const avgHeight = 250; // Reduced from 400 to keep it tighter and balanced
-
-  // Calculate grid size to fit all nodes in ~16:9 ratio
+  // 1. Calculate optimal column count for 16:9 ratio of N nodes
   const totalNodes = sortedNodes.length;
-  // For 16:9: width/height = 16/9, so cols/rows ≈ sqrt(n * 16/9) : sqrt(n * 9/16)
-  const cols = Math.max(1, Math.ceil(Math.sqrt(totalNodes * 16 / 9)));
-  const rows = Math.max(1, Math.ceil(totalNodes / cols));
+  // If we assume avg aspect ratio of cards is ~1 (it's less), and screen is 16/9.
+  // Cols * Rows = N; Cols / Rows = 16/9 => Cols = sqrt(1.77 * N)
+  // For 100 nodes: sqrt(177) ~= 13 cols. 
+  const colsCount = Math.max(1, Math.ceil(Math.sqrt(totalNodes * (16 / 9))));
 
-  const totalWidth = cols * avgWidth;
-  const totalHeight = rows * avgHeight;
+  // Center column index
+  const centerColIdx = Math.floor(colsCount / 2);
 
-  // Center of the rectangle
-  const rectCenterX = totalWidth / 2;
-  const rectCenterY = totalHeight / 2;
+  // 2. Assign nodes to columns using a spiral pattern (Center, R1, L1, R2, L2...)
+  // This preserves the "Spiral" X-distribution: most important in center columns.
+  const columnAssignments: MindNode[][] = Array.from({ length: colsCount }, () => []);
 
-  // Generate all grid positions
-  const gridPositions: Position[] = [];
-  for (let row = 0; row < rows; row++) {
-    for (let col = 0; col < cols; col++) {
-      gridPositions.push({
-        x: col * avgWidth,
-        y: row * avgHeight
-      });
-    }
+  for (let i = 0; i < sortedNodes.length; i++) {
+    // Determine offset from center: 0, 1, -1, 2, -2, 3, -3...
+    // i=0 -> offset=0
+    // i=1 -> offset=1
+    // i=2 -> offset=-1
+    // i=3 -> offset=2
+    // i=4 -> offset=-2
+    const step = Math.ceil(i / 2);
+    const offset = i === 0 ? 0 : (i % 2 !== 0 ? step : -step);
+
+    let targetColIdx = centerColIdx + offset;
+
+    // Bounds check wrap-around (safe fallback)
+    if (targetColIdx >= colsCount) targetColIdx = targetColIdx % colsCount;
+    if (targetColIdx < 0) targetColIdx = (targetColIdx % colsCount + colsCount) % colsCount;
+
+    columnAssignments[targetColIdx].push(sortedNodes[i]);
   }
 
-  // Sort grid positions by distance from center
-  gridPositions.sort((a, b) => {
-    const distA = Math.sqrt(Math.pow(a.x - rectCenterX, 2) + Math.pow(a.y - rectCenterY, 2));
-    const distB = Math.sqrt(Math.pow(b.x - rectCenterX, 2) + Math.pow(b.y - rectCenterY, 2));
-    return distA - distB;
+  // 3. Layout columns using Masonry logic (Y-stacking)
+  const maxNodeWidth = Math.max(...Array.from(nodeDims.values()).map(d => d.width), CARD.WIDTH);
+  const colWidth = maxNodeWidth + SPACING.GRID_GAP;
+
+  // Find top-left start based on center of total width
+  const totalWidth = colsCount * colWidth;
+  const startX = -totalWidth / 2 + colWidth / 2; // Centers around (0,0)
+
+  columnAssignments.forEach((nodesInCol, idx) => {
+    const currentX = startX + idx * colWidth;
+    let currentY = 0;
+
+    // Calculate total height to center vertically
+    const totalHeight = nodesInCol.reduce((acc, node) => acc + nodeDims.get(node.id)!.height + SPACING.GRID_GAP, 0) - SPACING.GRID_GAP;
+    currentY = -totalHeight / 2;
+
+    nodesInCol.forEach(node => {
+      const { height } = nodeDims.get(node.id)!;
+      positions.set(node.id, { x: currentX, y: currentY });
+      currentY += height + SPACING.GRID_GAP;
+    });
   });
-
-  // Assign most connected nodes to center positions
-  for (let i = 0; i < sortedNodes.length && i < gridPositions.length; i++) {
-    positions.set(sortedNodes[i].id, gridPositions[i]);
-  }
 
   return centerArrangement(positions, center);
 };
