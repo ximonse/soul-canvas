@@ -4,6 +4,7 @@ import type { MindNode, Synapse } from '../types/types';
 import type { Theme } from '../themes';
 import { sortNodes } from '../utils/sortNodes';
 import { getNodeDisplayTitle } from '../utils/nodeDisplay';
+import { resolveImageUrl } from '../utils/imageRefs';
 import { useBrainStore } from '../store/useBrainStore';
 
 interface ColumnViewProps {
@@ -51,6 +52,7 @@ export const ColumnView: React.FC<ColumnViewProps> = ({
   const columnShowComments = useBrainStore((state) => state.columnShowComments);
   const columnShowTags = useBrainStore((state) => state.columnShowTags);
   const selectedNodeIds = useBrainStore((state) => state.selectedNodeIds);
+  const assets = useBrainStore((state) => state.assets);
 
   // Sortera nodes
   const sortedNodes = useMemo(
@@ -96,6 +98,7 @@ export const ColumnView: React.FC<ColumnViewProps> = ({
           const tagCount = (node.tags?.length || 0) + (node.semanticTags?.length || 0);
           const displayTitle = getNodeDisplayTitle(node);
           const isSelected = selectedNodeIds.has(node.id);
+          const imageUrl = node.type === 'image' ? resolveImageUrl(node, assets) : null;
 
           return (
             <div
@@ -141,6 +144,15 @@ export const ColumnView: React.FC<ColumnViewProps> = ({
                       >
                         {displayTitle}
                       </h3>
+                    )}
+
+                    {/* Bild för image-kort */}
+                    {imageUrl && (
+                      <img
+                        src={imageUrl}
+                        alt={node.caption || ''}
+                        className="w-full h-48 object-cover rounded mb-2"
+                      />
                     )}
 
                     {/* Innehåll preview */}
