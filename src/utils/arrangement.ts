@@ -266,8 +266,8 @@ export const arrangeKanban = (nodes: MindNode[], columns: number = SPACING.GRID_
 };
 
 /**
- * Arrange nodes in a 16:9 rectangle with most connected nodes in center
- * Less connected nodes spread outward in concentric rings
+ * Arrange nodes by Centrality but use Masonry (column) layout to prevent overlap.
+ * Nodes with high connection count come first.
  */
 export const arrangeCentrality = (
   nodes: MindNode[],
@@ -296,46 +296,34 @@ export const arrangeCentrality = (
     return countB - countA; // Descending
   });
 
+  // Use Masonry layout (columns) - sorting by centrality ensures most connected are at top/left
+  const columns = SPACING.GRID_COLUMNS;
   const positions = new Map<string, Position>();
+  const nodeDims = new Map<string, { width: number; height: number }>();
+  sortedNodes.forEach(node => nodeDims.set(node.id, getNodeSize(node)));
 
-  // Calculate rectangle dimensions (16:9 aspect ratio)
-  const avgWidth = CARD.WIDTH + SPACING.GRID_GAP;
-  const avgHeight = 150 + SPACING.GRID_GAP; // Approximate average card height
+  const startX = Math.min(...nodes.map(n => n.x));
+  const startY = Math.min(...nodes.map(n => n.y));
 
-  // Calculate grid size to fit all nodes in ~16:9 ratio
-  const totalNodes = sortedNodes.length;
-  // For 16:9: width/height = 16/9, so cols/rows ≈ sqrt(n * 16/9) : sqrt(n * 9/16)
-  const cols = Math.max(1, Math.ceil(Math.sqrt(totalNodes * 16 / 9)));
-  const rows = Math.max(1, Math.ceil(totalNodes / cols));
+  const maxNodeWidth = Math.max(...Array.from(nodeDims.values()).map(d => d.width), CARD.WIDTH);
+  const effectiveColWidth = maxNodeWidth + SPACING.GRID_GAP;
 
-  const totalWidth = cols * avgWidth;
-  const totalHeight = rows * avgHeight;
+  // Track Y position for each column independently (masonry style)
+  const columnY: number[] = Array(columns).fill(startY);
 
-  // Center of the rectangle
-  const rectCenterX = totalWidth / 2;
-  const rectCenterY = totalHeight / 2;
+  // Fill row by row (same order as g+h), but track each column's Y independently
+  for (let i = 0; i < sortedNodes.length; i++) {
+    const col = i % columns;
+    const node = sortedNodes[i];
+    const { height } = nodeDims.get(node.id)!;
 
-  // Generate all grid positions
-  const gridPositions: Position[] = [];
-  for (let row = 0; row < rows; row++) {
-    for (let col = 0; col < cols; col++) {
-      gridPositions.push({
-        x: col * avgWidth,
-        y: row * avgHeight
-      });
-    }
-  }
+    positions.set(node.id, {
+      x: startX + col * effectiveColWidth,
+      y: columnY[col]
+    });
 
-  // Sort grid positions by distance from center
-  gridPositions.sort((a, b) => {
-    const distA = Math.sqrt(Math.pow(a.x - rectCenterX, 2) + Math.pow(a.y - rectCenterY, 2));
-    const distB = Math.sqrt(Math.pow(b.x - rectCenterX, 2) + Math.pow(b.y - rectCenterY, 2));
-    return distA - distB;
-  });
-
-  // Assign most connected nodes to center positions
-  for (let i = 0; i < sortedNodes.length && i < gridPositions.length; i++) {
-    positions.set(sortedNodes[i].id, gridPositions[i]);
+    // Next card in this column starts after this card + 20px gap
+    columnY[col] += height + SPACING.GRID_GAP;
   }
 
   return centerArrangement(positions, center);
