@@ -249,6 +249,54 @@ export function ContextMenu({
         </li>
       )}
 
+      {/* Value Submenu */}
+      <li className="relative group" role="none">
+        <button
+          className="w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-gray-700 flex justify-between items-center"
+          role="menuitem"
+        >
+          <span>Värde (1-6)</span>
+          <span>▶</span>
+        </button>
+        {/* Submenu */}
+        <div className="absolute left-full top-0 w-48 bg-gray-800 border border-gray-700 rounded shadow-xl py-1 hidden group-hover:block"
+          style={{ marginLeft: '-4px' }}>
+          {[1, 2, 3, 4, 5, 6].map((val) => (
+            <button
+              key={val}
+              onClick={() => {
+                const valueMap: Record<number, string> = {
+                  1: '1 (Högst)', 2: '2', 3: '3', 4: '4', 5: '5', 6: '6 (Lägst)'
+                };
+                if (selectedCount > 1) {
+                  selectedNodes.forEach(n => updateNode(n.id, { value: val }));
+                } else {
+                  updateNode(menu.nodeId, { value: val });
+                }
+                onClose();
+              }}
+              className="w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-blue-600"
+            >
+              {val === node.value ? '✅ ' : ''}{val}
+            </button>
+          ))}
+          <div className="h-px bg-gray-700 my-1"></div>
+          <button
+            onClick={() => {
+              if (selectedCount > 1) {
+                selectedNodes.forEach(n => updateNode(n.id, { value: undefined }));
+              } else {
+                updateNode(menu.nodeId, { value: undefined });
+              }
+              onClose();
+            }}
+            className="w-full text-left px-4 py-2 text-sm text-red-300 hover:bg-red-900/50"
+          >
+            Rensa värde
+          </button>
+        </div>
+      </li>
+
       {onAttractSimilar && hasEmbedding && (
         <li role="none">
           <button
