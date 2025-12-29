@@ -299,22 +299,8 @@ export const arrangeCentrality = (
   const positions = new Map<string, Position>();
 
   // Calculate rectangle dimensions (16:9 aspect ratio)
-  // Determine max dimensions to prevent overlap
-  let maxNodeWidth = CARD.WIDTH;
-  let maxNodeHeight = CARD.MIN_HEIGHT;
-
-  sortedNodes.forEach(node => {
-    const size = getNodeSize(node);
-    maxNodeWidth = Math.max(maxNodeWidth, size.width);
-    maxNodeHeight = Math.max(maxNodeHeight, size.height);
-  });
-
-  // visual buffer
-  const bufferX = SPACING.GRID_GAP + 40;
-  const bufferY = SPACING.GRID_GAP + 40;
-
-  const avgWidth = maxNodeWidth + bufferX;
-  const avgHeight = maxNodeHeight + bufferY;
+  const avgWidth = CARD.WIDTH + SPACING.GRID_GAP;
+  const avgHeight = 150 + SPACING.GRID_GAP; // Approximate average card height
 
   // Calculate grid size to fit all nodes in ~16:9 ratio
   const totalNodes = sortedNodes.length;
