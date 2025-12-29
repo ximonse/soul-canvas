@@ -352,6 +352,7 @@ export const arrangeCentrality = (
     });
 
     const colWidth = maxNodeWidth + SPACING.GRID_GAP + 40; // Wider gap as requested
+    const verticalGap = SPACING.GRID_GAP + 40; // Match horizontal gap
 
     // Calculate X offsets to center the whole grid around 0
     const layoutWidth = cols * colWidth;
@@ -363,9 +364,6 @@ export const arrangeCentrality = (
         items.sort((a, b) => a.row - b.row);
 
         // Find the "Middle" item in this column to anchor at Y=0
-        // "Middle" is index length/2 roughly?
-        // User wants "Middle card aligned". 
-        // Ideally, the item with row closest to global center row? NO, just visual middle of the column stack.
         const middleIdx = Math.floor((items.length - 1) / 2);
         const middleItem = items[middleIdx];
 
@@ -376,23 +374,23 @@ export const arrangeCentrality = (
         positions.set(middleItem.node.id, { x: currentX, y: -midH / 2 });
 
         // Stack items ABOVE middle (going up)
-        let currentTopY = -midH / 2 - SPACING.GRID_GAP;
+        let currentTopY = -midH / 2 - verticalGap;
         for (let i = middleIdx - 1; i >= 0; i--) {
             const item = items[i];
             const h = nodeDims.get(item.node.id)!.height;
 
             positions.set(item.node.id, { x: currentX, y: currentTopY - h });
-            currentTopY -= (h + SPACING.GRID_GAP);
+            currentTopY -= (h + verticalGap);
         }
 
         // Stack items BELOW middle (going down)
-        let currentBottomY = midH / 2 + SPACING.GRID_GAP;
+        let currentBottomY = midH / 2 + verticalGap;
         for (let i = middleIdx + 1; i < items.length; i++) {
             const item = items[i];
             const h = nodeDims.get(item.node.id)!.height;
 
             positions.set(item.node.id, { x: currentX, y: currentBottomY });
-            currentBottomY += (h + SPACING.GRID_GAP);
+            currentBottomY += (h + verticalGap);
         }
     });
 
