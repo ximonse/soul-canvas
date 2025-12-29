@@ -296,34 +296,58 @@ export const arrangeCentrality = (
     return countB - countA; // Descending
   });
 
-  // Use Masonry layout (columns) - sorting by centrality ensures most connected are at top/left
-  const columns = SPACING.GRID_COLUMNS;
+  // Use dynamic spiral grid with extra spacing
   const positions = new Map<string, Position>();
-  const nodeDims = new Map<string, { width: number; height: number }>();
-  sortedNodes.forEach(node => nodeDims.set(node.id, getNodeSize(node)));
 
-  const startX = Math.min(...nodes.map(n => n.x));
-  const startY = Math.min(...nodes.map(n => n.y));
+  // Calculate dynamic grid dimensions based on the largest node
+  let maxNodeWidth = CARD.WIDTH;
+  let maxNodeHeight = 150; // Minimum default
 
-  const maxNodeWidth = Math.max(...Array.from(nodeDims.values()).map(d => d.width), CARD.WIDTH);
-  const effectiveColWidth = maxNodeWidth + SPACING.GRID_GAP;
+  sortedNodes.forEach(node => {
+    const size = getNodeSize(node);
+    if (size.width > maxNodeWidth) maxNodeWidth = size.width;
+    if (size.height > maxNodeHeight) maxNodeHeight = size.height;
+  });
 
-  // Track Y position for each column independently (masonry style)
-  const columnY: number[] = Array(columns).fill(startY);
+  // Add EXTRA spacing as requested by user
+  const extraPadding = 60;
+  const avgWidth = maxNodeWidth + SPACING.GRID_GAP + extraPadding;
+  const avgHeight = maxNodeHeight + SPACING.GRID_GAP + extraPadding;
 
-  // Fill row by row (same order as g+h), but track each column's Y independently
-  for (let i = 0; i < sortedNodes.length; i++) {
-    const col = i % columns;
-    const node = sortedNodes[i];
-    const { height } = nodeDims.get(node.id)!;
+  // Calculate grid size to fit all nodes in ~16:9 ratio
+  const totalNodes = sortedNodes.length;
+  // For 16:9: width/height = 16/9, so cols/rows ≈ sqrt(n * 16/9) : sqrt(n * 9/16)
+  const cols = Math.max(1, Math.ceil(Math.sqrt(totalNodes * 16 / 9)));
+  const rows = Math.max(1, Math.ceil(totalNodes / cols));
 
-    positions.set(node.id, {
-      x: startX + col * effectiveColWidth,
-      y: columnY[col]
-    });
+  const totalWidth = cols * avgWidth;
+  const totalHeight = rows * avgHeight;
 
-    // Next card in this column starts after this card + 20px gap
-    columnY[col] += height + SPACING.GRID_GAP;
+  // Center of the rectangle
+  const rectCenterX = totalWidth / 2;
+  const rectCenterY = totalHeight / 2;
+
+  // Generate all grid positions and sort by distance from center (Spiral)
+  const gridPositions: Position[] = [];
+  for (let row = 0; row < rows; row++) {
+    for (let col = 0; col < cols; col++) {
+      gridPositions.push({
+        x: col * avgWidth,
+        y: row * avgHeight
+      });
+    }
+  }
+
+  // Sort grid positions by distance from center
+  gridPositions.sort((a, b) => {
+    const distA = Math.sqrt(Math.pow(a.x - rectCenterX, 2) + Math.pow(a.y - rectCenterY, 2));
+    const distB = Math.sqrt(Math.pow(b.x - rectCenterX, 2) + Math.pow(b.y - rectCenterY, 2));
+    return distA - distB;
+  });
+
+  // Assign most connected nodes to center positions
+  for (let i = 0; i < sortedNodes.length && i < gridPositions.length; i++) {
+    positions.set(sortedNodes[i].id, gridPositions[i]);
   }
 
   return centerArrangement(positions, center);
