@@ -19,6 +19,7 @@ export const CardEditor = ({ cardId, onClose, theme }: CardEditorProps) => {
   const [comment, setComment] = useState('');
   const [linkUrl, setLinkUrl] = useState('');
   const [linkName, setLinkName] = useState(''); // Keep existing name from Zotero
+  const [value, setValue] = useState<number | undefined>(undefined);
   const [semanticTags, setSemanticTags] = useState<string[]>([]);
   const [showAITags, setShowAITags] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -33,6 +34,7 @@ export const CardEditor = ({ cardId, onClose, theme }: CardEditorProps) => {
       setTitle(card.title || '');
       setCaption(card.caption || '');
       setComment(card.comment || '');
+      setValue(card.value);
 
       // Parse link field if it exists
       if (card.link) {
@@ -77,6 +79,7 @@ export const CardEditor = ({ cardId, onClose, theme }: CardEditorProps) => {
       title: title.trim(),
       caption: caption.trim(),
       comment: comment.trim(),
+      value: value,
       link: linkUrl.trim() ? `[${linkName || 'Link'}](${linkUrl.trim()})` : '',
       semanticTags: semanticTags,
     });
@@ -153,6 +156,7 @@ export const CardEditor = ({ cardId, onClose, theme }: CardEditorProps) => {
               fontWeight: 600
             }}
           />
+
           <textarea
             ref={textareaRef}
             value={content}
@@ -281,6 +285,38 @@ export const CardEditor = ({ cardId, onClose, theme }: CardEditorProps) => {
                 )}
               </div>
             )}
+          </div>
+
+          {/* Value Input (Placed at bottom as requested) */}
+          <div className="flex items-center gap-2 mt-2">
+            <span style={{ color: theme.node.text, fontSize: '0.875rem' }}>Värde (1-6):</span>
+            <input
+              type="number"
+              min="1"
+              max="6"
+              value={value || ''}
+              onChange={(e) => {
+                // Allow empty string to clear
+                if (e.target.value === '') {
+                  setValue(undefined);
+                  return;
+                }
+                const val = parseInt(e.target.value, 10);
+                if (!isNaN(val) && val >= 1 && val <= 6) {
+                  setValue(val);
+                }
+              }}
+              placeholder="-"
+              className="px-2 py-1 rounded outline-none text-sm w-16 text-center"
+              style={{
+                backgroundColor: theme.canvasColor,
+                color: theme.node.text,
+                borderColor: theme.node.border,
+                borderWidth: '1px',
+                borderStyle: 'solid'
+              }}
+            />
+            <span className="text-xs opacity-50" style={{ color: theme.node.text }}>(1=Viktigast, 6=Lägst)</span>
           </div>
         </div>
 
