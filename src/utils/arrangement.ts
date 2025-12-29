@@ -296,10 +296,13 @@ export const arrangeCentrality = (
     return countB - countA; // Descending
   });
 
+  const positions = new Map<string, Position>();
+
   // Calculate rectangle dimensions (16:9 aspect ratio)
-  // Making these fixed but generous to prevent overlap while keeping the "grid" look
-  const avgWidth = CARD.WIDTH + SPACING.GRID_GAP + 60; // 250 + 20 + 60 = 330
-  const avgHeight = 400; // Increased to accommodate more Text (fixed size for predictability)
+  // Tuned for better compactness while preventing overlaps
+  // avgWidth: 250 (card) + 20 (gap) + 30 (padding) = 300
+  const avgWidth = CARD.WIDTH + SPACING.GRID_GAP + 30;
+  const avgHeight = 250; // Reduced from 400 to keep it tighter and balanced
 
   // Calculate grid size to fit all nodes in ~16:9 ratio
   const totalNodes = sortedNodes.length;
