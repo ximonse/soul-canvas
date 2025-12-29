@@ -23,6 +23,7 @@ const FIELD_COMPLETIONS = [
   'copyref',
   'copied',
   'originalcreated',
+  'value',
 ];
 
 const DATE_OPERATOR_COMPLETIONS = [
@@ -46,6 +47,21 @@ const expandPartialField = (value: string) => {
 };
 
 const applyFieldCompletion = (value: string) => {
+  // Check for value field autocomplete
+  const valueFieldMatch = value.match(/(^|\s)(value):([^()\s]*)$/i);
+  if (valueFieldMatch) {
+    const op = valueFieldMatch[3];
+    // Suggest operators if they haven't typed a full number yet
+    if (!op || op.match(/^[<>]?$/)) {
+      // Just a visual hint, not forcing replacement unless unambiguous? 
+      // Actually let's just let them type numbers, but maybe hint format?
+      // user asked for "autocomplete", maybe simply showing ">" "1" etc?
+      // Let's stick to the prompt's simplicity. The user asked for it to "work like normal".
+      // The best "autocomplete" here implies hints.
+      return value;
+    }
+  }
+
   // Kolla först om vi är efter ett datum-fält och ska komplettera en operator
   const dateFieldMatch = value.match(/(^|\s)(created|createdat|updated|updatedat|copied|copiedat|originalcreated|originalcreatedat):([^()\s]*)$/i);
   if (dateFieldMatch) {
@@ -69,6 +85,15 @@ const applyFieldCompletion = (value: string) => {
 };
 
 const getFieldCompletionHint = (value: string) => {
+  // Check for value field hint
+  const valueFieldMatch = value.match(/(^|\s)(value):([^()\s]*)$/i);
+  if (valueFieldMatch) {
+    const currentVal = valueFieldMatch[3];
+    if (currentVal === '') return value + '>3'; // Hint: value:>3
+    if (currentVal === '>') return value + '3'; // Hint: value:>3
+    if (currentVal === '<') return value + '3'; // Hint: value:<3
+  }
+
   // Kolla först om vi är efter ett datum-fält och ska visa operator-hint
   const dateFieldMatch = value.match(/(^|\s)(created|createdat|updated|updatedat|copied|copiedat|originalcreated|originalcreatedat):([^()\s]*)$/i);
   if (dateFieldMatch) {
@@ -280,6 +305,16 @@ export function SearchOverlay({
                   <div>created:before:2025-12-31</div>
                   <div>created:between:2025-01-01:2025-12-31</div>
                   <div className="opacity-60">// Fristående: after:2025-01-01</div>
+                </div>
+              </div>
+
+              <div>
+                <div className="font-medium mb-1 opacity-90">Värdesökning:</div>
+                <div className="text-xs opacity-60 mb-2">Hitta kort baserat på värde (1-6).</div>
+                <div className="font-mono text-xs opacity-75 space-y-1">
+                  <div>value:1</div>
+                  <div>value:&gt;3 (4, 5, 6)</div>
+                  <div>value:&lt;3 (1, 2)</div>
                 </div>
               </div>
 
