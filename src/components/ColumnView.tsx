@@ -1,5 +1,5 @@
 // src/components/ColumnView.tsx
-import React, { useMemo, useCallback, useState } from 'react';
+import React, { useMemo, useCallback, useState, useEffect } from 'react';
 import type { MindNode, Synapse } from '../types/types';
 import type { Theme } from '../themes';
 import { sortNodes } from '../utils/sortNodes';
@@ -54,15 +54,33 @@ export const ColumnView: React.FC<ColumnViewProps> = ({
   const selectedNodeIds = useBrainStore((state) => state.selectedNodeIds);
   const assets = useBrainStore((state) => state.assets);
   const updateNode = useBrainStore((state) => state.updateNode);
+  const loadAssets = useBrainStore((state) => state.loadAssets);
 
   // State för inline editing
   const [editingNodeId, setEditingNodeId] = useState<string | null>(null);
+  const [croppingNodeId, setCroppingNodeId] = useState<string | null>(null);
+  const [cropArea, setCropArea] = useState({ x: 0, y: 0, width: 0, height: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
 
   // Sortera nodes
   const sortedNodes = useMemo(
     () => sortNodes(nodes, columnSort, synapses),
     [nodes, columnSort, synapses]
   );
+
+  // Close edit view on Escape
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setEditingNodeId(null);
+        setCroppingNodeId(null);
+        setCropArea({ x: 0, y: 0, width: 0, height: 0 });
+      }
+    };
+    window.addEventListener('keydown', handleEscape);
+    return () => window.removeEventListener('keydown', handleEscape);
+  }, []);
 
   // Hantera klick på kort
   const handleCardClick = useCallback((node: MindNode, e: React.MouseEvent) => {
@@ -81,6 +99,79 @@ export const ColumnView: React.FC<ColumnViewProps> = ({
     // Multi = true för att kunna markera flera med checkboxar
     toggleSelection(node.id, true);
   }, [toggleSelection]);
+
+  // Hantera crop mouse events
+  const handleCropMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    setIsDragging(true);
+    setDragStart({ x, y });
+    setCropArea({ x, y, width: 0, height: 0 });
+  }, []);
+
+  const handleCropMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    if (!isDragging) return;
+
+    // Capture event data before RAF (event will be null inside RAF callback)
+    const rect = e.currentTarget.getBoundingClientRect();
+    const clientX = e.clientX;
+    const clientY = e.clientY;
+
+    // Use RAF to throttle updates
+    requestAnimationFrame(() => {
+      const currentX = clientX - rect.left;
+      const currentY = clientY - rect.top;
+      const width = currentX - dragStart.x;
+      const height = currentY - dragStart.y;
+      setCropArea({
+        x: width < 0 ? currentX : dragStart.x,
+        y: height < 0 ? currentY : dragStart.y,
+        width: Math.abs(width),
+        height: Math.abs(height),
+      });
+    });
+  }, [isDragging, dragStart]);
+
+  const handleCropMouseUp = useCallback(() => {
+    setIsDragging(false);
+  }, []);
+
+  // Hantera crop save
+  const handleCropSave = useCallback((node: MindNode, imageRef: React.RefObject<HTMLImageElement>) => {
+    if (!imageRef.current || cropArea.width === 0 || cropArea.height === 0) return;
+
+    const img = imageRef.current;
+    const scaleX = img.naturalWidth / img.width;
+    const scaleY = img.naturalHeight / img.height;
+
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    canvas.width = cropArea.width * scaleX;
+    canvas.height = cropArea.height * scaleY;
+
+    ctx.drawImage(
+      img,
+      cropArea.x * scaleX,
+      cropArea.y * scaleY,
+      cropArea.width * scaleX,
+      cropArea.height * scaleY,
+      0,
+      0,
+      canvas.width,
+      canvas.height
+    );
+
+    const croppedImageData = canvas.toDataURL('image/png');
+    const croppedId = `cropped_${node.id}_${Date.now()}`;
+    const newAssets = { ...assets, [croppedId]: croppedImageData };
+    loadAssets(newAssets);
+    updateNode(node.id, { imageRef: croppedId });
+    setCroppingNodeId(null);
+    setCropArea({ x: 0, y: 0, width: 0, height: 0 });
+  }, [cropArea, assets, loadAssets, updateNode]);
 
   // Hantera högerklick
   const handleContextMenu = useCallback((node: MindNode, e: React.MouseEvent) => {
@@ -108,7 +199,16 @@ export const ColumnView: React.FC<ColumnViewProps> = ({
           return (
             <div
               key={node.id}
-              onClick={(e) => handleCardClick(node, e)}
+              onClick={(e) => {
+                // Close edit view if clicking on card background (not on content)
+                if (e.target === e.currentTarget && editingNodeId === node.id) {
+                  setEditingNodeId(null);
+                  setCroppingNodeId(null);
+                  setCropArea({ x: 0, y: 0, width: 0, height: 0 });
+                } else {
+                  handleCardClick(node, e);
+                }
+              }}
               onContextMenu={(e) => handleContextMenu(node, e)}
               className="rounded-lg cursor-pointer transition-all hover:scale-[1.01]"
               style={{
@@ -146,11 +246,113 @@ export const ColumnView: React.FC<ColumnViewProps> = ({
                       <div className="space-y-3" onClick={(e) => e.stopPropagation()}>
                         {/* Bild för image-kort */}
                         {imageUrl && (
-                          <img
-                            src={imageUrl}
-                            alt={node.caption || ''}
-                            className="w-full object-contain rounded bg-black/5"
-                          />
+                          <div className="relative">
+                            {croppingNodeId === node.id ? (
+                              // CROP MODE
+                              <>
+                                <div
+                                  className="relative inline-block cursor-crosshair select-none w-full"
+                                  onMouseDown={handleCropMouseDown}
+                                  onMouseMove={handleCropMouseMove}
+                                  onMouseUp={handleCropMouseUp}
+                                  onMouseLeave={handleCropMouseUp}
+                                >
+                                  <img
+                                    ref={(ref) => {
+                                      if (ref) {
+                                        (node as any)._cropImageRef = ref;
+                                      }
+                                    }}
+                                    src={imageUrl}
+                                    alt={node.caption || ''}
+                                    className="w-full object-contain rounded bg-black/5 pointer-events-none"
+                                    draggable={false}
+                                  />
+
+                                  {/* Crop overlay */}
+                                  {cropArea.width > 0 && cropArea.height > 0 && (
+                                    <>
+                                      {/* Darkened area outside crop */}
+                                      <div
+                                        className="absolute inset-0 bg-black/50 pointer-events-none"
+                                        style={{
+                                          clipPath: `polygon(
+                                            0 0, 100% 0, 100% 100%, 0 100%, 0 0,
+                                            ${cropArea.x}px ${cropArea.y}px,
+                                            ${cropArea.x}px ${cropArea.y + cropArea.height}px,
+                                            ${cropArea.x + cropArea.width}px ${cropArea.y + cropArea.height}px,
+                                            ${cropArea.x + cropArea.width}px ${cropArea.y}px,
+                                            ${cropArea.x}px ${cropArea.y}px
+                                          )`
+                                        }}
+                                      />
+                                      {/* Crop box border */}
+                                      <div
+                                        className="absolute border-2 border-white pointer-events-none"
+                                        style={{
+                                          left: cropArea.x,
+                                          top: cropArea.y,
+                                          width: cropArea.width,
+                                          height: cropArea.height,
+                                          boxShadow: '0 0 0 9999px rgba(0,0,0,0.5)'
+                                        }}
+                                      />
+                                    </>
+                                  )}
+                                </div>
+
+                                {/* Crop buttons */}
+                                <div className="flex gap-2 mt-2">
+                                  <button
+                                    onClick={() => {
+                                      const ref = { current: (node as any)._cropImageRef };
+                                      handleCropSave(node, ref);
+                                    }}
+                                    className="px-3 py-1 rounded text-sm font-semibold transition-all"
+                                    style={{
+                                      backgroundColor: theme.node.selectedBg,
+                                      color: theme.node.text,
+                                      opacity: (cropArea.width > 10 && cropArea.height > 10) ? 1 : 0.3,
+                                    }}
+                                  >
+                                    ✂️ Beskär & Spara
+                                  </button>
+                                  <button
+                                    onClick={() => {
+                                      setCroppingNodeId(null);
+                                      setCropArea({ x: 0, y: 0, width: 0, height: 0 });
+                                    }}
+                                    className="px-3 py-1 rounded text-sm"
+                                    style={{
+                                      backgroundColor: theme.node.border,
+                                      color: theme.node.text,
+                                    }}
+                                  >
+                                    Avbryt
+                                  </button>
+                                </div>
+                              </>
+                            ) : (
+                              // NORMAL MODE
+                              <>
+                                <img
+                                  src={imageUrl}
+                                  alt={node.caption || ''}
+                                  className="w-full object-contain rounded bg-black/5"
+                                />
+                                <button
+                                  onClick={() => setCroppingNodeId(node.id)}
+                                  className="absolute top-2 right-2 px-3 py-1 rounded text-sm font-semibold"
+                                  style={{
+                                    backgroundColor: theme.node.selectedBg,
+                                    color: theme.node.text,
+                                  }}
+                                >
+                                  ✂️ Beskär
+                                </button>
+                              </>
+                            )}
+                          </div>
                         )}
 
                         {/* Title */}

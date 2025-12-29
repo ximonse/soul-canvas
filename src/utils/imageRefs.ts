@@ -26,8 +26,26 @@ export const resolveImageUrl = (
 ): string | null => {
   const ref = getImageRef(node);
   if (!ref) return null;
-  if (ref.startsWith('assets/')) return assets[ref] || null;
-  return ref;
+
+  // Check if it's a direct URL (http, https, blob, data)
+  if (ref.startsWith('http://') ||
+    ref.startsWith('https://') ||
+    ref.startsWith('blob:') ||
+    ref.startsWith('data:image')) {
+    return ref;
+  }
+
+  // Check if it's in assets (either with assets/ prefix or direct key)
+  if (ref.startsWith('assets/')) {
+    return assets[ref] || null;
+  }
+
+  // Check if ref is a direct asset key (for cropped images etc)
+  if (assets[ref]) {
+    return assets[ref];
+  }
+
+  return null;
 };
 
 export const getImageText = (node: MindNode): string => {
