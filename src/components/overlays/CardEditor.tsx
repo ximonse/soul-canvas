@@ -74,7 +74,7 @@ export const CardEditor = ({ cardId, onClose, theme }: CardEditorProps) => {
     if (e.key === 'Escape') {
       onClose();
     } else if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
-      e.preventDefault();
+      // Ctrl+Enter or Cmd+Enter to save
       handleSave();
     }
   };
@@ -125,10 +125,10 @@ export const CardEditor = ({ cardId, onClose, theme }: CardEditorProps) => {
         {/* Body */}
         <div className="flex-1 p-4 overflow-y-auto flex flex-col gap-3">
           {/* Image display for image cards */}
-          {card?.type === 'image' && (
+          {card?.type === 'image' && resolveImageUrl(card, assets) && (
             <div className="relative">
               <img
-                src={resolveImageUrl(card, assets) || ''}
+                src={resolveImageUrl(card, assets) || undefined}
                 alt={card.caption || ''}
                 className="w-full object-contain rounded"
                 style={{ backgroundColor: theme.canvasColor }}
