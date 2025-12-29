@@ -1,5 +1,5 @@
 // src/components/ColumnView.tsx
-import React, { useMemo, useCallback } from 'react';
+import React, { useMemo, useCallback, useState } from 'react';
 import type { MindNode, Synapse } from '../types/types';
 import type { Theme } from '../themes';
 import { sortNodes } from '../utils/sortNodes';
@@ -53,6 +53,10 @@ export const ColumnView: React.FC<ColumnViewProps> = ({
   const columnShowTags = useBrainStore((state) => state.columnShowTags);
   const selectedNodeIds = useBrainStore((state) => state.selectedNodeIds);
   const assets = useBrainStore((state) => state.assets);
+  const updateNode = useBrainStore((state) => state.updateNode);
+
+  // State för inline editing
+  const [editingNodeId, setEditingNodeId] = useState<string | null>(null);
 
   // Sortera nodes
   const sortedNodes = useMemo(
@@ -66,9 +70,10 @@ export const ColumnView: React.FC<ColumnViewProps> = ({
       // Toggle selection (multi = true för att behålla andra markeringar)
       toggleSelection(node.id, true);
     } else {
-      onEditCard(node.id);
+      // Toggle inline editing
+      setEditingNodeId(prev => prev === node.id ? null : node.id);
     }
-  }, [onEditCard, toggleSelection]);
+  }, [toggleSelection]);
 
   // Hantera checkbox
   const handleCheckbox = useCallback((node: MindNode, e: React.ChangeEvent<HTMLInputElement>) => {
@@ -135,55 +140,144 @@ export const ColumnView: React.FC<ColumnViewProps> = ({
                   />
 
                   <div className="flex-1 min-w-0">
-                    {/* Titel om finns */}
-                    {displayTitle && (
-                      <h3
-                        className="font-semibold mb-1 truncate"
-                        style={{ color: theme.node.text }}
-                      >
-                        {displayTitle}
-                      </h3>
-                    )}
+                    {editingNodeId === node.id ? (
+                      // INLINE EDITOR
+                      <div className="space-y-3" onClick={(e) => e.stopPropagation()}>
+                        {/* Bild för image-kort */}
+                        {imageUrl && (
+                          <img
+                            src={imageUrl}
+                            alt={node.caption || ''}
+                            className="w-full object-contain rounded bg-black/5"
+                          />
+                        )}
 
-                    {/* Bild för image-kort */}
-                    {imageUrl && (
-                      <img
-                        src={imageUrl}
-                        alt={node.caption || ''}
-                        className="w-full h-48 object-cover rounded mb-2"
-                      />
-                    )}
+                        {/* Title */}
+                        <input
+                          type="text"
+                          value={node.title || ''}
+                          onChange={(e) => updateNode(node.id, { title: e.target.value })}
+                          placeholder="Titel..."
+                          className="w-full px-2 py-1 rounded text-sm font-semibold bg-transparent border"
+                          style={{
+                            borderColor: theme.node.border,
+                            color: theme.node.text
+                          }}
+                        />
 
-                    {/* Innehåll preview */}
-                    <p
-                      className="text-sm leading-relaxed"
-                      style={{ color: theme.node.text, opacity: 0.85 }}
-                    >
-                      {getPreviewText(node.content)}
-                    </p>
+                        {/* Content */}
+                        <textarea
+                          value={node.content}
+                          onChange={(e) => updateNode(node.id, { content: e.target.value })}
+                          placeholder="Innehåll..."
+                          className="w-full px-2 py-1 rounded text-sm leading-relaxed bg-transparent border resize-none"
+                          style={{
+                            borderColor: theme.node.border,
+                            color: theme.node.text,
+                            minHeight: '100px'
+                          }}
+                          rows={5}
+                        />
 
-                    {/* Caption om finns */}
-                    {node.caption && (
-                      <p
-                        className="text-sm mt-2 italic"
-                        style={{ color: theme.node.text, opacity: 0.7 }}
-                      >
-                        {node.caption}
-                      </p>
-                    )}
+                        {/* Caption */}
+                        <input
+                          type="text"
+                          value={node.caption || ''}
+                          onChange={(e) => updateNode(node.id, { caption: e.target.value })}
+                          placeholder="Caption (synlig text under kortet)..."
+                          className="w-full px-2 py-1 rounded text-sm italic bg-transparent border"
+                          style={{
+                            borderColor: theme.node.border,
+                            color: theme.node.text,
+                            opacity: 0.8
+                          }}
+                        />
 
-                    {/* Kommentar om visas */}
-                    {columnShowComments && node.comment && (
-                      <p
-                        className="text-sm mt-2 p-2 rounded"
-                        style={{
-                          backgroundColor: theme.canvasColor,
-                          color: theme.node.text,
-                          opacity: 0.8,
-                        }}
-                      >
-                        {node.comment}
-                      </p>
+                        {/* Comment */}
+                        <textarea
+                          value={node.comment || ''}
+                          onChange={(e) => updateNode(node.id, { comment: e.target.value })}
+                          placeholder="Kommentar (dold, visas vid hover)..."
+                          className="w-full px-2 py-1 rounded text-sm bg-transparent border resize-none"
+                          style={{
+                            borderColor: theme.node.border,
+                            color: theme.node.text,
+                            opacity: 0.7
+                          }}
+                          rows={2}
+                        />
+
+                        {/* Tags */}
+                        <input
+                          type="text"
+                          value={(node.tags || []).join(', ')}
+                          onChange={(e) => {
+                            const tagsArray = e.target.value.split(',').map(t => t.trim()).filter(t => t);
+                            updateNode(node.id, { tags: tagsArray });
+                          }}
+                          placeholder="Taggar (kommaseparerade)..."
+                          className="w-full px-2 py-1 rounded text-xs bg-transparent border"
+                          style={{
+                            borderColor: theme.node.border,
+                            color: theme.node.text
+                          }}
+                        />
+
+                      </div>
+                    ) : (
+                      // PREVIEW MODE
+                      <>
+                        {/* Titel om finns */}
+                        {displayTitle && (
+                          <h3
+                            className="font-semibold mb-1 truncate"
+                            style={{ color: theme.node.text }}
+                          >
+                            {displayTitle}
+                          </h3>
+                        )}
+
+                        {/* Bild för image-kort */}
+                        {imageUrl && (
+                          <img
+                            src={imageUrl}
+                            alt={node.caption || ''}
+                            className="w-full object-contain rounded mb-2 bg-black/5"
+                          />
+                        )}
+
+                        {/* Innehåll preview */}
+                        <p
+                          className="text-sm leading-relaxed whitespace-pre-wrap"
+                          style={{ color: theme.node.text, opacity: 0.85 }}
+                        >
+                          {node.content.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()}
+                        </p>
+
+                        {/* Caption om finns */}
+                        {node.caption && (
+                          <p
+                            className="text-sm mt-2 italic"
+                            style={{ color: theme.node.text, opacity: 0.7 }}
+                          >
+                            {node.caption}
+                          </p>
+                        )}
+
+                        {/* Kommentar om visas */}
+                        {columnShowComments && node.comment && (
+                          <p
+                            className="text-sm mt-2 p-2 rounded"
+                            style={{
+                              backgroundColor: theme.canvasColor,
+                              color: theme.node.text,
+                              opacity: 0.8,
+                            }}
+                          >
+                            {node.comment}
+                          </p>
+                        )}
+                      </>
                     )}
                   </div>
                 </div>
