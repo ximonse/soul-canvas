@@ -4,7 +4,7 @@
 export type ViewMode = 'canvas' | 'column';
 
 // Sorteringsalternativ för kolumn-vy
-export type SortOption = 'connections' | 'tags' | 'oldest' | 'newest' | 'modified';
+export type SortOption = 'connections' | 'tags' | 'oldest' | 'newest' | 'modified' | 'copied' | 'value-high' | 'value-low';
 
 export interface MindNode {
   id: string;
