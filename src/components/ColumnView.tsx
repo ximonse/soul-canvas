@@ -69,19 +69,6 @@ export const ColumnView: React.FC<ColumnViewProps> = ({
     [nodes, columnSort, synapses]
   );
 
-  // Close edit view on Escape
-  useEffect(() => {
-    const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        setEditingNodeId(null);
-        setCroppingNodeId(null);
-        setCropArea({ x: 0, y: 0, width: 0, height: 0 });
-      }
-    };
-    window.addEventListener('keydown', handleEscape);
-    return () => window.removeEventListener('keydown', handleEscape);
-  }, []);
-
   // Hantera klick på kort
   const handleCardClick = useCallback((node: MindNode, e: React.MouseEvent) => {
     if (e.ctrlKey || e.metaKey) {
@@ -172,6 +159,26 @@ export const ColumnView: React.FC<ColumnViewProps> = ({
     setCroppingNodeId(null);
     setCropArea({ x: 0, y: 0, width: 0, height: 0 });
   }, [cropArea, assets, loadAssets, updateNode]);
+
+  // Close edit view on Escape, save crop on Enter
+  useEffect(() => {
+    const handleKeyPress = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setEditingNodeId(null);
+        setCroppingNodeId(null);
+        setCropArea({ x: 0, y: 0, width: 0, height: 0 });
+      } else if (e.key === 'Enter' && croppingNodeId && cropArea.width > 10 && cropArea.height > 10) {
+        // Save crop on Enter
+        const node = nodes.find(n => n.id === croppingNodeId);
+        if (node) {
+          const ref = { current: (node as any)._cropImageRef };
+          handleCropSave(node, ref);
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyPress);
+    return () => window.removeEventListener('keydown', handleKeyPress);
+  }, [croppingNodeId, cropArea, nodes, handleCropSave]);
 
   // Hantera högerklick
   const handleContextMenu = useCallback((node: MindNode, e: React.MouseEvent) => {
@@ -304,6 +311,7 @@ export const ColumnView: React.FC<ColumnViewProps> = ({
                                 {/* Crop buttons */}
                                 <div className="flex gap-2 mt-2">
                                   <button
+                                    key={`crop-btn-${cropArea.width}-${cropArea.height}`}
                                     onClick={() => {
                                       const ref = { current: (node as any)._cropImageRef };
                                       handleCropSave(node, ref);
@@ -313,9 +321,10 @@ export const ColumnView: React.FC<ColumnViewProps> = ({
                                       backgroundColor: theme.node.selectedBg,
                                       color: theme.node.text,
                                       opacity: (cropArea.width > 10 && cropArea.height > 10) ? 1 : 0.3,
+                                      cursor: (cropArea.width > 10 && cropArea.height > 10) ? 'pointer' : 'not-allowed',
                                     }}
                                   >
-                                    ✂️ Beskär & Spara
+                                    ✂️ Beskär & Spara {cropArea.width > 10 && cropArea.height > 10 ? '✓' : ''}
                                   </button>
                                   <button
                                     onClick={() => {
