@@ -8,7 +8,7 @@ interface KeyboardActions {
   onOpenCommandPalette: () => void;
   onOpenSearch: () => void;
   onOpenAIChat?: () => void;
-  onDeleteSelected: () => void;
+  onDeleteSelected: (permanent?: boolean) => void;
   onSelectAll: () => void;
   onEscape: () => void;
   onSave: () => void;
@@ -108,10 +108,14 @@ export function useKeyboard(
       return;
     }
 
-    // Delete/Backspace raderar markerade
-    if ((e.key === 'Delete' || e.key === 'Backspace') && !typing && hasSelection) {
+    // Delete/Backspace: Delete selected nodes
+    // Ctrl+Delete: Permanent deletion from all sessions
+    // Delete (in session): Remove from session only
+    // Delete (in "Alla kort"): Permanent deletion
+    if ((e.key === 'Delete' || e.key === 'Backspace') && !typing) {
       e.preventDefault();
-      actions.onDeleteSelected();
+      const permanent = e.ctrlKey || e.metaKey;
+      actions.onDeleteSelected(permanent);
       return;
     }
 

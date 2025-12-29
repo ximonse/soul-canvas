@@ -212,22 +212,54 @@ export function useNodeActions({ stageRef, canvas, setShowSettings, setContextMe
     setContextMenu(null);
 
     // Process all selected images
+
+    if (selectedImages.length === 0) return;
+
+    if (!geminiKey) {
+      setShowSettings(true);
+      return;
+    }
+
+    setContextMenu(null);
+
+    // Process all selected images
     for (const node of selectedImages) {
       await runOCR(node.id);
     }
   }, [selectedNodeIds, nodes, geminiKey, runOCR, setShowSettings, setContextMenu]);
 
-  // Delete selected nodes
-  const deleteSelected = useCallback(() => {
+  // Delete selected nodes (session-aware)
+  const deleteSelected = useCallback((permanent: boolean = false) => {
     const selectedNodes = Array.from(selectedNodeIds)
       .map(id => nodes.get(id))
       .filter(Boolean) as MindNode[];
     if (selectedNodes.length === 0) return;
-    const requiresConfirm = selectedNodes.length >= 10;
-    if (requiresConfirm && !confirm(`Radera ${selectedNodes.length} valda kort?`)) return;
-    saveStateForUndo();
-    selectedNodes.forEach((node: MindNode) => removeNode(node.id));
-  }, [selectedNodeIds, nodes, saveStateForUndo, removeNode]);
+
+    const activeSessionId = useBrainStore.getState().activeSessionId;
+
+    if (permanent) {
+      // Ctrl+Delete: Permanent deletion
+      if (!activeSessionId) {
+        // In "Alla kort": Always confirm
+        if (!confirm(`Radera ${selectedNodes.length} kort PERMANENT från alla sessioner?`)) return;
+      }
+      // In session: No confirmation
+      saveStateForUndo();
+      const deleteNodesPermanently = useBrainStore.getState().deleteNodesPermanently;
+      deleteNodesPermanently(Array.from(selectedNodeIds));
+    } else if (activeSessionId) {
+      // Delete in session: Remove from session only, no confirmation
+      saveStateForUndo();
+      const removeCardsFromSession = useBrainStore.getState().removeCardsFromSession;
+      removeCardsFromSession(activeSessionId, Array.from(selectedNodeIds));
+    } else {
+      // Delete in "Alla kort": Permanent deletion, ALWAYS confirm
+      if (!confirm(`Radera ${selectedNodes.length} kort PERMANENT från alla sessioner?`)) return;
+      saveStateForUndo();
+      const deleteNodesPermanently = useBrainStore.getState().deleteNodesPermanently;
+      deleteNodesPermanently(Array.from(selectedNodeIds));
+    }
+  }, [selectedNodeIds, nodes, saveStateForUndo]);
 
   // Add tag to all selected nodes
   const addBulkTag = useCallback((tag: string) => {

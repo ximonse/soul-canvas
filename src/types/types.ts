@@ -44,6 +44,9 @@ export interface MindNode {
   semanticTags?: string[]; // AI-genererade konceptuella taggar
   lastEmbedded?: string;   // Timestamp för när embedding skapades
 
+  // Rating/Value
+  value?: number;          // 1-6 (1=Highest, 6=Lowest)
+
   // Selection Scope (transient, ej sparad till fil)
   scopeDegree?: number;    // 0 = ej scope, 1-6 = grad av koppling från bas-selektion
 }

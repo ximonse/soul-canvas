@@ -136,6 +136,7 @@ type SearchField =
   | 'copyref'
   | 'copied'
   | 'originalcreated'
+  | 'value'
   | 'all';
 
 const FIELD_ALIASES: Record<string, SearchField> = {
@@ -169,6 +170,9 @@ const FIELD_ALIASES: Record<string, SearchField> = {
   updated: 'updated',
   updatedat: 'updated',
   modified: 'updated',
+  value: 'value',
+  val: 'value',
+  v: 'value',
 };
 
 const parseFieldTerm = (raw: string): { field?: SearchField; value: string } => {
@@ -258,6 +262,7 @@ export function useSearch({ nodes }: UseSearchOptions): UseSearchResult {
         copyref: (node.copyRef || '').toLowerCase(),
         copied: normalizeDateSearchText(node.copiedAt),
         originalcreated: normalizeDateSearchText(node.originalCreatedAt),
+        value: node.value !== undefined ? String(node.value) : '',
         all: '',
       } as Record<SearchField, string>;
 
@@ -276,11 +281,100 @@ export function useSearch({ nodes }: UseSearchOptions): UseSearchResult {
         searchable.originalcreated,
         searchable.created,
         searchable.updated,
+        searchable.value,
+        // Include field names to allow finding cards by typing "val" or "crea"
+        node.value !== undefined ? 'value' : '',
+        node.link ? 'link' : '',
+        'created',
+        'updated',
+        'type'
       ]
         .filter(Boolean)
         .join(' ');
 
-      return evaluate(postfix, searchable);
+      // Custom check for value field to support > < operators
+      const checkFieldMatch = (field: SearchField, needle: string, haystack: string) => {
+        if (field === 'value') {
+          const nodeVal = parseInt(haystack, 10);
+          if (isNaN(nodeVal)) return false; // Node has no value set
+
+          // Parse operator and limit
+          const match = needle.match(/^([<>]=?)?(\d*)$/);
+          if (match) {
+            const operator = match[1] || '';
+            const limitStr = match[2];
+
+            // If only operator (e.g. "value:>"), return true (match all with value)
+            if (operator && !limitStr) return true;
+
+            // If only number (or empty)
+            if (!operator) {
+              return limitStr ? nodeVal === parseInt(limitStr, 10) : true;
+            }
+
+            const limit = parseInt(limitStr, 10);
+            if (isNaN(limit)) return true; // Should be handled above, but safety
+
+            switch (operator) {
+              case '>': return nodeVal > limit;
+              case '<': return nodeVal < limit;
+              case '>=': return nodeVal >= limit;
+              case '<=': return nodeVal <= limit;
+            }
+          }
+        }
+        return termMatches(needle, haystack);
+      }
+
+      // We need to override the standard evaluate to inject our custom matcher?
+      // Actually, evaluate calls termMatches. We can modify evaluate or termMatches.
+      // But termMatches is outside. Let's move the logic into evaluate's closure or rewrite evaluate.
+
+      const evaluateWithCustomLogic = (postfixStack: Token[]): boolean => {
+
+        const stack: boolean[] = [];
+        for (const token of postfixStack) {
+          if (token.type === 'TERM') {
+            const { field, value } = parseFieldTerm(token.value);
+            if (field) {
+              // Explicit field search
+              stack.push(checkFieldMatch(field, value, searchable[field]));
+            } else {
+              // General search "all"
+              const needle = token.value;
+
+              // Special heuristic: If searching for a single digit 1-6, prioritize Value
+              // and avoid matching dates (e.g. "3" matching "2023").
+              if (needle.match(/^[1-6]$/)) {
+                const digit = parseInt(needle, 10);
+                const hasValue = (node.value === digit);
+
+                // Also check specific text fields (title, content, tags) but NOT dates
+                const textMatch = [
+                  searchable.title,
+                  searchable.content,
+                  searchable.caption,
+                  searchable.comment,
+                  searchable.tags
+                ].some(txt => termMatches(needle, txt));
+
+                stack.push(hasValue || textMatch);
+              } else {
+                stack.push(termMatches(needle, searchable.all));
+              }
+            }
+          } else if (token.type === 'NOT') {
+            stack.push(!(stack.pop() ?? false));
+          } else if (token.type === 'AND' || token.type === 'OR') {
+            const b = stack.pop() ?? false;
+            const a = stack.pop() ?? false;
+            stack.push(token.type === 'AND' ? a && b : a || b);
+          }
+        }
+        return stack.pop() ?? false;
+      };
+
+      return evaluateWithCustomLogic(postfix);
     });
   }, [nodes, query]);
 

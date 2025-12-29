@@ -20,7 +20,7 @@ interface KeyboardHandlersProps {
   centerCamera: () => void;
   fitAllNodes: () => void;
   resetZoom: () => void;
-  deleteSelected: () => void;
+  deleteSelected: (permanent?: boolean) => void;
   handleManualSave: () => void;
   handleDrop: (e: React.DragEvent) => void;
 
@@ -223,13 +223,13 @@ export function useKeyboardHandlers({
       // Noder att layouta: markerade + deras kopplade grannar, eller alla
       const nodesToLayout: MindNode[] = hasSelection
         ? allNodes.filter((n: MindNode) => {
-            if (selectedIds.has(n.id)) return true;
-            // Inkludera grannar som är kopplade till markerade
-            return relevantSynapses.some((s: { sourceId: string; targetId: string }) =>
-              (s.sourceId === n.id && selectedIds.has(s.targetId)) ||
-              (s.targetId === n.id && selectedIds.has(s.sourceId))
-            );
-          })
+          if (selectedIds.has(n.id)) return true;
+          // Inkludera grannar som är kopplade till markerade
+          return relevantSynapses.some((s: { sourceId: string; targetId: string }) =>
+            (s.sourceId === n.id && selectedIds.has(s.targetId)) ||
+            (s.targetId === n.id && selectedIds.has(s.sourceId))
+          );
+        })
         : allNodes;
 
       if (relevantSynapses.length > 0 && nodesToLayout.length > 0) {
@@ -303,8 +303,8 @@ export function useKeyboardHandlers({
         const files = (e.target as HTMLInputElement).files;
         if (!files) return;
         const fakeEvent = {
-          preventDefault: () => {},
-          stopPropagation: () => {},
+          preventDefault: () => { },
+          stopPropagation: () => { },
           clientX: window.innerWidth / 2,
           clientY: window.innerHeight / 2,
           dataTransfer: { files: Array.from(files) }
