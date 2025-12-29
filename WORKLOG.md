@@ -28,6 +28,29 @@ Detailed progress log. Keep `CLAUDE.md` "Aktuell status" short; capture details 
 
 ---
 
+## 2025-12-27 - Zotero Bridge Local Plugin + MCP Bring-up
+
+**Work done (today):**
+- Fixed Zotero plugin packaging so XPI uses forward slashes (src/bridge.js) and installs cleanly.
+- Added required manifest update_url to satisfy Zotero 7 validation.
+- Switched bridge endpoints to Zotero's Endpoint init() API (fixes 500s on /bridge/ping).
+- Added delayed registration after Zotero init to avoid startup races.
+- Rebuilt XPI and confirmed endpoints list in Zotero console.
+- Verified /bridge/ping works once token matches.
+- Added docs/MCP_SETUP.md with step-by-step MCP setup for Claude Desktop (local repo).
+
+**Now (next action):**
+- Build MCP server in zotero-bridge (npm install + npm run build).
+- Add MCP server config to Claude Desktop (claude_desktop_config.json) with token + local bridge URL.
+- Restart Claude Desktop and test tool list / zotero_list_collections.
+
+**Next (after Claude Desktop works):**
+- Wire Soul Canvas to use local zotero-bridge MCP server (env override for MCP path).
+- Add a short Soul Canvas README note on local MCP path + env vars.
+- Quick smoke tests: list collections, fetch item, get annotations, local PDF search tool.
+
+---
+
 ## 2025-12-25
 - Setup: added the "Aktuell status" section in `CLAUDE.md` and created this log.
 - Context: optimization work was in progress; goal and target files are not confirmed yet.

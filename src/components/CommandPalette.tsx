@@ -32,6 +32,7 @@ interface CommandPaletteProps {
   onArrangeHorizontal: () => void;
   onArrangeGridVertical: () => void;
   onArrangeGridHorizontal: () => void;
+  onArrangeCentrality: () => void;
   onExpandScopeDegree?: (degree: number) => void;
   onCopy: () => void;
   onPaste: () => void;
@@ -39,7 +40,18 @@ interface CommandPaletteProps {
   onRedo: () => void;
   onNewCard: () => void;
   onImport: () => void;
+  onMassImport: () => void;
+  onQuoteExtractor: () => void;
   onFocusSearch: () => void;
+  onFitAllNodes: () => void;
+  onToggleSessionPanel: () => void;
+  onToggleWandering: () => void;
+  onDuplicate: () => void;
+  onFlipToText: () => void;
+  onFlipToImage: () => void;
+  onToggleSynapseLines: () => void;
+  onToggleViewMode: () => void;
+  onToggleScopePanel: () => void;
   theme: Theme;
 }
 
@@ -53,6 +65,7 @@ export const CommandPalette = ({
   onCenterCamera,
   onToggleZen,
   onResetZoom,
+  onFitAllNodes,
   onTogglePin,
   onArrangeCircle,
   onArrangeKanban,
@@ -60,6 +73,7 @@ export const CommandPalette = ({
   onArrangeHorizontal,
   onArrangeGridVertical,
   onArrangeGridHorizontal,
+  onArrangeCentrality,
   onExpandScopeDegree,
   onCopy,
   onPaste,
@@ -67,7 +81,17 @@ export const CommandPalette = ({
   onRedo,
   onNewCard,
   onImport,
+  onMassImport,
+  onQuoteExtractor,
   onFocusSearch,
+  onToggleSessionPanel,
+  onToggleWandering,
+  onDuplicate,
+  onFlipToText,
+  onFlipToImage,
+  onToggleSynapseLines,
+  onToggleViewMode,
+  onToggleScopePanel,
   theme,
 }: CommandPaletteProps) => {
   const nodes = useBrainStore((state) => state.nodes);
@@ -83,33 +107,41 @@ export const CommandPalette = ({
 
   const scopeCommands: Command[] = onExpandScopeDegree
     ? [1, 2, 3, 4, 5, 6].map((degree) => ({
-        id: `scope-${degree}`,
-        name: `Scope +${degree}`,
-        shortcut: `alt+${degree}`,
-        action: () => { onExpandScopeDegree(degree); onClose(); },
-        category: 'view',
-        icon: '🧭',
-      }))
+      id: `scope-${degree}`,
+      name: `Scope +${degree}`,
+      shortcut: `alt+${degree}`,
+      action: () => { onExpandScopeDegree(degree); onClose(); },
+      category: 'view',
+      icon: '🧭',
+    }))
     : [];
 
   const commands: Command[] = [
     // AI Commands
     { id: 'ai-panel', name: 'Open AI Panel', shortcut: 'b', action: () => { onOpenAIPanel(); onClose(); }, category: 'ai', icon: '🤖' },
     { id: 'ai-chat', name: 'AI Chat (manual provider)', shortcut: 'a', action: () => { onOpenAIChat(); onClose(); }, category: 'ai', icon: '💬' },
+    { id: 'quote-extractor', name: 'AI Quote Extractor', shortcut: 'e', action: () => { onQuoteExtractor(); onClose(); }, category: 'ai', icon: '📝' },
     { id: 'embed', name: 'Generate Embeddings', shortcut: 'emb', action: async () => { await intelligence.embedAllNodes(); onClose(); }, category: 'ai', icon: '🧬' },
     { id: 'link', name: 'Auto-Link Similar', shortcut: 'link', action: async () => { await intelligence.autoLinkSimilarNodes(); onClose(); }, category: 'ai', icon: '🔗' },
     { id: 'reflect', name: 'AI Reflection', shortcut: 'ref', action: async () => { await intelligence.reflect(); onClose(); }, category: 'ai', icon: '💭' },
     { id: 'tags', name: 'Generate Tags', shortcut: 'tag', action: async () => { await intelligence.generateTagsForSelection(); onClose(); }, category: 'ai', icon: '🏷️' },
 
     // View Commands
-    { id: 'center', name: 'Center Camera', shortcut: '-', action: () => { onCenterCamera(); onClose(); }, category: 'view', icon: '🎯' },
+    { id: 'center', name: 'Center Camera (0,0)', shortcut: '', action: () => { onCenterCamera(); onClose(); }, category: 'view', icon: '🎯' },
+    { id: 'fit-all', name: 'Fit All Nodes', shortcut: '-', action: () => { onFitAllNodes(); onClose(); }, category: 'view', icon: '🔍' },
     { id: 'zen', name: 'Toggle Zen Mode', shortcut: 'z', action: () => { onToggleZen(); onClose(); }, category: 'view', icon: '🧘' },
     { id: 'theme', name: 'Change Theme', shortcut: 't', action: () => { onToggleTheme(); onClose(); }, category: 'view', icon: '🎨' },
     { id: 'reset-zoom', name: 'Reset Zoom', shortcut: '0', action: () => { onResetZoom(); onClose(); }, category: 'view', icon: '100%' },
+    { id: 'view-mode', name: 'Toggle View Mode (Canvas/Column)', shortcut: 'k', action: () => { onToggleViewMode(); onClose(); }, category: 'view', icon: '📑' },
+    { id: 'session-panel', name: 'Toggle Session Panel', shortcut: 's', action: () => { onToggleSessionPanel(); onClose(); }, category: 'view', icon: '🗃️' },
+    { id: 'scope-panel', name: 'Toggle Scope Panel', shortcut: 'ctrl+§', action: () => { onToggleScopePanel(); onClose(); }, category: 'view', icon: '🔭' },
+    { id: 'wandering', name: 'Toggle Wandering Mode', shortcut: 'w', action: () => { onToggleWandering(); onClose(); }, category: 'view', icon: '🚶' },
+    { id: 'synapse-lines', name: 'Toggle Synapse Lines', shortcut: 'l', action: () => { onToggleSynapseLines(); onClose(); }, category: 'view', icon: '🕸️' },
 
     // Create Commands
     { id: 'new-card', name: 'New Card', shortcut: 'n', action: () => { onNewCard(); onClose(); }, category: 'edit', icon: '➕' },
     { id: 'import', name: 'Import (Images, JSON, Zotero)', shortcut: 'i', action: () => { onImport(); onClose(); }, category: 'edit', icon: '📥' },
+    { id: 'mass-import', name: 'Mass Import (Text)', shortcut: 'm', action: () => { onMassImport(); onClose(); }, category: 'edit', icon: '📚' },
     { id: 'focus-search', name: 'Focus Search', shortcut: 'f', action: () => { onFocusSearch(); onClose(); }, category: 'edit', icon: '🔎' },
 
     // Arrangement Commands
@@ -119,11 +151,13 @@ export const CommandPalette = ({
     { id: 'arrange-grid-vertical', name: 'Arrange Grid Vertical', shortcut: 'g+v', action: () => { onArrangeGridVertical(); onClose(); }, category: 'edit', icon: '🧱' },
     { id: 'arrange-grid-horizontal', name: 'Arrange Grid Horizontal', shortcut: 'g+h', action: () => { onArrangeGridHorizontal(); onClose(); }, category: 'edit', icon: '🧊' },
     { id: 'arrange-kanban', name: 'Arrange Overlapping Rows', shortcut: 'g+t', action: () => { onArrangeKanban(); onClose(); }, category: 'edit', icon: '🗂️' },
+    { id: 'arrange-centrality', name: 'Arrange Grid Centrality', shortcut: 'g+c', action: () => { onArrangeCentrality(); onClose(); }, category: 'edit', icon: '☢️' },
 
     ...scopeCommands,
 
     // Edit Commands
     { id: 'copy', name: 'Copy Selected', shortcut: 'ctrl+c', action: () => { onCopy(); onClose(); }, category: 'edit', icon: '📄' },
+    { id: 'duplicate', name: 'Duplicate Selected', shortcut: 'c', action: () => { onDuplicate(); onClose(); }, category: 'edit', icon: '👥' },
     { id: 'paste', name: 'Paste', shortcut: 'ctrl+v', action: () => { onPaste(); onClose(); }, category: 'edit', icon: '📋' },
     { id: 'undo', name: 'Undo', shortcut: 'ctrl+z', action: () => { onUndo(); onClose(); }, category: 'edit', icon: '↩️' },
     { id: 'redo', name: 'Redo', shortcut: 'ctrl+y', action: () => { onRedo(); onClose(); }, category: 'edit', icon: '↪️' },
@@ -131,23 +165,36 @@ export const CommandPalette = ({
     { id: 'clear', name: 'Clear Selection', shortcut: 'esc', action: () => { clearSelection(); onClose(); }, category: 'edit', icon: '❌' },
     { id: 'delete', name: 'Delete Selected', shortcut: 'del', action: () => { Array.from(selectedNodeIds).forEach((id) => removeNode(id)); onClose(); }, category: 'edit', icon: '🗑️' },
     { id: 'pin', name: 'Pin/Unpin Selected', shortcut: 'p', action: () => { onTogglePin(); onClose(); }, category: 'edit', icon: '📌' },
+    { id: 'flip-text', name: 'Flip Images to Text', shortcut: 'o+o', action: () => { onFlipToText(); onClose(); }, category: 'edit', icon: '📝' },
+    { id: 'flip-image', name: 'Flip Images to Image', shortcut: 'o', action: () => { onFlipToImage(); onClose(); }, category: 'edit', icon: '🖼️' },
 
     // File Commands
     { id: 'save', name: 'Save', shortcut: 'ctrl+enter', action: () => { onSave(); onClose(); }, category: 'file', icon: '💾' },
-    { id: 'export-sif', name: 'Export to Cytoscape (SIF)', shortcut: 'sif', action: () => {
-      const nodesArray = Array.from(nodes.values()) as MindNode[];
-      exportToCytoscape(nodesArray, synapses);
-      onClose();
-    }, category: 'file', icon: '🕸️' },
-    { id: 'export-csv', name: 'Export to Cytoscape (CSV)', shortcut: 'csv', action: () => {
-      const nodesArray = Array.from(nodes.values()) as MindNode[];
-      exportToCSV(nodesArray, synapses);
-      onClose();
-    }, category: 'file', icon: '📊' },
-    { id: 'settings', name: 'Settings', shortcut: 's', action: () => { onOpenSettings(); onClose(); }, category: 'file', icon: '⚙️' },
+    {
+      id: 'export-sif', name: 'Export to Cytoscape (SIF)', shortcut: 'sif', action: () => {
+        const nodesArray = Array.from(nodes.values()) as MindNode[];
+        exportToCytoscape(nodesArray, synapses);
+        onClose();
+      }, category: 'file', icon: '🕸️'
+    },
+    {
+      id: 'export-csv', name: 'Export to Cytoscape (CSV)', shortcut: 'csv', action: () => {
+        const nodesArray = Array.from(nodes.values()) as MindNode[];
+        exportToCSV(nodesArray, synapses);
+        onClose();
+      }, category: 'file', icon: '📊'
+    },
+    { id: 'settings', name: 'Settings', shortcut: '', action: () => { onOpenSettings(); onClose(); }, category: 'file', icon: '⚙️' },
+    {
+      id: 'migrate-links', name: 'Migrate Links (Comment → Link Field)', shortcut: 'migrate', action: () => {
+        const migratedCount = useBrainStore.getState().migrateLinksFromCommentToLink();
+        alert(`✅ Migrated ${migratedCount} cards`);
+        onClose();
+      }, category: 'file', icon: '🔄'
+    },
   ];
 
-  const filteredCommands = commands.filter(cmd => 
+  const filteredCommands = commands.filter(cmd =>
     cmd.name.toLowerCase().includes(query.toLowerCase()) ||
     cmd.shortcut.toLowerCase().includes(query.toLowerCase())
   );
@@ -179,11 +226,11 @@ export const CommandPalette = ({
   };
 
   return (
-    <div 
+    <div
       className="fixed inset-0 z-[200] flex items-start justify-center pt-32 bg-black/60 backdrop-blur-sm font-serif text-base"
       onClick={onClose}
     >
-      <div 
+      <div
         className="w-[600px] rounded-2xl shadow-2xl overflow-hidden"
         style={{
           backgroundColor: theme.node.bg,
@@ -220,15 +267,14 @@ export const CommandPalette = ({
               <button
                 key={cmd.id}
                 onClick={() => cmd.action()}
-                className={`w-full px-4 py-3 flex items-center justify-between text-left transition-colors ${
-                  index === selectedIndex
-                    ? 'bg-purple-600/30 border-l-2 border-purple-500'
-                    : 'hover:bg-gray-800/50'
-                }`}
+                className={`w-full px-4 py-3 flex items-center justify-between text-left transition-colors ${index === selectedIndex
+                  ? 'bg-purple-600/30 border-l-2 border-purple-500'
+                  : 'hover:bg-gray-800/50'
+                  }`}
                 style={
                   index === selectedIndex
                     ? { backgroundColor: theme.node.selectedBg, borderLeft: `2px solid ${theme.node.selectedBorder}` }
-                    : { }
+                    : {}
                 }
               >
                 <div className="flex items-center gap-3">
@@ -262,3 +308,4 @@ export const CommandPalette = ({
     </div>
   );
 };
+

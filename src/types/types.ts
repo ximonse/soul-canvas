@@ -20,15 +20,16 @@ export interface MindNode {
   copiedAt?: string;       // When this copy was created
   originalCreatedAt?: string; // When the original card was created
   imageRef?: string;       // Bildens filreferens/URL (för bildkort)
-  
+
   // NYA FÄLT
   type: 'text' | 'image' | 'zotero'; // För att veta hur vi ska rendera
   caption?: string;        // Synlig text under kortet (visas alltid)
-  comment?: string;        // Dold kommentar (visas vid hover, stödjer markdown/länkar)
+  comment?: string;        // Dold kommentar (visas vid hover, stödjer markdown)
+  link?: string;           // Dedikerad länk (markdown format: [name](url))
   ocrText?: string;        // "Baksidan" av kortet (AI-texten)
   isFlipped?: boolean;     // Om vi tittar på baksidan just nu (sparas ej till fil nödvändigtvis)
   selected?: boolean;      // Legacy: selection hanteras i store (selectedNodeIds)
-  
+
   // Pin/Lock
   pinned?: boolean;        // Om kortet är låst på plats (kan inte flyttas)
 
@@ -84,12 +85,12 @@ export interface BrainState {
   synapses: Synapse[];
   fileHandle: FileSystemDirectoryHandle | null; // Changed to DirectoryHandle for folder-based system
   lastSaved: string | null;
-  
+
   // API Keys
   geminiKey?: string;
   openaiKey?: string;
   claudeKey?: string;
-  
+
   // AI Settings
   autoLinkThreshold?: number;  // Tröskelvärde för auto-linking (0-1, default 0.75)
   enableAutoLink?: boolean;    // Om auto-linking är aktiverat

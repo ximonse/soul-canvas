@@ -105,11 +105,12 @@ export const ColumnView: React.FC<ColumnViewProps> = ({
               className="rounded-lg cursor-pointer transition-all hover:scale-[1.01]"
               style={{
                 backgroundColor: isSelected ? theme.node.selectedBg : theme.node.bg,
-                border: `2px solid ${isSelected ? theme.node.selectedBorder : theme.node.border}`,
+                border: `1px solid ${isSelected ? theme.node.selectedBorder : theme.node.border}`,
                 boxShadow: isSelected
-                  ? `0 0 12px ${theme.node.selectedShadow}`
+                  ? `0 0 6px ${theme.node.selectedShadow}`
                   : `0 2px 4px ${theme.node.shadow}`,
                 fontFamily: "'Noto Serif', Georgia, serif",
+                opacity: isSelected ? 0.95 : 1,
               }}
             >
               {/* Accent stripe för Zotero-kort */}
@@ -144,10 +145,10 @@ export const ColumnView: React.FC<ColumnViewProps> = ({
 
                     {/* Innehåll preview */}
                     <p
-                      className="text-sm leading-relaxed"
+                      className="text-sm leading-relaxed whitespace-pre-wrap"
                       style={{ color: theme.node.text, opacity: 0.85 }}
                     >
-                      {getPreviewText(node.content)}
+                      {node.content.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()}
                     </p>
 
                     {/* Caption om finns */}

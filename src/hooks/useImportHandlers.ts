@@ -7,6 +7,7 @@ import { type CanvasAPI } from './useCanvas';
 import type { MindNode } from '../types/types';
 import { processImageFile } from '../utils/imageProcessor';
 import { parseZoteroHTML, isZoteroHTML } from '../utils/zoteroParser';
+import { processPdfFile } from '../utils/pdfProcessor';
 
 interface ImportHandlersProps {
   canvas: CanvasAPI;
@@ -114,6 +115,34 @@ export function useImportHandlers({ canvas, hasFile, saveAsset }: ImportHandlers
         if (relativePath) addNode(relativePath, worldPos.x, worldPos.y, 'image');
       } else if (file.type === 'application/json' || file.name.endsWith('.json')) {
         await handleJSONImport(file);
+      } else if (file.type === 'application/pdf' || file.name.endsWith('.pdf')) {
+        try {
+          const images = await processPdfFile(file);
+          const spacing = 320; // Slightly larger than standard card width
+          const cols = Math.ceil(Math.sqrt(images.length));
+
+          for (let i = 0; i < images.length; i++) {
+            const blob = images[i];
+            const pageNum = i + 1;
+            const processedFile = new File([blob], `${file.name}_page_${pageNum}.jpg`, { type: 'image/jpeg' });
+            const uniqueName = `${Date.now()}_${file.name.replace(/\s+/g, '_')}_p${pageNum}`;
+            const relativePath = await saveAsset(processedFile, uniqueName);
+
+            if (relativePath) {
+              const row = Math.floor(i / cols);
+              const col = i % cols;
+              // Add simple offset to avoid perfect overlap if dropped at same spot, but mainly grid
+              addNode(
+                relativePath,
+                worldPos.x + col * spacing,
+                worldPos.y + row * spacing,
+                'image'
+              );
+            }
+          }
+        } catch (error) {
+          console.error('PDF import error:', error);
+        }
       } else if (file.type === 'text/html' || file.name.endsWith('.html')) {
         const text = await file.text();
         if (isZoteroHTML(text)) {
@@ -126,10 +155,22 @@ export function useImportHandlers({ canvas, hasFile, saveAsset }: ImportHandlers
               const col = index % cols;
               const nodeId = crypto.randomUUID();
               addNodeWithId(nodeId, note.content, worldPos.x + col * spacing, worldPos.y + row * spacing, 'text');
+
+              // Build tags: author/year + PDF name (if available)
+              const allTags = [...note.tags];
+              if (note.pdfName) {
+                allTags.push(note.pdfName);
+              }
+
+              // Build link name from tags (author + year)
+              const linkName = note.tags.length >= 2
+                ? `${note.tags[0]} (${note.tags[1]})`
+                : note.pdfName || 'PDF';
+
               updateNode(nodeId, {
                 caption: note.caption,
-                tags: note.tags,
-                comment: note.pdfLink ? `[Öppna PDF](${note.pdfLink})` : undefined,
+                tags: allTags,
+                link: note.pdfLink ? `[${linkName}](${note.pdfLink})` : undefined,
                 accentColor: note.color,
               });
             });

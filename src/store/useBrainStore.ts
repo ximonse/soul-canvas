@@ -4,6 +4,7 @@ import type { AIProvider, MindNode, Synapse, Sequence, Conversation, Conversatio
 import { createSelectionSlice, type SelectionActions, type SelectionState } from './slices/selectionSlice';
 import { createHistorySlice, historyInitialState, type HistoryState, type HistoryActions } from './slices/historySlice';
 import { createTrailSlice, initialTrailState, type TrailState, type TrailActions } from './slices/trailSlice';
+import { createNotificationSlice, initialNotificationState, type NotificationState, type NotificationActions } from './slices/notificationSlice';
 import { GRAVITY } from '../utils/constants';
 import { GEMINI_OCR_MODELS } from '../utils/gemini';
 
@@ -91,22 +92,6 @@ interface CoreActions {
   startSequence: (nodeId: string) => void;
   addToSequence: (nodeId: string) => void;
   finishSequence: () => void;
-  cancelSequence: () => void;
-  removeFromSequence: (nodeId: string) => void;
-
-  // Conversation actions (AI-chattar med minne)
-  loadConversations: (conversations: Conversation[]) => void;
-  createConversation: (provider: 'claude' | 'openai' | 'gemini', contextNodeIds?: string[]) => string;
-  setActiveConversation: (id: string | null) => void;
-  addMessageToConversation: (conversationId: string, message: Omit<ConversationMessage, 'timestamp'>) => void;
-  updateConversation: (id: string, updates: Partial<Conversation>) => void;
-  archiveConversation: (id: string) => void;
-
-  // Session actions
-  loadSessions: (sessions: Session[]) => void;
-  createSession: (name: string) => string;
-  deleteSession: (id: string) => void;
-  renameSession: (id: string, name: string) => void;
   switchSession: (id: string | null) => void;
   addCardsToSession: (sessionId: string, cardIds: string[]) => void;
   removeCardsFromSession: (sessionId: string, cardIds: string[]) => void;
@@ -146,7 +131,7 @@ const getInitialGeminiOcrModel = () => {
 };
 
 // Combined store type
-type BrainStore = CoreState & HistoryState & TrailState & SelectionState & CoreActions & SelectionActions & HistoryActions & TrailActions;
+type BrainStore = CoreState & HistoryState & TrailState & SelectionState & NotificationState & CoreActions & SelectionActions & HistoryActions & TrailActions & NotificationActions;
 
 export const useBrainStore = create<BrainStore>()((set) => ({
   // Initial state
@@ -654,6 +639,46 @@ export const useBrainStore = create<BrainStore>()((set) => ({
   toggleColumnShowComments: () => set((state) => ({ columnShowComments: !state.columnShowComments })),
   toggleColumnShowTags: () => set((state) => ({ columnShowTags: !state.columnShowTags })),
 
+  // Migration: Move links from comment to link field
+  migrateLinksFromCommentToLink: () => {
+    let migratedCount = 0;
+
+    set((state) => {
+      const updatedNodes = new Map(state.nodes);
+
+      updatedNodes.forEach((node, id) => {
+        // Skip if link field already has content
+        if (node.link) return;
+
+        // Check if comment contains a markdown link
+        if (node.comment) {
+          const linkMatch = node.comment.match(/\[([^\]]+)\]\(([^)]+)\)/);
+          if (linkMatch) {
+            const linkText = linkMatch[0];
+            const linkName = linkMatch[1];
+            const linkUrl = linkMatch[2];
+
+            // Move link to link field and remove from comment
+            const updatedComment = node.comment.replace(linkText, '').trim();
+
+            updatedNodes.set(id, {
+              ...node,
+              link: `[${linkName}](${linkUrl})`,
+              comment: updatedComment || undefined
+            });
+
+            migratedCount++;
+          }
+        }
+      });
+
+      return { nodes: updatedNodes };
+    });
+
+    console.log(`✅ Migrated ${migratedCount} cards from comment to link field`);
+    return migratedCount;
+  },
+
   // Selection slice
   ...createSelectionSlice(set),
 
@@ -662,4 +687,7 @@ export const useBrainStore = create<BrainStore>()((set) => ({
 
   // Trail slice
   ...createTrailSlice(set, (): BrainStore => useBrainStore.getState()),
+
+  // Notification slice
+  ...createNotificationSlice(set, (): BrainStore => useBrainStore.getState()),
 }));

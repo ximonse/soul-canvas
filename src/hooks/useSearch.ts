@@ -126,6 +126,7 @@ type SearchField =
   | 'content'
   | 'caption'
   | 'comment'
+  | 'link'
   | 'ocr'
   | 'tags'
   | 'semantic'
@@ -154,6 +155,8 @@ const FIELD_ALIASES: Record<string, SearchField> = {
   cap: 'caption',
   comment: 'comment',
   note: 'comment',
+  link: 'link',
+  url: 'link',
   ocr: 'ocr',
   ocrtext: 'ocr',
   tags: 'tags',
@@ -206,7 +209,12 @@ const evaluate = (postfix: Token[], searchable: Record<SearchField, string>): bo
       const { field, value } = parseFieldTerm(token.value);
       if (field) {
         const needle = value.trim();
-        stack.push(needle.length > 0 ? termMatches(needle, searchable[field]) : false);
+        if (needle.length === 0) {
+          // Field without value: match if field has any content (e.g., "copyref:" finds all copies)
+          stack.push(searchable[field].length > 0);
+        } else {
+          stack.push(termMatches(needle, searchable[field]));
+        }
       } else {
         stack.push(termMatches(token.value, searchable.all));
       }
@@ -240,6 +248,7 @@ export function useSearch({ nodes }: UseSearchOptions): UseSearchResult {
         content: (node.content || '').toLowerCase(),
         caption: (node.caption || '').toLowerCase(),
         comment: (node.comment || '').toLowerCase(),
+        link: (node.link || '').toLowerCase(),
         ocr: (node.ocrText || '').toLowerCase(),
         tags: (node.tags || []).join(' ').toLowerCase(),
         semantic: (node.semanticTags || []).join(' ').toLowerCase(),
@@ -257,9 +266,16 @@ export function useSearch({ nodes }: UseSearchOptions): UseSearchResult {
         searchable.content,
         searchable.caption,
         searchable.comment,
+        searchable.link,
         searchable.ocr,
         searchable.tags,
         searchable.semantic,
+        searchable.type,
+        searchable.copyref,
+        searchable.copied,
+        searchable.originalcreated,
+        searchable.created,
+        searchable.updated,
       ]
         .filter(Boolean)
         .join(' ');

@@ -1,6 +1,6 @@
 // src/components/KonvaCanvas.tsx
 import React, { useRef, useEffect, useState, useMemo, useCallback } from 'react';
-import { Stage, Layer, Rect, Line, FastLayer } from 'react-konva';
+import { Stage, Layer, Rect, Line, FastLayer, Text, Group } from 'react-konva';
 import type Konva from 'konva';
 import type { KonvaEventObject } from 'konva/lib/Node';
 import { useBrainStore } from '../store/useBrainStore';
@@ -29,6 +29,8 @@ interface KonvaCanvasProps {
   showActiveTrailLine?: boolean;
   onContextMenu?: (nodeId: string, screenPos: { x: number; y: number }) => void;
   onZoomChange?: (zoom: number) => void;
+  onLinkHover?: (linkInfo: { name: string; url: string; x: number; y: number } | null) => void;
+  onCommentHover?: (nodeId: string | null) => void;
 }
 
 const toWorldPosition = (stage: Konva.Stage, pointer: { x: number; y: number }) => {
@@ -40,7 +42,7 @@ const toWorldPosition = (stage: Konva.Stage, pointer: { x: number; y: number }) 
 };
 const GRAVITY_SCROLL_SCALE = 0.003;
 const GRAVITY_SCROLL_MAX_STEP = 0.6;
-const VIEW_COMMIT_DELAY_MS = 80;
+const VIEW_COMMIT_DELAY_MS = 250; // Increased from 80ms to reduce re-renders during scroll
 const WHEEL_DELTA_CLAMP = 120;
 const WHEEL_ZOOM_SENSITIVITY = 0.0015;
 const WHEEL_ZOOM_DAMPING = 0.42;
@@ -62,6 +64,8 @@ const KonvaCanvas: React.FC<KonvaCanvasProps> = ({
   showActiveTrailLine = true,
   onContextMenu,
   onZoomChange,
+  onLinkHover,
+  onCommentHover,
 }) => {
   const addNode = useBrainStore((state) => state.addNode);
   const clearSelection = useBrainStore((state) => state.clearSelection);
@@ -225,12 +229,12 @@ const KonvaCanvas: React.FC<KonvaCanvasProps> = ({
 
     const nodesToLayout: MindNode[] = hasSelection
       ? allNodes.filter((n) => {
-          if (selectedIds.has(n.id)) return true;
-          return relevantSynapses.some((s) =>
-            (s.sourceId === n.id && selectedIds.has(s.targetId)) ||
-            (s.targetId === n.id && selectedIds.has(s.sourceId))
-          );
-        })
+        if (selectedIds.has(n.id)) return true;
+        return relevantSynapses.some((s) =>
+          (s.sourceId === n.id && selectedIds.has(s.targetId)) ||
+          (s.targetId === n.id && selectedIds.has(s.sourceId))
+        );
+      })
       : allNodes;
 
     if (relevantSynapses.length === 0 || nodesToLayout.length === 0) return;
@@ -297,11 +301,23 @@ const KonvaCanvas: React.FC<KonvaCanvasProps> = ({
     view: canvas.view,
     enabled: nodes.length > VIEWPORT.CULLING_THRESHOLD,
   });
-  const visibleNodeIds = useMemo(() => (
-    [...visibleNodes]
+
+  // Stable memoization - only recalculate if actual visible node IDs changed
+  const prevVisibleIdsRef = useRef<string[]>([]);
+  const visibleNodeIds = useMemo(() => {
+    const sorted = [...visibleNodes]
       .sort((a, b) => a.y - b.y)
-      .map((node) => node.id)
-  ), [visibleNodes]);
+      .map((node) => node.id);
+
+    // Check if IDs actually changed (not just reference)
+    const prev = prevVisibleIdsRef.current;
+    if (sorted.length === prev.length && sorted.every((id, i) => id === prev[i])) {
+      return prev; // Return same reference if content unchanged
+    }
+    prevVisibleIdsRef.current = sorted;
+    return sorted;
+  }, [visibleNodes]);
+
   const visibleNodeIdSet = useMemo(
     () => new Set(visibleNodeIds),
     [visibleNodeIds]
@@ -450,6 +466,52 @@ const KonvaCanvas: React.FC<KonvaCanvasProps> = ({
       onMouseUp={handleStageMouseUp}
       style={{ backgroundColor: theme.canvasColor }}
     >
+      <Layer>
+        {nodes.length === 0 && (
+          <Group>
+            <Text
+              text="🌌 Soul Canvas"
+              x={window.innerWidth / 2}
+              y={window.innerHeight / 2 - 100}
+              offsetX={300} // Approximate half width
+              fontSize={48}
+              fontFamily="serif"
+              fill={theme.textColor}
+              opacity={0.3}
+              align="center"
+              width={600}
+              listening={false}
+            />
+            <Text
+              text="Från 'Second Brain' till 'Zen Master'. En oändlig duk för kontemplation."
+              x={window.innerWidth / 2}
+              y={window.innerHeight / 2 - 30}
+              offsetX={400}
+              fontSize={18}
+              fontFamily="sans-serif"
+              fill={theme.textColor}
+              opacity={0.5}
+              align="center"
+              width={800}
+              listening={false}
+            />
+            <Text
+              text={`Kom igång:\n• Tryck 'Space' för kommandon\n• Dubbelklicka för nytt kort\n• Dra & Släpp filer här`}
+              x={window.innerWidth / 2}
+              y={window.innerHeight / 2 + 40}
+              offsetX={300}
+              fontSize={16}
+              fontFamily="monospace"
+              fill={theme.node.border}
+              opacity={0.6}
+              align="center"
+              width={600}
+              lineHeight={1.6}
+              listening={false}
+            />
+          </Group>
+        )}
+      </Layer>
       {/* Synapse lines */}
       {showSynapseLines && (
         <FastLayer listening={false}>
@@ -565,6 +627,8 @@ const KonvaCanvas: React.FC<KonvaCanvasProps> = ({
               onDragStart={handleNodeDragStart}
               onDragEnd={handleNodeDragEnd}
               onContextMenu={onContextMenu}
+              onLinkHover={onLinkHover}
+              onHover={onCommentHover}
             />
           );
         })}

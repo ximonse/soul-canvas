@@ -19,7 +19,8 @@ import { THEMES } from './themes';
 import { AUTOSAVE_DELAY_MS } from './utils/constants';
 
 // Komponenter
-import { AppMenu } from './components/AppMenu';
+import { NotificationSystem } from './components/NotificationSystem';
+import { GuidanceOverlay } from './components/overlays/GuidanceOverlay';
 import { ModalManager } from './components/ModalManager';
 import KonvaCanvas from './components/KonvaCanvas';
 import { ColumnView } from './components/ColumnView';
@@ -57,6 +58,10 @@ function App() {
   const toggleSelection = useBrainStore((state) => state.toggleSelection);
   const unpinSelected = useBrainStore((state) => state.unpinSelected);
   const pinSelected = useBrainStore((state) => state.pinSelected);
+  const toggleSynapseLines = useBrainStore((state) => state.toggleSynapseLines);
+  const duplicateSelectedNodes = useBrainStore((state) => state.duplicateSelectedNodes);
+  const flipAllImageCardsToText = useBrainStore((state) => state.flipAllImageCardsToText);
+  const flipAllImageCardsToImage = useBrainStore((state) => state.flipAllImageCardsToImage);
   const addNodeWithId = useBrainStore((state) => state.addNodeWithId);
   const updateNode = useBrainStore((state) => state.updateNode);
   const addNode = useBrainStore((state) => state.addNode);
@@ -133,6 +138,8 @@ function App() {
   const [zenMode, setZenMode] = useState(false);
   const [currentZoom, setCurrentZoom] = useState(1);
   const [isSavingChat, setIsSavingChat] = useState(false);
+  const [showGuidance, setShowGuidance] = useState(false);
+  const [hoveredLink, setHoveredLink] = useState<{ name: string; url: string; x: number; y: number } | null>(null);
   const showChrome = !zenMode;
 
   useEffect(() => {
@@ -295,6 +302,24 @@ function App() {
   }, [aiChat.messages, claudeKey, saveStateForUndo, addNodeWithId, updateNode, canvas]);
 
   // Keyboard shortcuts
+  const handleExpandScopeDegree = useCallback((degree: number) => {
+    selectionScope.setIsVisible(true);
+    selectionScope.expandToScope(degree);
+  }, [selectionScope]);
+
+  const handleToggleWandering = useCallback(() => {
+    if (wandering.isWandering) {
+      wandering.stopWandering();
+      setShowTrailPanel(false);
+    } else if (firstSelectedNodeId) {
+      wandering.startWandering(firstSelectedNodeId);
+      setShowTrailPanel(true);
+    } else {
+      setShowTrailPanel(prev => !prev);
+    }
+  }, [wandering, firstSelectedNodeId]);
+
+  // Keyboard shortcuts
   useKeyboardHandlers({
     canvas,
     search,
@@ -328,23 +353,10 @@ function App() {
     setContextMenu,
     setEditingCardId,
     onToggleScopePanel: selectionScope.toggleVisibility,
-    onExpandScopeDegree: (degree: number) => {
-      selectionScope.setIsVisible(true);
-      selectionScope.expandToScope(degree);
-    },
-    onToggleWandering: () => {
-      if (wandering.isWandering) {
-        wandering.stopWandering();
-        setShowTrailPanel(false);
-      } else if (firstSelectedNodeId) {
-        wandering.startWandering(firstSelectedNodeId);
-        setShowTrailPanel(true);
-      } else {
-        setShowTrailPanel(prev => !prev);
-      }
-    },
+    onExpandScopeDegree: handleExpandScopeDegree,
+    onToggleWandering: handleToggleWandering,
     onBacktrackTrail: wandering.backtrack,
-    onForwardTrail: () => {}, // Not implemented yet
+    onForwardTrail: () => { }, // Not implemented yet
   });
 
   // Auto-save effect
@@ -395,6 +407,7 @@ function App() {
           showActiveTrailLine={wandering.showActiveTrailLine}
           onContextMenu={handleContextMenu}
           onZoomChange={setCurrentZoom}
+          onLinkHover={setHoveredLink}
         />
       ) : (
         <ColumnView
@@ -406,6 +419,22 @@ function App() {
         />
       )}
 
+      {/* Link tooltip for Zotero links */}
+      {hoveredLink && (
+        <div
+          className="fixed z-50 px-3 py-1.5 rounded-lg shadow-lg pointer-events-none text-sm"
+          style={{
+            left: hoveredLink.x + 12,
+            top: hoveredLink.y + 12,
+            backgroundColor: theme.node.bg,
+            color: theme.node.text,
+            border: `1px solid ${theme.node.border}`,
+          }}
+        >
+          {hoveredLink.name}
+        </div>
+      )}
+
       {showChrome && isDraggingFile && hasFile && (
         <div className="absolute inset-0 z-50 bg-blue-500/20 backdrop-blur-sm border-4 border-blue-400 border-dashed m-4 rounded-3xl flex items-center justify-center pointer-events-none">
           <p className="text-3xl font-bold text-white drop-shadow-lg">Släpp filen här!</p>
@@ -413,7 +442,7 @@ function App() {
       )}
 
       {showChrome && (
-        <AppMenu
+        <NotificationSystem
           hasFile={hasFile}
           saveStatus={saveStatus}
           theme={theme}
@@ -458,6 +487,8 @@ function App() {
           searchQuery={search.query}
           isExpanded={showSessionPanel}
           onToggleExpanded={() => setShowSessionPanel(prev => !prev)}
+          onToggleGuidance={() => setShowGuidance(prev => !prev)}
+          showGuidance={showGuidance}
         />
       )}
 
@@ -568,6 +599,18 @@ function App() {
         />
       )}
 
+      {showGuidance && (
+        <GuidanceOverlay
+          theme={theme}
+          viewMode={viewMode}
+          isWandering={wandering.isWandering}
+          selectionCount={selectedNodesCount}
+          showSessionPanel={showSessionPanel}
+          showAIChat={showAIChat}
+          onClose={() => setShowGuidance(false)}
+        />
+      )}
+
       {showChrome && (
         <ModalManager
           showSettings={showSettings}
@@ -585,11 +628,11 @@ function App() {
           onAutoTag={handleAutoTag}
           onTagSelected={handleTagSelected}
           onAttractSimilar={intelligence.attractSimilarNodes}
-        onSummarizeToComment={handleSummarizeToComment}
-        onSuggestTitle={handleSuggestTitle}
-        onResetZoom={resetZoom}
-        onTogglePin={handleTogglePin}
-        handleManualSave={handleManualSave}
+          onSummarizeToComment={handleSummarizeToComment}
+          onSuggestTitle={handleSuggestTitle}
+          onResetZoom={resetZoom}
+          onTogglePin={handleTogglePin}
+          handleManualSave={handleManualSave}
           centerCamera={centerCamera}
           handleDrop={handleDrop}
           chatMessages={aiChat.messages}
@@ -624,10 +667,8 @@ function App() {
           arrangeGridHorizontal={arrangeGridHorizontal}
           arrangeCircle={arrangeCircle}
           arrangeKanban={arrangeKanban}
-          onExpandScopeDegree={(degree: number) => {
-            selectionScope.setIsVisible(true);
-            selectionScope.expandToScope(degree);
-          }}
+          arrangeCentrality={arrangeCentrality}
+          onExpandScopeDegree={handleExpandScopeDegree}
           copySelectedNodes={copySelectedNodes}
           undo={undo}
           redo={redo}
@@ -643,6 +684,17 @@ function App() {
           pasteNodes={pasteNodes}
           saveStateForUndo={saveStateForUndo}
           addNode={addNode}
+          duplicateSelectedNodes={duplicateSelectedNodes}
+          flipAllImageCardsToText={flipAllImageCardsToText}
+          flipAllImageCardsToImage={flipAllImageCardsToImage}
+          fitAllNodes={fitAllNodes}
+          onOpenMassImport={() => setShowMassImport(true)}
+          onOpenQuoteExtractor={() => setShowQuoteExtractor(true)}
+          onToggleSessionPanel={() => setShowSessionPanel(prev => !prev)}
+          onToggleWandering={handleToggleWandering}
+          onToggleSynapseLines={toggleSynapseLines}
+          onToggleViewMode={toggleViewMode}
+          onToggleScopePanel={selectionScope.toggleVisibility}
           theme={theme}
         />
       )}

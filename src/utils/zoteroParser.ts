@@ -10,6 +10,7 @@ export interface ZoteroNote {
   caption?: string;       // Kommentar efter "(pdf)"
   tags: string[];         // Författare + år från citation
   pdfLink?: string;       // zotero://open-pdf/... länken
+  pdfName?: string;       // Saniterat PDF-namn för tagg
   zoteroLink?: string;    // zotero://select/... länken
   color?: string;         // Highlightfärgen
 }
@@ -30,6 +31,36 @@ const extractTagsFromCitation = (citationText: string): string[] => {
   }
 
   return tags;
+};
+
+/**
+ * Extract and sanitize PDF name from link for use as tag
+ * Keeps only letters and numbers, replaces everything else with _
+ */
+const extractPdfName = (pdfLink: string | undefined): string | undefined => {
+  if (!pdfLink) return undefined;
+
+  // Try to extract filename from various link formats
+  // zotero://open-pdf/library/items/ITEMID?page=1
+  // file:///path/to/file.pdf#page=1
+  let filename: string | undefined;
+
+  // For zotero:// links, try to get item ID
+  const zoteroMatch = pdfLink.match(/\/items\/([A-Z0-9]+)/);
+  if (zoteroMatch) {
+    filename = zoteroMatch[1];
+  } else {
+    // For file:// links, extract filename
+    const fileMatch = pdfLink.match(/\/([^\/]+)\.pdf/i);
+    if (fileMatch) {
+      filename = fileMatch[1];
+    }
+  }
+
+  if (!filename) return undefined;
+
+  // Sanitize: keep only letters and numbers, replace everything else with _
+  return filename.replace(/[^a-zA-Z0-9]/g, '_');
 };
 
 export const parseZoteroHTML = (html: string): ZoteroNote[] => {
@@ -97,11 +128,15 @@ export const parseZoteroHTML = (html: string): ZoteroNote[] => {
     // Content är ren highlight-text (utan citerings-prefix)
     const content = text;
 
+    // Extract and sanitize PDF name for tag
+    const pdfName = extractPdfName(pdfLink);
+
     notes.push({
       content,
       caption,
       tags,
       pdfLink,
+      pdfName,
       zoteroLink,
       color,
     });

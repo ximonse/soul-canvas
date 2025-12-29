@@ -46,6 +46,10 @@ interface SessionPanelProps {
   // Extern kontroll av expanded-state
   isExpanded: boolean;
   onToggleExpanded: () => void;
+
+  // Guidance Toggle
+  onToggleGuidance: () => void;
+  showGuidance: boolean;
 }
 
 export const SessionPanel: React.FC<SessionPanelProps> = ({
@@ -74,6 +78,8 @@ export const SessionPanel: React.FC<SessionPanelProps> = ({
   searchQuery,
   isExpanded,
   onToggleExpanded,
+  onToggleGuidance,
+  showGuidance,
 }) => {
   const panelAccent = '#3b82f6';
   const [newSessionName, setNewSessionName] = useState('');
@@ -277,6 +283,38 @@ export const SessionPanel: React.FC<SessionPanelProps> = ({
       </span>
 
       <span className="opacity-40">{isExpanded ? '◀' : '▼'}</span>
+
+      {/* Guidance Toggle */}
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          onToggleGuidance();
+        }}
+        className="ml-2 w-6 h-6 rounded-full flex items-center justify-center transition-all text-[#828282] hover:bg-black/5 dark:hover:bg-white/10"
+        style={{
+          boxShadow: showGuidance
+            ? '0 2px 11px 5px #facc15, 0 8px 30px -12px #facc15'
+            : '0 1px 6px 1px darkgrey, 0 15px 29px -8px darkgrey'
+        }}
+        title={showGuidance ? "Dölj tips" : "Visa tips"}
+      >
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          className="transition-colors"
+        >
+          <path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-1 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.8.8 1.3 1.5 1.5 2.5" />
+          <path d="M9 18h6" />
+          <path d="M10 22h4" />
+        </svg>
+      </button>
     </div>
   );
 
@@ -314,260 +352,258 @@ export const SessionPanel: React.FC<SessionPanelProps> = ({
           </button>
         </div>
 
-      <div className="p-4 space-y-4 flex-1 overflow-y-auto">
-        {/* Session-lista */}
-        <div className="space-y-2">
-          <div className="flex items-center gap-2">
-            <input
-              value={newSessionName}
-              onChange={(e) => setNewSessionName(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleCreateSession()}
-              placeholder="Ny session..."
-              className="flex-1 text-sm px-3 py-2 rounded border outline-none focus:border-blue-500"
-              style={{
-                backgroundColor: theme.node.bg,
-                borderColor: theme.node.border,
-                color: theme.node.text,
-              }}
-            />
-            <button
-              onClick={handleCreateSession}
-              className="px-3 py-2 text-sm bg-blue-600 hover:bg-blue-500 rounded text-white"
-            >
-              + Skapa
-            </button>
-          </div>
+        <div className="p-4 space-y-4 flex-1 overflow-y-auto">
+          {/* Session-lista */}
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <input
+                value={newSessionName}
+                onChange={(e) => setNewSessionName(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleCreateSession()}
+                placeholder="Ny session..."
+                className="flex-1 text-sm px-3 py-2 rounded border outline-none focus:border-blue-500"
+                style={{
+                  backgroundColor: theme.node.bg,
+                  borderColor: theme.node.border,
+                  color: theme.node.text,
+                }}
+              />
+              <button
+                onClick={handleCreateSession}
+                className="px-3 py-2 text-sm bg-blue-600 hover:bg-blue-500 rounded text-white"
+              >
+                + Skapa
+              </button>
+            </div>
 
-          <div className="space-y-1">
-            {/* "Alla kort" alternativ */}
-            <button
-              onClick={() => onSwitchSession(null)}
-              className={`w-full text-left px-3 py-2 rounded text-sm flex items-center justify-between ${
-                !activeSessionId ? 'bg-blue-600 text-white' : 'hover:opacity-80'
-              }`}
-              style={activeSessionId ? {
-                backgroundColor: theme.node.bg,
-                color: theme.node.text,
-              } : undefined}
-            >
-              <span>Alla kort</span>
-              <span className="text-xs opacity-60">{totalCardCount} kort</span>
-            </button>
-
-            {/* Sessioner */}
-            {sessions.map(session => (
-              <div
-                key={session.id}
-                className={`flex items-center gap-2 px-3 py-2 rounded text-sm ${
-                  activeSessionId === session.id ? 'bg-blue-600 text-white' : 'hover:opacity-80'
-                }`}
-                style={activeSessionId !== session.id ? {
+            <div className="space-y-1">
+              {/* "Alla kort" alternativ */}
+              <button
+                onClick={() => onSwitchSession(null)}
+                className={`w-full text-left px-3 py-2 rounded text-sm flex items-center justify-between ${!activeSessionId ? 'bg-blue-600 text-white' : 'hover:opacity-80'
+                  }`}
+                style={activeSessionId ? {
                   backgroundColor: theme.node.bg,
                   color: theme.node.text,
                 } : undefined}
               >
-                {editingSessionId === session.id ? (
-                  <input
-                    value={editName}
-                    onChange={(e) => setEditName(e.target.value)}
-                    onBlur={handleFinishRename}
-                    onKeyDown={(e) => e.key === 'Enter' && handleFinishRename()}
-                    className="flex-1 px-2 py-1 rounded outline-none"
-                    style={{
-                      backgroundColor: theme.node.border,
-                      color: theme.node.text,
-                    }}
-                    autoFocus
-                  />
-                ) : (
-                  <>
-                    <button
-                      onClick={() => onSwitchSession(session.id)}
-                      className="flex-1 text-left"
-                    >
-                      {session.name}
-                    </button>
-                    <span className="text-xs opacity-60">{session.cardIds.length} kort</span>
-                    <button
-                      onClick={() => handleStartRename(session)}
-                      className="opacity-60 hover:opacity-100 px-1"
-                      title="Byt namn"
-                    >
-                      ✏️
-                    </button>
-                    <button
-                      onClick={() => onDeleteSession(session.id)}
-                      className="opacity-60 hover:opacity-100 px-1"
-                      title="Ta bort session"
-                    >
-                      🗑️
-                    </button>
-                  </>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
+                <span>Alla kort</span>
+                <span className="text-xs opacity-60">{totalCardCount} kort</span>
+              </button>
 
-        {/* Sök utanför session (bara om i en session) */}
-        {activeSession && (
+              {/* Sessioner */}
+              {sessions.map(session => (
+                <div
+                  key={session.id}
+                  className={`flex items-center gap-2 px-3 py-2 rounded text-sm ${activeSessionId === session.id ? 'bg-blue-600 text-white' : 'hover:opacity-80'
+                    }`}
+                  style={activeSessionId !== session.id ? {
+                    backgroundColor: theme.node.bg,
+                    color: theme.node.text,
+                  } : undefined}
+                >
+                  {editingSessionId === session.id ? (
+                    <input
+                      value={editName}
+                      onChange={(e) => setEditName(e.target.value)}
+                      onBlur={handleFinishRename}
+                      onKeyDown={(e) => e.key === 'Enter' && handleFinishRename()}
+                      className="flex-1 px-2 py-1 rounded outline-none"
+                      style={{
+                        backgroundColor: theme.node.border,
+                        color: theme.node.text,
+                      }}
+                      autoFocus
+                    />
+                  ) : (
+                    <>
+                      <button
+                        onClick={() => onSwitchSession(session.id)}
+                        className="flex-1 text-left"
+                      >
+                        {session.name}
+                      </button>
+                      <span className="text-xs opacity-60">{session.cardIds.length} kort</span>
+                      <button
+                        onClick={() => handleStartRename(session)}
+                        className="opacity-60 hover:opacity-100 px-1"
+                        title="Byt namn"
+                      >
+                        ✏️
+                      </button>
+                      <button
+                        onClick={() => onDeleteSession(session.id)}
+                        className="opacity-60 hover:opacity-100 px-1"
+                        title="Ta bort session"
+                      >
+                        🗑️
+                      </button>
+                    </>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Sök utanför session (bara om i en session) */}
+          {activeSession && (
+            <div
+              className="space-y-2 border-t pt-4"
+              style={{ borderColor: theme.node.border }}
+            >
+              <div className="text-xs opacity-60 uppercase tracking-wide">
+                Lägg till kort (söker utanför session)
+              </div>
+
+              <input
+                value={outsideSearchQuery}
+                onChange={(e) => onOutsideSearchChange(e.target.value)}
+                placeholder="Sök AND/OR/NOT/wildcards*..."
+                className="w-full text-sm px-3 py-2 rounded border outline-none focus:border-blue-500"
+                style={{
+                  backgroundColor: theme.node.bg,
+                  borderColor: theme.node.border,
+                  color: theme.node.text,
+                }}
+              />
+
+              {outsideSearchResults.length > 0 && (
+                <div className="space-y-2">
+                  {/* Lägg till alla-knapp */}
+                  <button
+                    onClick={() => onAddCardsToSession(outsideSearchResults.map(n => n.id))}
+                    className="w-full px-3 py-2 text-sm bg-green-600 hover:bg-green-500 text-white rounded font-medium"
+                  >
+                    + Lägg till alla ({outsideSearchResults.length} kort)
+                  </button>
+
+                  <div className="space-y-1 max-h-40 overflow-y-auto">
+                    {outsideSearchResults.slice(0, 10).map(node => (
+                      <div
+                        key={node.id}
+                        className="flex items-center gap-2 px-3 py-2 rounded hover:opacity-80 cursor-pointer"
+                        style={{
+                          backgroundColor: theme.node.bg,
+                          color: theme.node.text,
+                        }}
+                        onClick={() => onAddCardsToSession([node.id])}
+                      >
+                        <span className="text-sm truncate flex-1">
+                          {getNodeDisplayTitle(node) || node.content.slice(0, 50)}
+                        </span>
+                        <span className="text-xs text-green-400">+</span>
+                      </div>
+                    ))}
+                    {outsideSearchResults.length > 10 && (
+                      <div className="text-xs opacity-50 text-center py-1">
+                        ...och {outsideSearchResults.length - 10} till
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Taggfilter - klicka för att växla: neutral → inkludera → exkludera → neutral */}
           <div
             className="space-y-2 border-t pt-4"
             style={{ borderColor: theme.node.border }}
           >
-            <div className="text-xs opacity-60 uppercase tracking-wide">
-              Lägg till kort (söker utanför session)
+            <div className="flex items-center justify-between">
+              <div className="text-xs opacity-60 uppercase tracking-wide">
+                Taggfilter
+              </div>
+              <div className="flex items-center gap-2">
+                {/* Sortering */}
+                <div className="flex text-xs">
+                  <button
+                    onClick={() => setTagSortMode('alpha')}
+                    className="px-2 py-0.5 rounded-l border"
+                    style={{
+                      borderColor: theme.node.border,
+                      backgroundColor: tagSortMode === 'alpha' ? theme.node.border : 'transparent',
+                      color: theme.node.text,
+                      opacity: tagSortMode === 'alpha' ? 1 : 0.6,
+                    }}
+                    title="Alfabetisk"
+                  >
+                    A-Ö
+                  </button>
+                  <button
+                    onClick={() => setTagSortMode('count')}
+                    className="px-2 py-0.5 rounded-r border border-l-0"
+                    style={{
+                      borderColor: theme.node.border,
+                      backgroundColor: tagSortMode === 'count' ? theme.node.border : 'transparent',
+                      color: theme.node.text,
+                      opacity: tagSortMode === 'count' ? 1 : 0.6,
+                    }}
+                    title="Antal"
+                  >
+                    #
+                  </button>
+                </div>
+                {(includeTags.length > 0 || excludeTags.length > 0) && (
+                  <button
+                    onClick={onClearTagFilter}
+                    className="text-xs opacity-50 hover:opacity-100"
+                  >
+                    Rensa
+                  </button>
+                )}
+              </div>
             </div>
 
-            <input
-              value={outsideSearchQuery}
-              onChange={(e) => onOutsideSearchChange(e.target.value)}
-              placeholder="Sök AND/OR/NOT/wildcards*..."
-              className="w-full text-sm px-3 py-2 rounded border outline-none focus:border-blue-500"
-              style={{
-                backgroundColor: theme.node.bg,
-                borderColor: theme.node.border,
-                color: theme.node.text,
-              }}
-            />
+            {allTags.length === 0 ? (
+              <div className="text-xs opacity-50">Inga taggar i sessionen</div>
+            ) : (
+              <div className="flex flex-wrap gap-1">
+                {allTags.map(tag => {
+                  const status = getTagStatus(tag);
+                  const prefix = status === 'include' ? '+' : status === 'exclude' ? '-' : '';
 
-            {outsideSearchResults.length > 0 && (
-              <div className="space-y-2">
-                {/* Lägg till alla-knapp */}
-                <button
-                  onClick={() => onAddCardsToSession(outsideSearchResults.map(n => n.id))}
-                  className="w-full px-3 py-2 text-sm bg-green-600 hover:bg-green-500 text-white rounded font-medium"
-                >
-                  + Lägg till alla ({outsideSearchResults.length} kort)
-                </button>
-
-                <div className="space-y-1 max-h-40 overflow-y-auto">
-                  {outsideSearchResults.slice(0, 10).map(node => (
-                    <div
-                      key={node.id}
-                      className="flex items-center gap-2 px-3 py-2 rounded hover:opacity-80 cursor-pointer"
+                  return (
+                    <button
+                      type="button"
+                      key={tag}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onToggleTagFilter(tag);
+                      }}
+                      className="px-2 py-1 rounded-full text-xs border transition-colors"
                       style={{
-                        backgroundColor: theme.node.bg,
+                        backgroundColor: status === 'include'
+                          ? 'rgba(34, 197, 94, 0.3)'
+                          : status === 'exclude'
+                            ? 'rgba(239, 68, 68, 0.3)'
+                            : theme.node.bg,
+                        borderColor: status === 'include'
+                          ? 'rgba(34, 197, 94, 0.6)'
+                          : status === 'exclude'
+                            ? 'rgba(239, 68, 68, 0.6)'
+                            : theme.node.border,
                         color: theme.node.text,
                       }}
-                      onClick={() => onAddCardsToSession([node.id])}
                     >
-                      <span className="text-sm truncate flex-1">
-                        {getNodeDisplayTitle(node) || node.content.slice(0, 50)}
-                      </span>
-                      <span className="text-xs text-green-400">+</span>
-                    </div>
-                  ))}
-                  {outsideSearchResults.length > 10 && (
-                    <div className="text-xs opacity-50 text-center py-1">
-                      ...och {outsideSearchResults.length - 10} till
-                    </div>
-                  )}
-                </div>
+                      {prefix}{tag} <span className="opacity-50">{tagCounts.get(tag)}</span>
+                    </button>
+                  );
+                })}
               </div>
             )}
           </div>
-        )}
 
-        {/* Taggfilter - klicka för att växla: neutral → inkludera → exkludera → neutral */}
-        <div
-          className="space-y-2 border-t pt-4"
-          style={{ borderColor: theme.node.border }}
-        >
-          <div className="flex items-center justify-between">
-            <div className="text-xs opacity-60 uppercase tracking-wide">
-              Taggfilter
-            </div>
-            <div className="flex items-center gap-2">
-              {/* Sortering */}
-              <div className="flex text-xs">
-                <button
-                  onClick={() => setTagSortMode('alpha')}
-                  className="px-2 py-0.5 rounded-l border"
-                  style={{
-                    borderColor: theme.node.border,
-                    backgroundColor: tagSortMode === 'alpha' ? theme.node.border : 'transparent',
-                    color: theme.node.text,
-                    opacity: tagSortMode === 'alpha' ? 1 : 0.6,
-                  }}
-                  title="Alfabetisk"
-                >
-                  A-Ö
-                </button>
-                <button
-                  onClick={() => setTagSortMode('count')}
-                  className="px-2 py-0.5 rounded-r border border-l-0"
-                  style={{
-                    borderColor: theme.node.border,
-                    backgroundColor: tagSortMode === 'count' ? theme.node.border : 'transparent',
-                    color: theme.node.text,
-                    opacity: tagSortMode === 'count' ? 1 : 0.6,
-                  }}
-                  title="Antal"
-                >
-                  #
-                </button>
-              </div>
-              {(includeTags.length > 0 || excludeTags.length > 0) && (
-                <button
-                  onClick={onClearTagFilter}
-                  className="text-xs opacity-50 hover:opacity-100"
-                >
-                  Rensa
-                </button>
-              )}
-            </div>
+          {/* Statistik */}
+          <div
+            className="text-xs opacity-50 text-center pt-2 border-t"
+            style={{ borderColor: theme.node.border }}
+          >
+            Visar: {visibleCardCount} |
+            {activeSession ? ` Session: ${sessionCardCount} |` : ''}
+            Totalt: {totalCardCount} kort
           </div>
-
-          {allTags.length === 0 ? (
-            <div className="text-xs opacity-50">Inga taggar i sessionen</div>
-          ) : (
-            <div className="flex flex-wrap gap-1">
-              {allTags.map(tag => {
-                const status = getTagStatus(tag);
-                const prefix = status === 'include' ? '+' : status === 'exclude' ? '-' : '';
-
-                return (
-                  <button
-                    type="button"
-                    key={tag}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onToggleTagFilter(tag);
-                    }}
-                    className="px-2 py-1 rounded-full text-xs border transition-colors"
-                    style={{
-                      backgroundColor: status === 'include'
-                        ? 'rgba(34, 197, 94, 0.3)'
-                        : status === 'exclude'
-                          ? 'rgba(239, 68, 68, 0.3)'
-                          : theme.node.bg,
-                      borderColor: status === 'include'
-                        ? 'rgba(34, 197, 94, 0.6)'
-                        : status === 'exclude'
-                          ? 'rgba(239, 68, 68, 0.6)'
-                          : theme.node.border,
-                      color: theme.node.text,
-                    }}
-                  >
-                    {prefix}{tag} <span className="opacity-50">{tagCounts.get(tag)}</span>
-                  </button>
-                );
-              })}
-            </div>
-          )}
         </div>
-
-        {/* Statistik */}
-        <div
-          className="text-xs opacity-50 text-center pt-2 border-t"
-          style={{ borderColor: theme.node.border }}
-        >
-          Visar: {visibleCardCount} |
-          {activeSession ? ` Session: ${sessionCardCount} |` : ''}
-          Totalt: {totalCardCount} kort
-        </div>
-      </div>
       </div>
     </>
   );
