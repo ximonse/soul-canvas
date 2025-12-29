@@ -2,6 +2,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { useBrainStore } from '../../store/useBrainStore';
 import { type Theme } from '../../themes';
+import { ImageCropper } from '../ImageCropper';
+import { resolveImageUrl } from '../../utils/imageRefs';
 
 interface CardEditorProps {
   cardId: string | null;
@@ -12,6 +14,8 @@ interface CardEditorProps {
 export const CardEditor = ({ cardId, onClose, theme }: CardEditorProps) => {
   const nodes = useBrainStore((state) => state.nodes);
   const updateNode = useBrainStore((state) => state.updateNode);
+  const assets = useBrainStore((state) => state.assets);
+  const loadAssets = useBrainStore((state) => state.loadAssets);
   const [content, setContent] = useState('');
   const [tags, setTags] = useState('');
   const [title, setTitle] = useState('');
@@ -19,6 +23,7 @@ export const CardEditor = ({ cardId, onClose, theme }: CardEditorProps) => {
   const [comment, setComment] = useState('');
   const [semanticTags, setSemanticTags] = useState<string[]>([]);
   const [showAITags, setShowAITags] = useState(false);
+  const [showCropper, setShowCropper] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const card = cardId ? nodes.get(cardId) : null;
@@ -119,6 +124,28 @@ export const CardEditor = ({ cardId, onClose, theme }: CardEditorProps) => {
 
         {/* Body */}
         <div className="flex-1 p-4 overflow-y-auto flex flex-col gap-3">
+          {/* Image display for image cards */}
+          {card?.type === 'image' && (
+            <div className="relative">
+              <img
+                src={resolveImageUrl(card, assets) || ''}
+                alt={card.caption || ''}
+                className="w-full object-contain rounded"
+                style={{ backgroundColor: theme.canvasColor }}
+              />
+              <button
+                onClick={() => setShowCropper(true)}
+                className="absolute top-2 right-2 px-3 py-1 rounded text-sm font-semibold"
+                style={{
+                  backgroundColor: theme.node.selectedBg,
+                  color: theme.node.text,
+                }}
+              >
+                ✂️ Beskär
+              </button>
+            </div>
+          )}
+
           <input
             type="text"
             value={title}
@@ -283,6 +310,28 @@ export const CardEditor = ({ cardId, onClose, theme }: CardEditorProps) => {
           </div>
         </footer>
       </div>
+
+      {/* Image Cropper Modal */}
+      {showCropper && card?.type === 'image' && (
+        <ImageCropper
+          imageUrl={resolveImageUrl(card, assets) || ''}
+          onSave={(croppedImageData) => {
+            // Generate unique ID for cropped image
+            const croppedId = `cropped_${card.id}_${Date.now()}`;
+
+            // Save cropped image to assets (merge with existing)
+            const newAssets = { ...assets, [croppedId]: croppedImageData };
+            loadAssets(newAssets);
+
+            // Update card to use cropped image
+            updateNode(card.id, { imageRef: croppedId });
+
+            setShowCropper(false);
+          }}
+          onClose={() => setShowCropper(false)}
+          theme={theme}
+        />
+      )}
     </div>
   );
 };
