@@ -296,23 +296,10 @@ export const arrangeCentrality = (
     return countB - countA; // Descending
   });
 
-  // Use dynamic spiral grid with extra spacing
-  const positions = new Map<string, Position>();
-
-  // Calculate dynamic grid dimensions based on the largest node
-  let maxNodeWidth = CARD.WIDTH;
-  let maxNodeHeight = 150; // Minimum default
-
-  sortedNodes.forEach(node => {
-    const size = getNodeSize(node);
-    if (size.width > maxNodeWidth) maxNodeWidth = size.width;
-    if (size.height > maxNodeHeight) maxNodeHeight = size.height;
-  });
-
-  // Add EXTRA spacing as requested by user
-  const extraPadding = 60;
-  const avgWidth = maxNodeWidth + SPACING.GRID_GAP + extraPadding;
-  const avgHeight = maxNodeHeight + SPACING.GRID_GAP + extraPadding;
+  // Calculate rectangle dimensions (16:9 aspect ratio)
+  // Making these fixed but generous to prevent overlap while keeping the "grid" look
+  const avgWidth = CARD.WIDTH + SPACING.GRID_GAP + 60; // 250 + 20 + 60 = 330
+  const avgHeight = 400; // Increased to accommodate more Text (fixed size for predictability)
 
   // Calculate grid size to fit all nodes in ~16:9 ratio
   const totalNodes = sortedNodes.length;
@@ -327,7 +314,7 @@ export const arrangeCentrality = (
   const rectCenterX = totalWidth / 2;
   const rectCenterY = totalHeight / 2;
 
-  // Generate all grid positions and sort by distance from center (Spiral)
+  // Generate all grid positions
   const gridPositions: Position[] = [];
   for (let row = 0; row < rows; row++) {
     for (let col = 0; col < cols; col++) {
