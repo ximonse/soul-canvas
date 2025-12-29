@@ -163,7 +163,33 @@ export const CommandPalette = ({
     { id: 'redo', name: 'Redo', shortcut: 'ctrl+y', action: () => { onRedo(); onClose(); }, category: 'edit', icon: '↪️' },
     { id: 'select-all', name: 'Select All', shortcut: 'ctrl+a', action: () => { selectAll(); onClose(); }, category: 'edit', icon: '✨' },
     { id: 'clear', name: 'Clear Selection', shortcut: 'esc', action: () => { clearSelection(); onClose(); }, category: 'edit', icon: '❌' },
-    { id: 'delete', name: 'Delete Selected', shortcut: 'del', action: () => { Array.from(selectedNodeIds).forEach((id) => removeNode(id)); onClose(); }, category: 'edit', icon: '🗑️' },
+    {
+      id: 'remove-from-session',
+      name: 'Remove from Session',
+      shortcut: 'del',
+      action: () => {
+        const activeSessionId = useBrainStore.getState().activeSessionId;
+        if (activeSessionId) {
+          const removeCardsFromSession = useBrainStore.getState().removeCardsFromSession;
+          removeCardsFromSession(activeSessionId, Array.from(selectedNodeIds));
+        }
+        onClose();
+      },
+      category: 'edit',
+      icon: '📤'
+    },
+    {
+      id: 'delete-permanent',
+      name: 'Delete Permanently',
+      shortcut: 'ctrl+del',
+      action: () => {
+        const deleteNodesPermanently = useBrainStore.getState().deleteNodesPermanently;
+        deleteNodesPermanently(Array.from(selectedNodeIds));
+        onClose();
+      },
+      category: 'edit',
+      icon: '🗑️'
+    },
     { id: 'pin', name: 'Pin/Unpin Selected', shortcut: 'p', action: () => { onTogglePin(); onClose(); }, category: 'edit', icon: '📌' },
     { id: 'flip-text', name: 'Flip Images to Text', shortcut: 'o+o', action: () => { onFlipToText(); onClose(); }, category: 'edit', icon: '📝' },
     { id: 'flip-image', name: 'Flip Images to Image', shortcut: 'o', action: () => { onFlipToImage(); onClose(); }, category: 'edit', icon: '🖼️' },
