@@ -39,7 +39,7 @@ const THEME_KEYS = Object.keys(THEMES);
 
 function App() {
   // Core hooks
-  const { openFile, saveFile, saveAsset, hasFile } = useFileSystem();
+  const { openFile, saveFile, saveAsset, saveAIExports, hasFile } = useFileSystem();
   const nodes = useBrainStore((state) => state.nodes);
   const synapses = useBrainStore((state) => state.synapses);
   const sessions = useBrainStore((state) => state.sessions);
@@ -223,11 +223,12 @@ function App() {
     if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
     setTimeout(() => {
       saveFile();
+      saveAIExports();
       setPendingSave(false);
       setSaveStatus('saved');
       setTimeout(() => setSaveStatus('idle'), 2000);
     }, 100);
-  }, [saveFile, setPendingSave]);
+  }, [saveFile, saveAIExports, setPendingSave]);
 
   const handleSearchConfirm = useCallback(() => {
     const ids = search.confirmSearch();
@@ -372,6 +373,15 @@ function App() {
     }, AUTOSAVE_DELAY_MS);
     return () => clearTimeout(timer);
   }, [pendingSave, hasFile, saveFile, setPendingSave]);
+
+  // AI Export auto-save (var 30:e minut)
+  useEffect(() => {
+    if (!hasFile) return;
+    const interval = setInterval(() => {
+      saveAIExports();
+    }, 30 * 60 * 1000); // 30 minuter
+    return () => clearInterval(interval);
+  }, [hasFile, saveAIExports]);
 
   // Auto-link effect
   useEffect(() => {
