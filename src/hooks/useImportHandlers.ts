@@ -30,6 +30,7 @@ export function useImportHandlers({ canvas, hasFile, saveAsset }: ImportHandlers
   const addNode = useBrainStore((state) => state.addNode);
   const addNodeWithId = useBrainStore((state) => state.addNodeWithId);
   const updateNode = useBrainStore((state) => state.updateNode);
+  const updateNodesBulk = useBrainStore((state) => state.updateNodesBulk);
 
   // Import JSON files
   const handleJSONImport = useCallback(async (file: File) => {
@@ -58,9 +59,7 @@ export function useImportHandlers({ canvas, hasFile, saveAsset }: ImportHandlers
       const importCenterX = (minX + maxX) / 2;
       const importCenterY = (minY + maxY) / 2;
 
-      // Import nodes with new IDs and centered position
-      const importTag = 'imported_' + new Date().toISOString().slice(2, 10).replace(/-/g, '');
-      let importedCount = 0;
+      const bulkUpdates: Array<{ id: string; updates: Partial<MindNode> }> = [];
 
       data.nodes.forEach((node: Partial<MindNode>) => {
         const offsetX = (node.x || 0) - importCenterX;
@@ -75,26 +74,36 @@ export function useImportHandlers({ canvas, hasFile, saveAsset }: ImportHandlers
           tags: [...(node.tags || []), importTag],
         };
 
-        addNode(
+        addNodeWithId(
+          newNodeId,
           newNode.content || '',
           newNode.x,
           newNode.y,
           newNode.type || 'text'
         );
 
-        // Update with additional properties
-        if (newNode.tags.length > 0) {
-          updateNode(newNodeId, { tags: newNode.tags });
-        }
+        const { id: _ignoredId, x: _x, y: _y, content: _content, type: _type, tags: _tags, ...rest } =
+          (node as Record<string, unknown>);
+
+        const updates: Partial<MindNode> = {
+          ...(rest as Partial<MindNode>),
+          tags: newNode.tags,
+        };
+
+        bulkUpdates.push({ id: newNodeId, updates });
 
         importedCount++;
       });
+
+      if (bulkUpdates.length > 0) {
+        updateNodesBulk(bulkUpdates);
+      }
 
       console.info(`Importerade ${importedCount} kort från ${file.name}`);
     } catch (error) {
       console.error('JSON import error:', error);
     }
-  }, [saveStateForUndo, addNode, updateNode, canvas]);
+  }, [saveStateForUndo, addNodeWithId, updateNodesBulk, canvas]);
 
   // Handle drag-and-drop of files
   const handleDrop = useCallback(async (e: React.DragEvent) => {
@@ -218,3 +227,4 @@ export function useImportHandlers({ canvas, hasFile, saveAsset }: ImportHandlers
     handleJSONImport,
   };
 }
+
