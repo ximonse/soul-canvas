@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useState, useRef } from 'react';
 import { useBrainStore } from '../store/useBrainStore';
 import { set as setDb, get as getDb } from 'idb-keyval';
+import { exportSessionForAI, sanitizeFilename } from '../utils/aiExport';
 
 // Helper to revoke all blob URLs in an assets map
 function revokeAssetUrls(assets: Record<string, string>) {
@@ -174,7 +175,7 @@ export function useFileSystem() {
       // Skapa/Öppna data.json i roten av mappen
       const fileRef = await fileHandle.getFileHandle('data.json', { create: true });
       const writable = await fileRef.createWritable();
-      
+
       const state = useBrainStore.getState();
       const dataToSave = {
         version: "3.0-folder",
@@ -190,11 +191,38 @@ export function useFileSystem() {
           showActiveTrailLine: state.showActiveTrailLine,
         },
       };
-      
+
       await writable.write(JSON.stringify(dataToSave, null, 2));
       await writable.close();
     } catch {
       // Save failed silently - data persists in memory
+    }
+  }, [fileHandle]);
+
+  // --- SPARA AI-EXPORT (Alla sessioner som .txt) ---
+  const saveAIExports = useCallback(async () => {
+    if (!fileHandle) return;
+    try {
+      const state = useBrainStore.getState();
+      const { nodes, sessions, synapses } = state;
+
+      // Skapa/hämta ai-exports mappen
+      const exportsDir = await fileHandle.getDirectoryHandle('ai-exports', { create: true });
+
+      // Exportera varje session
+      for (const session of sessions) {
+        const content = exportSessionForAI(session, nodes, synapses);
+        const filename = `${sanitizeFilename(session.name)}.txt`;
+
+        const fileRef = await exportsDir.getFileHandle(filename, { create: true });
+        const writable = await fileRef.createWritable();
+        await writable.write(content);
+        await writable.close();
+      }
+
+      console.log(`[AI Export] Exported ${sessions.length} sessions to ai-exports/`);
+    } catch (err) {
+      console.error('[AI Export] Failed:', err);
     }
   }, [fileHandle]);
 
@@ -204,11 +232,11 @@ export function useFileSystem() {
     try {
       // 1. Hämta/Skapa 'assets'-mappen
       const assetsDir = await fileHandle.getDirectoryHandle('assets', { create: true });
-      
+
       // 2. Skapa filen där inne
       const fileRef = await assetsDir.getFileHandle(filename, { create: true });
       const writable = await fileRef.createWritable();
-      
+
       // 3. Skriv bild-datan
       await writable.write(file);
       await writable.close();
@@ -251,5 +279,5 @@ export function useFileSystem() {
     restoreSession();
   }, [readDirectory]);
 
-  return { openFile, saveFile, saveAsset, hasFile: !!fileHandle, isReady };
+  return { openFile, saveFile, saveAsset, saveAIExports, hasFile: !!fileHandle, isReady };
 }
