@@ -94,9 +94,21 @@ interface CoreActions {
   addToSequence: (nodeId: string) => void;
   finishSequence: () => void;
   switchSession: (id: string | null) => void;
+  createSession: (name: string) => string;
+  deleteSession: (id: string) => void;
+  renameSession: (id: string, name: string) => void;
+  loadSessions: (sessions: Session[]) => void;
   addCardsToSession: (sessionId: string, cardIds: string[]) => void;
   removeCardsFromSession: (sessionId: string, cardIds: string[]) => void;
   saveSessionViewState: (sessionId: string, viewState: { x: number; y: number; zoom: number }) => void;
+
+  // Conversation actions
+  loadConversations: (conversations: Conversation[]) => void;
+  createConversation: (provider: AIProvider, contextNodeIds?: string[]) => string;
+  setActiveConversation: (id: string | null) => void;
+  addMessageToConversation: (conversationId: string, message: Omit<ConversationMessage, 'timestamp'>) => void;
+  updateConversation: (id: string, updates: Partial<Conversation>) => void;
+  archiveConversation: (id: string) => void;
 
   // View mode actions
   setViewMode: (mode: ViewMode) => void;
