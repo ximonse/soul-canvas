@@ -38,7 +38,8 @@ export function useImportHandlers({ canvas, hasFile, saveAsset }: ImportHandlers
       const text = await file.text();
       const data = JSON.parse(text);
 
-      if (!data.nodes || !Array.isArray(data.nodes)) {
+      const nodeList = Array.isArray(data) ? data : data.nodes;
+      if (!nodeList || !Array.isArray(nodeList)) {
         console.error('Ogiltig JSON-fil: ingen "nodes" array hittades');
         return;
       }
@@ -50,7 +51,7 @@ export function useImportHandlers({ canvas, hasFile, saveAsset }: ImportHandlers
 
       // Calculate bounds of imported nodes
       let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-      data.nodes.forEach((node: Partial<MindNode>) => {
+      nodeList.forEach((node: Partial<MindNode>) => {
         minX = Math.min(minX, node.x || 0);
         minY = Math.min(minY, node.y || 0);
         maxX = Math.max(maxX, node.x || 0);
@@ -61,7 +62,7 @@ export function useImportHandlers({ canvas, hasFile, saveAsset }: ImportHandlers
 
       const bulkUpdates: Array<{ id: string; updates: Partial<MindNode> }> = [];
 
-      data.nodes.forEach((node: Partial<MindNode>) => {
+      nodeList.forEach((node: Partial<MindNode>) => {
         const offsetX = (node.x || 0) - importCenterX;
         const offsetY = (node.y || 0) - importCenterY;
 
