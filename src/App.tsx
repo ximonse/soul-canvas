@@ -58,6 +58,7 @@ function App() {
   const addTagToSelected = useBrainStore((state) => state.addTagToSelected);
   const clearSelection = useBrainStore((state) => state.clearSelection);
   const toggleSelection = useBrainStore((state) => state.toggleSelection);
+  const selectNodes = useBrainStore((state) => state.selectNodes);
   const unpinSelected = useBrainStore((state) => state.unpinSelected);
   const pinSelected = useBrainStore((state) => state.pinSelected);
   const toggleSynapseLines = useBrainStore((state) => state.toggleSynapseLines);
@@ -80,9 +81,52 @@ function App() {
   const redo = useBrainStore((state) => state.redo);
   const pasteNodes = useBrainStore((state) => state.pasteNodes);
   const intelligence = useIntelligence();
-  const aiChat = useAIChat();
   const canvas = useCanvas();
   const stageRef = useRef<Konva.Stage>(null);
+  const setSelectedNodeIds = useCallback((ids: Set<string>) => {
+    useBrainStore.setState({ selectedNodeIds: ids });
+  }, []);
+  const { arrangeVertical, arrangeHorizontal, arrangeGridHorizontal, arrangeGridVertical, arrangeCircle, arrangeKanban, arrangeCentrality } = useArrangement(canvas.cursorPos);
+  const aiChat = useAIChat({
+    toolContext: useMemo(() => ({
+      nodes,
+      selectedNodeIds,
+      selectNodes,
+      setSelectedNodeIds,
+      updateNode,
+      addNode: (content: string, x: number, y: number, type: 'text' | 'image' | 'zotero') => {
+        const id = crypto.randomUUID();
+        addNodeWithId(id, content, x, y, type);
+        return id;
+      },
+      arrangeVertical,
+      arrangeHorizontal,
+      arrangeGridVertical,
+      arrangeGridHorizontal,
+      arrangeCircle,
+      arrangeKanban,
+      arrangeCentrality,
+      centerOnNodes: (ids: string[]) => {
+        if (ids.length === 0) return;
+        const nodeList = ids.map(id => nodes.get(id)).filter(Boolean) as MindNode[];
+        if (nodeList.length === 0) return;
+        const avgX = nodeList.reduce((sum, n) => sum + n.x, 0) / nodeList.length;
+        const avgY = nodeList.reduce((sum, n) => sum + n.y, 0) / nodeList.length;
+        const stage = stageRef.current;
+        if (!stage) return;
+        const k = stage.scaleX();
+        const nextView = {
+          x: (window.innerWidth / 2) - avgX * k,
+          y: (window.innerHeight / 2) - avgY * k,
+          k,
+        };
+        stage.position({ x: nextView.x, y: nextView.y });
+        stage.batchDraw();
+        canvas.setView(nextView);
+      },
+      saveStateForUndo,
+    }), [nodes, selectedNodeIds, selectNodes, setSelectedNodeIds, updateNode, addNodeWithId, arrangeVertical, arrangeHorizontal, arrangeGridVertical, arrangeGridHorizontal, arrangeCircle, arrangeKanban, arrangeCentrality, saveStateForUndo, canvas]),
+  });
 
   // Session-filtrering: först session, sedan taggar
   const allNodesArray = useMemo(() => Array.from(nodes.values()) as MindNode[], [nodes]);
@@ -106,7 +150,6 @@ function App() {
 
   // Sök utanför session (för att lägga till kort)
   const sessionSearch = useSessionSearch({ allNodes: allNodesArray, activeSession });
-  const { arrangeVertical, arrangeHorizontal, arrangeGridHorizontal, arrangeGridVertical, arrangeCircle, arrangeKanban, arrangeCentrality } = useArrangement(canvas.cursorPos);
   const selectionScope = useSelectionScope();
   const wandering = useWandering();
 

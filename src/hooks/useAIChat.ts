@@ -8,14 +8,30 @@ import { useChatMemory } from './useChatMemory';
 import type { ChatProvider, ChatMessage } from '../utils/chatProviders';
 import { chatWithProvider, DEFAULT_CHAT_MODELS, OPENAI_CHAT_MODELS, GEMINI_CHAT_MODELS } from '../utils/chatProviders';
 import { generateConversationTitle } from '../utils/claude';
+import { executeAITool, type ToolExecutionContext, type ToolCall } from '../utils/aiTools';
 
 interface UseAIChatOptions {
   initialProvider?: ChatProvider;
+  toolContext?: ToolExecutionContext;
 }
 
 const DEFAULT_SYSTEM_MESSAGE = 'Du är en koncis assistent som hjälper till med kontext från användarens kort.';
 
-export function useAIChat({ initialProvider = 'claude' }: UseAIChatOptions = {}) {
+const resolveArrangeMode = (text: string): string | null => {
+  const normalized = text.toLowerCase();
+  if (!/(arrang|ordna|placera|layout)/.test(normalized)) return null;
+
+  if (/(vertikal|lodrät|lodratt)/.test(normalized)) return 'vertical';
+  if (/(horisont|vågrät|vagrat)/.test(normalized)) return 'horizontal';
+  if (/(rutnät|rutnat|grid|tabell)/.test(normalized)) return 'grid_h';
+  if (/(cirkel|rund)/.test(normalized)) return 'circle';
+  if (/kanban/.test(normalized)) return 'kanban';
+  if (/(central|mitt|centrum)/.test(normalized)) return 'centrality';
+
+  return null;
+};
+
+export function useAIChat({ initialProvider = 'claude', toolContext }: UseAIChatOptions = {}) {
   const createConversation = useBrainStore((state) => state.createConversation);
   const addMessageToConversation = useBrainStore((state) => state.addMessageToConversation);
   const updateConversation = useBrainStore((state) => state.updateConversation);
@@ -110,6 +126,26 @@ export function useAIChat({ initialProvider = 'claude' }: UseAIChatOptions = {})
     const history = messages.slice(-8);
     setMessages(prev => [...prev, userMessage]);
     addMessageToConversation(convId, { role: 'user', content: text });
+
+    // Local tool execution (fast path) for common commands like arrange
+    if (toolContext) {
+      const mode = resolveArrangeMode(text);
+      if (mode) {
+        const toolCall: ToolCall = {
+          id: `local-${Date.now()}`,
+          name: 'arrange_cards',
+          input: { mode },
+        };
+        const result = executeAITool(toolCall, toolContext);
+        const assistantMessage: ChatMessage = {
+          role: 'assistant',
+          content: result.message,
+        };
+        setMessages(prev => [...prev, assistantMessage]);
+        addMessageToConversation(convId, { role: 'assistant', content: result.message });
+        return;
+      }
+    }
 
     try {
       setIsSending(true);
