@@ -235,10 +235,8 @@ export const ColumnView: React.FC<ColumnViewProps> = ({
               style={{
                 backgroundColor: isSelected ? theme.node.selectedBg : theme.node.bg,
                 border: `1px solid ${isSelected ? theme.node.selectedBorder : theme.node.border}`,
-                boxShadow: isSelected
-                  ? `0 0 6px ${theme.node.selectedShadow}`
-                  : `0 1px 3px ${theme.node.shadow}`,
                 fontFamily: "'Noto Serif', Georgia, serif",
+                opacity: isSelected ? 0.95 : 1,
               }}
             >
               {/* Accent stripe för Zotero-kort */}
