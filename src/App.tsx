@@ -644,6 +644,11 @@ function App() {
           saveStateForUndo={saveStateForUndo}
           addNode={addNode}
           theme={theme}
+          onQuoteExtractor={() => setShowQuoteExtractor(true)}
+          onToggleViewMode={toggleViewMode}
+          onToggleWandering={wandering.toggleWandering}
+          onMassImport={() => setShowMassImport(true)}
+          onFocusSearch={() => search.setIsOpen(true)}
         />
       )}
     </div>

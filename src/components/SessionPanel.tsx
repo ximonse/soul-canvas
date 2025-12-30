@@ -221,22 +221,7 @@ export const SessionPanel: React.FC<SessionPanelProps> = ({
         </>
       )}
 
-      {/* Tema-väljare */}
-      <button
-        onClick={(e) => {
-          e.stopPropagation();
-          onToggleTheme();
-        }}
-        className="px-2 py-0.5 text-xs rounded opacity-70 hover:opacity-100 transition-opacity"
-        style={{
-          backgroundColor: theme.canvasColor,
-          color: theme.node.text,
-          border: `1px solid ${theme.node.border}`,
-        }}
-        title="Byt tema"
-      >
-        {themeName}
-      </button>
+
 
       {/* Markerade kort */}
       {selectedCount > 0 && (

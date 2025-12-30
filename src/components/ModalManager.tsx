@@ -107,6 +107,13 @@ interface ModalManagerProps {
 
   // Theme
   theme: Theme;
+  
+  // Extra commands for CommandPalette
+  onQuoteExtractor?: () => void;
+  onToggleViewMode?: () => void;
+  onToggleWandering?: () => void;
+  onMassImport?: () => void;
+  onFocusSearch?: () => void;
 }
 
 export const ModalManager: React.FC<ModalManagerProps> = ({
@@ -181,6 +188,11 @@ export const ModalManager: React.FC<ModalManagerProps> = ({
   saveStateForUndo,
   addNode,
   theme,
+  onQuoteExtractor,
+  onToggleViewMode,
+  onToggleWandering,
+  onMassImport,
+  onFocusSearch,
 }) => {
   return (
     <>
@@ -276,6 +288,10 @@ export const ModalManager: React.FC<ModalManagerProps> = ({
             };
             input.click();
           }}
+          onQuoteExtractor={onQuoteExtractor}
+          onToggleViewMode={onToggleViewMode}
+          onToggleWandering={onToggleWandering}
+          onMassImport={onMassImport}
           onFocusSearch={() => {
             const searchInput = document.querySelector('input[type="text"]') as HTMLInputElement;
             if (searchInput) {

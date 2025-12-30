@@ -40,6 +40,10 @@ interface CommandPaletteProps {
   onNewCard: () => void;
   onImport: () => void;
   onFocusSearch: () => void;
+  onQuoteExtractor?: () => void;
+  onToggleViewMode?: () => void;
+  onToggleWandering?: () => void;
+  onMassImport?: () => void;
   theme: Theme;
 }
 
@@ -68,6 +72,10 @@ export const CommandPalette = ({
   onNewCard,
   onImport,
   onFocusSearch,
+  onQuoteExtractor,
+  onToggleViewMode,
+  onToggleWandering,
+  onMassImport,
   theme,
 }: CommandPaletteProps) => {
   const nodes = useBrainStore((state) => state.nodes);
@@ -104,13 +112,18 @@ export const CommandPalette = ({
     // View Commands
     { id: 'center', name: 'Center Camera', shortcut: '-', action: () => { onCenterCamera(); onClose(); }, category: 'view', icon: '🎯' },
     { id: 'zen', name: 'Toggle Zen Mode', shortcut: 'z', action: () => { onToggleZen(); onClose(); }, category: 'view', icon: '🧘' },
-    { id: 'theme', name: 'Change Theme', shortcut: 't', action: () => { onToggleTheme(); onClose(); }, category: 'view', icon: '🎨' },
+    { id: 'theme', name: 'Change Theme', shortcut: 'theme', action: () => { onToggleTheme(); onClose(); }, category: 'view', icon: '🎨' },
+    { id: 'tag-quick', name: 'Tag Selected (AI)', shortcut: 't', action: async () => { await intelligence.generateTagsForSelection(); onClose(); }, category: 'ai', icon: '🏷️' },
     { id: 'reset-zoom', name: 'Reset Zoom', shortcut: '0', action: () => { onResetZoom(); onClose(); }, category: 'view', icon: '100%' },
 
     // Create Commands
     { id: 'new-card', name: 'New Card', shortcut: 'n', action: () => { onNewCard(); onClose(); }, category: 'edit', icon: '➕' },
     { id: 'import', name: 'Import (Images, JSON, Zotero)', shortcut: 'i', action: () => { onImport(); onClose(); }, category: 'edit', icon: '📥' },
     { id: 'focus-search', name: 'Focus Search', shortcut: 'f', action: () => { onFocusSearch(); onClose(); }, category: 'edit', icon: '🔎' },
+    { id: 'mass-import', name: 'Mass Import', shortcut: 'm', action: () => { onMassImport?.(); onClose(); }, category: 'edit', icon: '📝' },
+    { id: 'quote-extractor', name: 'Quote Extractor', shortcut: 'e', action: () => { onQuoteExtractor?.(); onClose(); }, category: 'edit', icon: '📜' },
+    { id: 'toggle-view', name: 'Toggle Canvas/Column View', shortcut: 'k', action: () => { onToggleViewMode?.(); onClose(); }, category: 'view', icon: '🔄' },
+    { id: 'toggle-wandering', name: 'Toggle Wandering Mode', shortcut: 'w', action: () => { onToggleWandering?.(); onClose(); }, category: 'view', icon: '🚶' },
 
     // Arrangement Commands
     { id: 'arrange-vertical', name: 'Arrange Vertical', shortcut: 'v', action: () => { onArrangeVertical(); onClose(); }, category: 'edit', icon: '↕️' },

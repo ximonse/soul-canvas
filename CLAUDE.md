@@ -83,10 +83,10 @@ src/
 
 ## Aktuell status (kort - uppdateras varje session)
 
-- Fokus: Panel parity + batch overlay polish done
-- Plan (max 3 steg): 1) TBD 2) TBD 3) TBD
+- Fokus: Dokumentationssynk + UX-polish
+- Senaste ändringar: T=taggning (ej tema), tema endast via Command Palette, nya kommandon i palette
 - Fragor/blockers: None
-- Senast uppdaterad: 2025-12-25
+- Senast uppdaterad: 2025-12-30
 - Detaljer: se WORKLOG.md
 
 ---
@@ -299,6 +299,14 @@ src/
 | `/` | Sökoverlay |
 | `a` | AI Chat |
 | `b` | AI Panel (Intelligent Motor) |
+| `t` | Tagga markerade kort (AI) |
+| `e` | Quote Extractor |
+| `k` | Växla Canvas/Column-vy |
+| `w` | Toggle Wandering-läge |
+| `[` | Wandering: bakåt i trail |
+| `]` | Wandering: framåt i trail |
+| `o` | Vänd bildkort |
+| `o+o` | Vänd alla till text |
 | `z` | Zen mode |
 | `-` | Fit all (zooma ut så alla kort syns) |
 | `0` | Reset zoom till 100% |
@@ -317,6 +325,7 @@ src/
 | `Ctrl+Z/Y` | Undo/Redo |
 | `Ctrl+A` | Markera alla |
 | `Ctrl+§` | Toggle Selection Scope Panel |
+| `Alt+1-6` | Expandera scope till grad 1-6 |
 | `V` | Arrangera vertikalt (respekterar sekvens) |
 | `H` | Arrangera horisontellt (respekterar sekvens) |
 | `Q` | Stack/cirkel |
@@ -326,6 +335,8 @@ src/
 | `G+C` | Centralitet (16:9 rektangel, mest kopplade i mitten) |
 | `G+scroll` | Justera graph gravity (markerade eller alla) |
 | `D` (håll) + klick | Skapa sekvenskedja |
+
+**Tema:** Byt tema via Command Palette (sök "theme")
 
 ---
 
