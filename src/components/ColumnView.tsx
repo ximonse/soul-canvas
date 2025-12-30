@@ -1,5 +1,5 @@
 // src/components/ColumnView.tsx
-import React, { useMemo, useCallback, useState, useEffect } from 'react';
+import React, { useMemo, useCallback, useState, useEffect, useRef } from 'react';
 import type { MindNode, Synapse } from '../types/types';
 import type { Theme } from '../themes';
 import { sortNodes } from '../utils/sortNodes';
@@ -62,6 +62,7 @@ export const ColumnView: React.FC<ColumnViewProps> = ({
   const [cropArea, setCropArea] = useState({ x: 0, y: 0, width: 0, height: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const lastUpdateRef = useRef<number>(0);
 
   // Sortera nodes
   const sortedNodes = useMemo(
@@ -95,28 +96,31 @@ export const ColumnView: React.FC<ColumnViewProps> = ({
     setIsDragging(true);
     setDragStart({ x, y });
     setCropArea({ x, y, width: 0, height: 0 });
+    lastUpdateRef.current = 0; // Reset throttle
   }, []);
 
   const handleCropMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     if (!isDragging) return;
+
+    // Throttle to 60fps (16ms)
+    const now = performance.now();
+    if (now - lastUpdateRef.current < 16) return;
+    lastUpdateRef.current = now;
 
     // Capture event data before RAF (event will be null inside RAF callback)
     const rect = e.currentTarget.getBoundingClientRect();
     const clientX = e.clientX;
     const clientY = e.clientY;
 
-    // Use RAF to throttle updates
-    requestAnimationFrame(() => {
-      const currentX = clientX - rect.left;
-      const currentY = clientY - rect.top;
-      const width = currentX - dragStart.x;
-      const height = currentY - dragStart.y;
-      setCropArea({
-        x: width < 0 ? currentX : dragStart.x,
-        y: height < 0 ? currentY : dragStart.y,
-        width: Math.abs(width),
-        height: Math.abs(height),
-      });
+    const currentX = clientX - rect.left;
+    const currentY = clientY - rect.top;
+    const width = currentX - dragStart.x;
+    const height = currentY - dragStart.y;
+    setCropArea({
+      x: width < 0 ? currentX : dragStart.x,
+      y: height < 0 ? currentY : dragStart.y,
+      width: Math.abs(width),
+      height: Math.abs(height),
     });
   }, [isDragging, dragStart]);
 
