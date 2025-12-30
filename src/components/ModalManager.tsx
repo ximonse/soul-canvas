@@ -126,8 +126,6 @@ interface ModalManagerProps {
   
   // Extra commands for CommandPalette
   onQuoteExtractor?: () => void;
-  onToggleViewMode?: () => void;
-  onToggleWandering?: () => void;
   onMassImport?: () => void;
   onFocusSearch?: () => void;
 }
@@ -217,8 +215,6 @@ export const ModalManager: React.FC<ModalManagerProps> = ({
   onToggleScopePanel,
   theme,
   onQuoteExtractor,
-  onToggleViewMode,
-  onToggleWandering,
   onMassImport,
   onFocusSearch,
 }) => {
