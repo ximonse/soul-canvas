@@ -15,7 +15,7 @@ interface UseAIChatOptions {
   toolContext?: ToolExecutionContext;
 }
 
-const DEFAULT_SYSTEM_MESSAGE = 'Du är en koncis assistent som hjälper till med kontext från användarens kort.';
+const DEFAULT_SYSTEM_MESSAGE = 'Du är en koncis assistent som hjälper till med kontext från användarens kort. Du kan arrangera markerade kort på canvas.';
 
 const resolveArrangeMode = (text: string): string | null => {
   const normalized = text.toLowerCase();
