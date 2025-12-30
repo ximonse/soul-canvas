@@ -63,12 +63,19 @@ export const ColumnView: React.FC<ColumnViewProps> = ({
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const lastUpdateRef = useRef<number>(0);
+  const [showOnlySelected, setShowOnlySelected] = useState(false);
 
   // Sortera nodes
   const sortedNodes = useMemo(
     () => sortNodes(nodes, columnSort, synapses),
     [nodes, columnSort, synapses]
   );
+
+  // Filter nodes based on selection
+  const filteredNodes = useMemo(() => {
+    if (!showOnlySelected || selectedNodeIds.size === 0) return sortedNodes;
+    return sortedNodes.filter(node => selectedNodeIds.has(node.id));
+  }, [sortedNodes, showOnlySelected, selectedNodeIds]);
 
   // Hantera klick på kort
   const handleCardClick = useCallback((node: MindNode, e: React.MouseEvent) => {
@@ -164,7 +171,7 @@ export const ColumnView: React.FC<ColumnViewProps> = ({
     setCropArea({ x: 0, y: 0, width: 0, height: 0 });
   }, [cropArea, assets, loadAssets, updateNode]);
 
-  // Close edit view on Escape, save crop on Enter
+  // Close edit view on Escape, save crop on Enter, toggle filter on 'k'
   useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
@@ -178,6 +185,9 @@ export const ColumnView: React.FC<ColumnViewProps> = ({
           const ref = { current: (node as any)._cropImageRef };
           handleCropSave(node, ref);
         }
+      } else if (e.key === 'k' || e.key === 'K') {
+        // Toggle showing only selected nodes
+        setShowOnlySelected(prev => !prev);
       }
     };
     window.addEventListener('keydown', handleKeyPress);
@@ -200,7 +210,7 @@ export const ColumnView: React.FC<ColumnViewProps> = ({
     >
       {/* Kortlista */}
       <div className="max-w-2xl mx-auto py-4 px-4 space-y-3 pb-32">
-        {sortedNodes.map((node) => {
+        {filteredNodes.map((node) => {
           const connections = countConnections(node.id, synapses);
           const tagCount = (node.tags?.length || 0) + (node.semanticTags?.length || 0);
           const displayTitle = getNodeDisplayTitle(node);
@@ -221,15 +231,15 @@ export const ColumnView: React.FC<ColumnViewProps> = ({
                 }
               }}
               onContextMenu={(e) => handleContextMenu(node, e)}
-              className="rounded-lg cursor-pointer transition-all hover:scale-[1.01]"
-              style={{
-                backgroundColor: isSelected ? theme.node.selectedBg : theme.node.bg,
-                border: `2px solid ${isSelected ? theme.node.selectedBorder : theme.node.border}`,
-                boxShadow: isSelected
-                  ? `0 0 12px ${theme.node.selectedShadow}`
-                  : `0 2px 4px ${theme.node.shadow}`,
-                fontFamily: "'Noto Serif', Georgia, serif",
-              }}
+              className="rounded-lg cursor-pointer transition-all"
+                style={{
+                  backgroundColor: isSelected ? theme.node.selectedBg : theme.node.bg,
+                  border: `1px solid ${isSelected ? theme.node.selectedBorder : theme.node.border}`,
+                  boxShadow: isSelected
+                    ? `0 0 6px ${theme.node.selectedShadow}`
+                    : `0 1px 3px ${theme.node.shadow}`,
+                  fontFamily: "'Noto Serif', Georgia, serif",
+                }}
             >
               {/* Accent stripe för Zotero-kort */}
               {node.accentColor && (
@@ -539,9 +549,9 @@ export const ColumnView: React.FC<ColumnViewProps> = ({
           );
         })}
 
-        {sortedNodes.length === 0 && (
+        {filteredNodes.length === 0 && (
           <div className="text-center py-12 opacity-50">
-            Inga kort att visa
+            {showOnlySelected ? 'Inga markerade kort' : 'Inga kort att visa'}
           </div>
         )}
       </div>
