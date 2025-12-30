@@ -1,20 +1,24 @@
 // components/ModalManager.tsx
 // Centraliserad rendering av alla modaler och overlays
 
-import React from 'react';
-import { SettingsModal } from './overlays/SettingsModal';
-import { ContextMenu, type ContextMenuState } from './overlays/ContextMenu';
-import { SearchOverlay } from './overlays/SearchOverlay';
-import { AIChatOverlay } from './overlays/AIChatOverlay';
-import { ReflectionChatOverlay } from './overlays/ReflectionChatOverlay';
-import { CardEditor } from './overlays/CardEditor';
-import { AIPanel } from './AIPanel';
-import { CommandPalette } from './CommandPalette';
+import React, { Suspense, lazy } from 'react';
 import { type CanvasAPI } from '../hooks/useCanvas';
 import { type SearchAPI } from '../hooks/useSearch';
 import { type Theme } from '../themes';
 import type { ChatProvider, ChatMessage } from '../utils/chatProviders';
 import type { Conversation } from '../types/types';
+import { type ContextMenuState } from './overlays/ContextMenu';
+
+// Lazy loaded modals
+const SettingsModal = lazy(() => import('./overlays/SettingsModal').then(m => ({ default: m.SettingsModal })));
+const ContextMenu = lazy(() => import('./overlays/ContextMenu').then(m => ({ default: m.ContextMenu })));
+const SearchOverlay = lazy(() => import('./overlays/SearchOverlay').then(m => ({ default: m.SearchOverlay })));
+const AIChatOverlay = lazy(() => import('./overlays/AIChatOverlay').then(m => ({ default: m.AIChatOverlay })));
+const ReflectionChatOverlay = lazy(() => import('./overlays/ReflectionChatOverlay').then(m => ({ default: m.ReflectionChatOverlay })));
+const CardEditor = lazy(() => import('./overlays/CardEditor').then(m => ({ default: m.CardEditor })));
+const AIPanel = lazy(() => import('./AIPanel').then(m => ({ default: m.AIPanel })));
+const CommandPalette = lazy(() => import('./CommandPalette').then(m => ({ default: m.CommandPalette })));
+
 
 interface ModalManagerProps {
   // Modal visibility states
@@ -81,7 +85,7 @@ interface ModalManagerProps {
   arrangeGridVertical: () => void;
   arrangeGridHorizontal: () => void;
   arrangeCircle: () => void;
-  arrangeGridHorizontal: () => void;
+  arrangeKanban: () => void;
   arrangeCentrality: () => void;
   onExpandScopeDegree?: (degree: number) => void;
 
@@ -207,7 +211,7 @@ export const ModalManager: React.FC<ModalManagerProps> = ({
   theme,
 }) => {
   return (
-    <>
+    <Suspense fallback={null}>
       {showSettings && <SettingsModal onClose={() => setShowSettings(false)} theme={theme} />}
 
       {contextMenu && (
@@ -408,6 +412,6 @@ export const ModalManager: React.FC<ModalManagerProps> = ({
           theme={theme}
         />
       )}
-    </>
+    </Suspense>
   );
 };
