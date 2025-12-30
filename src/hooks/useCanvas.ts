@@ -1,6 +1,23 @@
 // Hanterar canvas-interaktioner: pan, zoom, view state, node dragging
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
+
+const VIEW_STORAGE_KEY = 'soul-canvas-view';
+
+function loadViewFromStorage(): ViewState {
+  try {
+    const saved = localStorage.getItem(VIEW_STORAGE_KEY);
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      if (typeof parsed.x === 'number' && typeof parsed.y === 'number' && typeof parsed.k === 'number') {
+        return parsed;
+      }
+    }
+  } catch (e) {
+    // Ignore parse errors
+  }
+  return { x: 0, y: 0, k: 1 };
+}
 
 export interface ViewState {
   x: number;
@@ -19,7 +36,12 @@ export interface CanvasAPI {
 }
 
 export function useCanvas(): CanvasAPI {
-  const [view, setView] = useState<ViewState>({ x: 0, y: 0, k: 1 });
+  const [view, setView] = useState<ViewState>(loadViewFromStorage);
+
+  // Spara view till localStorage när det ändras
+  useEffect(() => {
+    localStorage.setItem(VIEW_STORAGE_KEY, JSON.stringify(view));
+  }, [view]);
   const [cursorPos, setCursorPos] = useState({ x: 0, y: 0 }); // World coordinates
   
   // Konvertera skärmkoordinater till världskoordinater
