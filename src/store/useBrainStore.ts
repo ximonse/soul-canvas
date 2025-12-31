@@ -118,6 +118,14 @@ interface CoreActions {
   toggleColumnShowTags: () => void;
 }
 
+const shouldTouchUpdatedAt = (updates: Partial<MindNode>): boolean => (
+  'title' in updates ||
+  'content' in updates ||
+  'caption' in updates ||
+  'comment' in updates ||
+  'link' in updates
+);
+
 const PROVIDER_STORAGE_KEYS: Record<AIProvider, string> = {
   gemini: 'gemini_key',
   openai: 'openai_key',
@@ -343,10 +351,12 @@ export const useBrainStore = create<BrainStore>()((set) => ({
   updateNode: (id, updates) => set((state) => {
     const existingNode = state.nodes.get(id);
     if (!existingNode) return {};
-    const updatedNode = {
+    const updatedNode: MindNode = {
       ...existingNode,
       ...updates,
-      updatedAt: new Date().toISOString()
+      updatedAt: shouldTouchUpdatedAt(updates)
+        ? new Date().toISOString()
+        : existingNode.updatedAt,
     };
     const newNodes = new Map(state.nodes);
     newNodes.set(id, updatedNode);
@@ -361,7 +371,8 @@ export const useBrainStore = create<BrainStore>()((set) => ({
     updates.forEach(({ id, updates: nodeUpdates }) => {
       const existingNode = newNodes.get(id);
       if (!existingNode) return;
-      const updatedAt = nodeUpdates.updatedAt ?? now;
+      const updatedAt = nodeUpdates.updatedAt
+        ?? (shouldTouchUpdatedAt(nodeUpdates) ? now : existingNode.updatedAt);
       newNodes.set(id, { ...existingNode, ...nodeUpdates, updatedAt });
       changed = true;
     });
