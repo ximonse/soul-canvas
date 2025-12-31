@@ -60,6 +60,8 @@ export function useImportHandlers({ canvas, hasFile, saveAsset }: ImportHandlers
       const importCenterX = (minX + maxX) / 2;
       const importCenterY = (minY + maxY) / 2;
 
+      const importTag = 'imported_' + new Date().toISOString().slice(2, 10).replace(/-/g, '');
+      let importedCount = 0;
       const bulkUpdates: Array<{ id: string; updates: Partial<MindNode> }> = [];
 
       nodeList.forEach((node: Partial<MindNode>) => {
@@ -89,6 +91,7 @@ export function useImportHandlers({ canvas, hasFile, saveAsset }: ImportHandlers
         const updates: Partial<MindNode> = {
           ...(rest as Partial<MindNode>),
           tags: newNode.tags,
+          updatedAt: (node.updatedAt || node.createdAt) as string | undefined,
         };
 
         bulkUpdates.push({ id: newNodeId, updates });
