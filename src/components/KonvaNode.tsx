@@ -616,8 +616,8 @@ const KonvaNodeInner: React.FC<KonvaNodeInnerProps> = ({
   }, [effectiveProvider]);
 
   const styles = useMemo(() =>
-    getNodeStyles(theme, node.createdAt, isSelected, node.backgroundColor),
-    [theme, node.createdAt, isSelected, node.backgroundColor]
+    getNodeStyles(theme, node.updatedAt || node.createdAt, isSelected, node.backgroundColor),
+    [theme, node.updatedAt, node.createdAt, isSelected, node.backgroundColor]
   );
 
   // Är detta en gravitating node?

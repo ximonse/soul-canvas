@@ -1,5 +1,13 @@
 // src/themes.ts
 
+export interface AgeStop {
+  maxHours: number;
+  bg: string;
+  border: string;
+  shadow: string;
+  text: string;
+}
+
 export interface ThemeNodeStyles {
   bg: string;
   border: string;
@@ -17,6 +25,7 @@ export interface ThemeNodeStyles {
   activeBorder: string; // Border for 'active' node
   activeShadow: string; // Shadow for 'active' node
   activeText: string; // Text color for 'active' node
+  ageStops?: AgeStop[]; // Optional age-based palette (hours)
   flippedBg: string; // Background for flipped side
   flippedText: string; // Text color for flipped side
 }
@@ -64,6 +73,16 @@ export const THEMES: Record<string, Theme> = {
       activeBorder: "#60a5fa",
       activeShadow: "#60a5fa",
       activeText: "#1a1a2e",
+      ageStops: [
+        { maxHours: 1, bg: "#fde047", border: "#facc15", shadow: "#facc15", text: "#1a1a2e" },
+        { maxHours: 12, bg: "#fef08a", border: "#facc15", shadow: "#facc15", text: "#1a1a2e" },
+        { maxHours: 24, bg: "#dbeafe", border: "#93c5fd", shadow: "#93c5fd", text: "#1a1a2e" },
+        { maxHours: 48, bg: "#60a5fa", border: "#60a5fa", shadow: "#60a5fa", text: "#1a1a2e" },
+        { maxHours: 96, bg: "#2a2a4a", border: "#3a3a52", shadow: "#3a3a52", text: "#ffffff" },
+        { maxHours: 168, bg: "#1a1a2e", border: "#3a3a52", shadow: "#3a3a52", text: "#ffffff" },
+        { maxHours: 504, bg: "#141423", border: "#2b2b3f", shadow: "#2b2b3f", text: "#e5e7eb" },
+        { maxHours: 840, bg: "#0f0f1a", border: "#242436", shadow: "#242436", text: "#d1d5db" },
+      ],
       flippedBg: "#1a1a2e",
       flippedText: "#e0e0e0",
     },
@@ -100,6 +119,16 @@ export const THEMES: Record<string, Theme> = {
       activeBorder: "#93c5fd",
       activeShadow: "#bfdbfe",
       activeText: "#1e3a5f",
+      ageStops: [
+        { maxHours: 1, bg: "#fde047", border: "#facc15", shadow: "#facc15", text: "#713f12" },
+        { maxHours: 12, bg: "#fef08a", border: "#fcd34d", shadow: "#fcd34d", text: "#713f12" },
+        { maxHours: 24, bg: "#fef3c7", border: "#fde68a", shadow: "#fde68a", text: "#713f12" },
+        { maxHours: 48, bg: "#fff7d6", border: "#fef3c7", shadow: "#fef3c7", text: "#713f12" },
+        { maxHours: 96, bg: "#fffdf5", border: "#f3f4f6", shadow: "#e5e7eb", text: "#4b5563" },
+        { maxHours: 168, bg: "#ffffff", border: "#e5e7eb", shadow: "#e5e7eb", text: "#374151" },
+        { maxHours: 504, bg: "#f3f4f6", border: "#e5e7eb", shadow: "#d1d5db", text: "#374151" },
+        { maxHours: 840, bg: "#e5e7eb", border: "#d1d5db", shadow: "#cbd5e1", text: "#374151" },
+      ],
       flippedBg: "#f9fafb",
       flippedText: "#374151",
     },
@@ -136,6 +165,16 @@ export const THEMES: Record<string, Theme> = {
       activeBorder: "#3b82f6",
       activeShadow: "#3b82f6",
       activeText: "#dbeafe",
+      ageStops: [
+        { maxHours: 1, bg: "#854d0e", border: "#a16207", shadow: "#a16207", text: "#fef3c7" },
+        { maxHours: 12, bg: "#a16207", border: "#ca8a04", shadow: "#ca8a04", text: "#fef3c7" },
+        { maxHours: 24, bg: "#92400e", border: "#b45309", shadow: "#b45309", text: "#fde68a" },
+        { maxHours: 48, bg: "#78350f", border: "#92400e", shadow: "#92400e", text: "#fef3c7" },
+        { maxHours: 96, bg: "#4b5563", border: "#6b7280", shadow: "#6b7280", text: "#f3f4f6" },
+        { maxHours: 168, bg: "#374151", border: "#4b5563", shadow: "#4b5563", text: "#f3f4f6" },
+        { maxHours: 504, bg: "#2d3748", border: "#4b5563", shadow: "#4b5563", text: "#e5e7eb" },
+        { maxHours: 840, bg: "#1f2937", border: "#374151", shadow: "#374151", text: "#e5e7eb" },
+      ],
       flippedBg: "#1f2937",
       flippedText: "#e5e7eb",
     },
@@ -172,6 +211,16 @@ export const THEMES: Record<string, Theme> = {
       activeBorder: "#000000",
       activeShadow: "rgba(0,0,0,0.15)",
       activeText: "#000000",
+      ageStops: [
+        { maxHours: 1, bg: "#fff1a8", border: "#000000", shadow: "rgba(0,0,0,0.2)", text: "#000000" },
+        { maxHours: 12, bg: "#fff7cc", border: "#000000", shadow: "rgba(0,0,0,0.18)", text: "#000000" },
+        { maxHours: 24, bg: "#fffbe6", border: "#000000", shadow: "rgba(0,0,0,0.15)", text: "#000000" },
+        { maxHours: 48, bg: "#ffffff", border: "#000000", shadow: "rgba(0,0,0,0.12)", text: "#000000" },
+        { maxHours: 96, bg: "#f7f7f7", border: "#000000", shadow: "rgba(0,0,0,0.1)", text: "#000000" },
+        { maxHours: 168, bg: "#f0f0f0", border: "#000000", shadow: "rgba(0,0,0,0.1)", text: "#000000" },
+        { maxHours: 504, bg: "#e6e6e6", border: "#000000", shadow: "rgba(0,0,0,0.12)", text: "#000000" },
+        { maxHours: 840, bg: "#d9d9d9", border: "#000000", shadow: "rgba(0,0,0,0.15)", text: "#000000" },
+      ],
       flippedBg: "#f0f0f0",
       flippedText: "#000000",
     },
@@ -208,6 +257,16 @@ export const THEMES: Record<string, Theme> = {
       activeBorder: "#a59132",
       activeShadow: "#a59132",
       activeText: "#0a0a0a",
+      ageStops: [
+        { maxHours: 1, bg: "#da7422", border: "#da7422", shadow: "#da7422", text: "#0a0a0a" },
+        { maxHours: 12, bg: "#d38b2a", border: "#a59132", shadow: "#a59132", text: "#0a0a0a" },
+        { maxHours: 24, bg: "#b5852e", border: "#a59132", shadow: "#a59132", text: "#0a0a0a" },
+        { maxHours: 48, bg: "#8c7a33", border: "#a59132", shadow: "#a59132", text: "#0a0a0a" },
+        { maxHours: 96, bg: "#625834", border: "#a59132", shadow: "#a59132", text: "#fffbdb" },
+        { maxHours: 168, bg: "#544a2f", border: "#a59132", shadow: "#a59132", text: "#fffbdb" },
+        { maxHours: 504, bg: "#443d28", border: "#8a7b2a", shadow: "#8a7b2a", text: "#fffbdb" },
+        { maxHours: 840, bg: "#383222", border: "#7a6c24", shadow: "#7a6c24", text: "#fffbdb" },
+      ],
       flippedBg: "#30362f",
       flippedText: "#fffbdb",
     },
@@ -244,6 +303,16 @@ export const THEMES: Record<string, Theme> = {
       activeBorder: "#B6CCFE",
       activeShadow: "#B6CCFE",
       activeText: "#1e3a5f",
+      ageStops: [
+        { maxHours: 1, bg: "#c7d2fe", border: "#a5b4fc", shadow: "#a5b4fc", text: "#1e3a5f" },
+        { maxHours: 12, bg: "#e0e7ff", border: "#c7d2fe", shadow: "#c7d2fe", text: "#1e3a5f" },
+        { maxHours: 24, bg: "#eef2ff", border: "#e0e7ff", shadow: "#e0e7ff", text: "#334155" },
+        { maxHours: 48, bg: "#f5f7ff", border: "#eef2ff", shadow: "#eef2ff", text: "#334155" },
+        { maxHours: 96, bg: "#fbfcff", border: "#f1f5ff", shadow: "#e2e8f0", text: "#475569" },
+        { maxHours: 168, bg: "#ffffff", border: "#e2e8f0", shadow: "#e2e8f0", text: "#475569" },
+        { maxHours: 504, bg: "#f1f5f9", border: "#e2e8f0", shadow: "#d7dde6", text: "#475569" },
+        { maxHours: 840, bg: "#e2e8f0", border: "#cbd5e1", shadow: "#cbd5e1", text: "#475569" },
+      ],
       flippedBg: "#f8fafc",
       flippedText: "#475569",
     },

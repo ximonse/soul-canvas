@@ -55,6 +55,25 @@ interface NodeStyleResult {
   shadow: string;
 }
 
+interface AgeStop {
+  maxHours: number;
+  bg: string;
+  border: string;
+  shadow: string;
+  text: string;
+}
+
+const isDarkHex = (hex: string): boolean => {
+  const cleaned = hex.trim().replace('#', '');
+  if (cleaned.length !== 6) return false;
+  const r = parseInt(cleaned.slice(0, 2), 16);
+  const g = parseInt(cleaned.slice(2, 4), 16);
+  const b = parseInt(cleaned.slice(4, 6), 16);
+  if (Number.isNaN(r) || Number.isNaN(g) || Number.isNaN(b)) return false;
+  const luminance = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
+  return luminance < 0.45;
+};
+
 // Beräkna nodstil baserat på ålder och selection
 export function getNodeStyles(
   theme: Theme,
@@ -69,7 +88,14 @@ export function getNodeStyles(
   let currentText = theme.node.text;
   let currentShadow = theme.node.shadow;
 
-  if (ageInHours < 1) { // Hot
+  const ageStops = theme.node.ageStops as AgeStop[] | undefined;
+  if (ageStops && ageStops.length > 0) {
+    const stop = ageStops.find(s => ageInHours <= s.maxHours) || ageStops[ageStops.length - 1];
+    currentBg = stop.bg;
+    currentBorder = stop.border;
+    currentShadow = stop.shadow;
+    currentText = stop.text;
+  } else if (ageInHours < 1) { // Hot
     currentBg = theme.node.hotBg || currentBg;
     currentBorder = theme.node.hotBorder || currentBorder;
     currentShadow = theme.node.hotShadow || currentShadow;
@@ -84,6 +110,7 @@ export function getNodeStyles(
   // Override with custom background color from node if present
   if (customBgColor) {
     currentBg = customBgColor;
+    currentText = isDarkHex(customBgColor) ? '#ffffff' : theme.node.text;
   }
 
   // Override for selected state - change border, shadow, text AND background if specified in theme
