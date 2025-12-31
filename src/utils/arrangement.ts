@@ -1,5 +1,7 @@
 import type { MindNode, Synapse } from '../types/types';
 import { CARD, SPACING } from './constants';
+import { getImageRef } from './imageRefs';
+import { layoutMarkdownText, measureTextHeight } from './textLayout';
 
 interface Position {
     x: number;
@@ -9,29 +11,63 @@ interface Position {
 const getNodeSize = (node: MindNode) => {
     const width = node.width || (node.type === 'image' ? CARD.IMAGE_WIDTH : CARD.WIDTH);
 
-    // Calculate height based on content if not explicitly set
     if (node.height) {
         return { width, height: node.height };
     }
 
-    if (node.type === 'image') {
-        // Better default for images if no rendered height exists
-        return { width, height: node.height || CARD.IMAGE_HEIGHT + (node.caption ? 40 : 0) };
+    const cardFontFamily = "'Noto Serif', Georgia, serif";
+    const contentLineHeight = 1.6;
+    const titleLineHeight = 1.2;
+    const captionLineHeight = 1.2;
+    const titleGap = node.title?.trim() ? CARD.TITLE_GAP : 0;
+    const contentWidth = CARD.WIDTH - CARD.PADDING * 2 - (node.accentColor ? 8 : 0);
+    const hasImageRef = node.type === 'image' && Boolean(getImageRef(node));
+    const captionWidth = hasImageRef ? CARD.WIDTH - CARD.PADDING * 2 : contentWidth;
+
+    const titleHeight = node.title?.trim()
+        ? measureTextHeight(node.title, {
+            width: contentWidth,
+            fontSize: CARD.FONT_SIZE,
+            fontFamily: cardFontFamily,
+            fontStyle: 'bold',
+            lineHeight: titleLineHeight,
+        })
+        : 0;
+
+    const contentLayout = layoutMarkdownText(node.content || '', {
+        width: contentWidth,
+        fontSize: CARD.FONT_SIZE,
+        fontFamily: cardFontFamily,
+        lineHeight: contentLineHeight,
+    });
+
+    const captionHeight = node.caption?.trim()
+        ? measureTextHeight(node.caption, {
+            width: captionWidth,
+            fontSize: CARD.FONT_SIZE_SMALL,
+            fontFamily: cardFontFamily,
+            fontStyle: 'italic',
+            lineHeight: captionLineHeight,
+        })
+        : 0;
+
+    const HEIGHT_BUFFER = 4;
+    let height = CARD.PADDING * 2 + contentLayout.height + HEIGHT_BUFFER;
+
+    if (titleHeight > 0) {
+        height += titleHeight + titleGap;
     }
 
-    // Estimate height for text nodes - MUST match KonvaNode.tsx calculation
-    const textContent = node.ocrText || node.content || '';
-    const estimatedLines = textContent.split('\n').length + (textContent.length / 30) + 1;
-    let estimatedHeight = Math.max(
-        CARD.MIN_HEIGHT,
-        Math.min(CARD.MAX_HEIGHT, estimatedLines * CARD.LINE_HEIGHT_TEXT + CARD.PADDING * 2)
-    );
-
-    if (node.title) {
-        estimatedHeight += CARD.LINE_HEIGHT + CARD.PADDING / 2;
+    if (captionHeight > 0) {
+        height += captionHeight + CARD.CAPTION_GAP;
     }
 
-    return { width, height: estimatedHeight };
+    if (node.type === 'image' && hasImageRef) {
+        const imageFallback = CARD.IMAGE_HEIGHT + (node.caption ? 40 : 0);
+        return { width, height: Math.max(CARD.MIN_HEIGHT, height, imageFallback) };
+    }
+
+    return { width, height: Math.max(CARD.MIN_HEIGHT, height) };
 };
 
 // Helper to center the arrangement

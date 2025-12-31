@@ -19,16 +19,21 @@ const DEFAULT_SYSTEM_MESSAGE = 'Du är en koncis assistent som hjälper till med
 
 const resolveArrangeMode = (text: string): string | null => {
   const normalized = text.toLowerCase();
-  if (!/(arrang|ordna|placera|layout)/.test(normalized)) return null;
+  if (!/(arrang|ordna|placera|layout|strukturera|justera)/.test(normalized)) return null;
 
-  if (/(vertikal|lodrät|lodratt)/.test(normalized)) return 'vertical';
-  if (/(horisont|vågrät|vagrat)/.test(normalized)) return 'horizontal';
-  if (/(rutnät|rutnat|grid|tabell)/.test(normalized)) return 'grid_h';
-  if (/(cirkel|rund)/.test(normalized)) return 'circle';
+  if (/(vertikal|lodrät|lodratt|kolumn|kolumner|stapel)/.test(normalized)) return 'vertical';
+  if (/(horisont|vågrät|vagrat|rad|rader|linje)/.test(normalized)) return 'horizontal';
+  if (/(rutnät|rutnat|grid|tabell)/.test(normalized)) {
+    if (/(vertikal|kolumn)/.test(normalized)) return 'grid_v';
+    if (/(horisont|rad)/.test(normalized)) return 'grid_h';
+    return 'grid_h';
+  }
+  if (/(cirkel|rund|ring)/.test(normalized)) return 'circle';
   if (/kanban/.test(normalized)) return 'kanban';
-  if (/(central|mitt|centrum)/.test(normalized)) return 'centrality';
+  if (/(central|centr|mitt|centrum|centralitet)/.test(normalized)) return 'centrality';
 
-  return null;
+  // Default if user asked to arrange but didn't specify a mode
+  return 'grid_h';
 };
 
 export function useAIChat({ initialProvider = 'claude', toolContext }: UseAIChatOptions = {}) {

@@ -30,6 +30,7 @@ nul
 # Personal data and local config
 my_eternal_mind/
 .claude/
+backend/.env
 
 # WIP features (local only)
 src/hooks/useWandering.ts

@@ -1,5 +1,5 @@
 // src/components/KonvaNode.tsx
-import React, { useRef, useEffect, useState, useMemo, useCallback } from 'react';
+import React, { useRef, useEffect, useLayoutEffect, useState, useMemo, useCallback } from 'react';
 import { Group, Rect, Text, Image as KonvaImage, Circle } from 'react-konva';
 import Konva from 'konva';
 import { useBrainStore } from '../store/useBrainStore';
@@ -89,9 +89,7 @@ interface FrontTextContentProps {
   titleLineHeight: number;
   captionLineHeight: number;
   textColor: string;
-  cardHeight: number;
   caption?: string;
-  captionHeight: number;
 }
 
 const FrontTextContent: React.FC<FrontTextContentProps> = React.memo(({
@@ -107,9 +105,7 @@ const FrontTextContent: React.FC<FrontTextContentProps> = React.memo(({
   titleLineHeight,
   captionLineHeight,
   textColor,
-  cardHeight,
   caption,
-  captionHeight,
 }) => (
   <>
     {title && (
@@ -144,7 +140,7 @@ const FrontTextContent: React.FC<FrontTextContentProps> = React.memo(({
       <Text
         text={caption}
         x={contentX}
-        y={cardHeight - CARD.PADDING - captionHeight}
+        y={contentOffsetY + contentLines.reduce((sum, line) => sum + line.height, 0) + CARD.CAPTION_GAP}
         width={contentWidth}
         fill={textColor}
         fontSize={CARD.FONT_SIZE_SMALL}
@@ -276,6 +272,7 @@ const KonvaNodeInner: React.FC<KonvaNodeInnerProps> = ({
   onLinkHover
 }) => {
   const groupRef = useRef<Konva.Group>(null);
+  const frontTextRef = useRef<Konva.Group>(null);
   const aiPulseRef = useRef<Konva.Circle>(null);
   const heightSyncTimeoutRef = useRef<number | null>(null);
 
@@ -303,11 +300,16 @@ const KonvaNodeInner: React.FC<KonvaNodeInnerProps> = ({
   const [initialY, setInitialY] = useState(0);
 
   const isImage = node.type === 'image';
+  const imageAssetUrl = useMemo(
+    () => (isImage ? resolveImageUrl(node, assets) : null),
+    [isImage, node.imageRef, node.content, assets]
+  );
+  const hasImage = isImage && Boolean(imageAssetUrl);
   const isFlipped = node.isFlipped;
   const isScopeSelected = node.scopeDegree && node.scopeDegree > 0;
   const contentX = node.accentColor ? CARD.PADDING + 8 : CARD.PADDING;
   const contentWidth = CARD.WIDTH - CARD.PADDING * 2 - (node.accentColor ? 8 : 0);
-  const captionWidth = isImage ? CARD.WIDTH - CARD.PADDING * 2 : contentWidth;
+  const captionWidth = hasImage ? CARD.WIDTH - CARD.PADDING * 2 : contentWidth;
   const contentLineHeight = 1.6;
   const titleLineHeight = 1.2;
   const captionLineHeight = 1.2;
@@ -353,7 +355,7 @@ const KonvaNodeInner: React.FC<KonvaNodeInnerProps> = ({
   }, [node.caption, captionWidth, captionFontFamily, captionLineHeight]);
 
   const backTitleHeight = useMemo(() => {
-    if (node.type !== 'image' || !node.title?.trim()) return 0;
+    if (!hasImage || !node.title?.trim()) return 0;
     return measureTextHeight(node.title, {
       width: backTextWidth,
       fontSize: 20, // Sync with JSX
@@ -361,7 +363,7 @@ const KonvaNodeInner: React.FC<KonvaNodeInnerProps> = ({
       fontStyle: 'bold',
       lineHeight: backTitleLineHeight,
     });
-  }, [node.type, node.title, backTextWidth, backTitleFontFamily, backTitleLineHeight]);
+  }, [hasImage, node.title, backTextWidth, backTitleFontFamily, backTitleLineHeight]);
 
   const titleGap = hasTitle ? CARD.TITLE_GAP : 0;
   const contentOffsetY = CARD.PADDING + (hasTitle ? titleHeight + titleGap : 0);
@@ -376,33 +378,32 @@ const KonvaNodeInner: React.FC<KonvaNodeInnerProps> = ({
   );
 
   const backContentHeight = useMemo(() => {
-    if (node.type !== 'image') return 0;
+    if (!hasImage) return 0;
     return measureTextHeight(imageText, {
       width: backTextWidth,
       fontSize: 18, // Sync with JSX
       fontFamily: backFontFamily,
       lineHeight: backContentLineHeight,
     });
-  }, [node.type, imageText, backTextWidth, backFontFamily, backContentLineHeight]);
+  }, [hasImage, imageText, backTextWidth, backFontFamily, backContentLineHeight]);
 
   // Image loading & Height calculation
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     let cancelled = false;
     const calcBackHeight = () => {
-      if (!isFlipped || !isImage) return 0;
+      if (!isFlipped || !hasImage) return 0;
       return CARD.PADDING * 2 + backTitleHeight + (hasTitle ? CARD.PADDING / 2 : 0) + backContentHeight;
     };
 
-    if (isImage) {
-      const assetUrl = resolveImageUrl(node, assets);
-      if (!assetUrl) {
+    if (hasImage) {
+      if (!imageAssetUrl) {
         setImageObj(undefined);
         const backH = calcBackHeight();
         setCardHeight(Math.max(CARD.MIN_HEIGHT, backH));
         return () => { cancelled = true; };
       }
-      loadCachedImage(assetUrl)
+      loadCachedImage(imageAssetUrl)
         .then((img) => {
           if (cancelled) return;
           setImageObj(img);
@@ -446,7 +447,7 @@ const KonvaNodeInner: React.FC<KonvaNodeInnerProps> = ({
   }, [
     node.content,
     node.imageRef,
-    isImage,
+    hasImage,
     isFlipped,
     captionHeight,
     contentLayout.height,
@@ -456,8 +457,36 @@ const KonvaNodeInner: React.FC<KonvaNodeInnerProps> = ({
     titleGap,
     hasTitle,
     assets,
+    imageAssetUrl,
   ]);
   /* eslint-enable react-hooks/set-state-in-effect */
+
+  useLayoutEffect(() => {
+    if (hasImage || isFlipped) return;
+    const group = frontTextRef.current;
+    if (!group) return;
+    const measured = () => {
+      const rect = group.getClientRect({ skipTransform: true });
+      if (!rect || rect.height <= 0) return;
+      const nextHeight = Math.max(CARD.MIN_HEIGHT, Math.ceil(rect.y + rect.height + CARD.PADDING));
+      if (Math.abs(nextHeight - cardHeight) > 1) {
+        setCardHeight(nextHeight);
+      }
+    };
+    const frame = window.requestAnimationFrame(measured);
+    return () => window.cancelAnimationFrame(frame);
+  }, [
+    hasImage,
+    isFlipped,
+    node.title,
+    node.content,
+    node.caption,
+    contentWidth,
+    contentLayout.height,
+    captionHeight,
+    titleHeight,
+    cardHeight,
+  ]);
 
   useEffect(() => {
     if (cardHeight > 0 && node.height !== cardHeight) {
@@ -690,36 +719,36 @@ const KonvaNodeInner: React.FC<KonvaNodeInnerProps> = ({
         </Group>
       )}
 
-      {isImage && imageObj && (
+      {hasImage && imageObj && (
         <KonvaImage image={imageObj} x={0} y={0} width={CARD.WIDTH}
           height={CARD.WIDTH * (imageObj.height / imageObj.width)}
           cornerRadius={[CARD.CORNER_RADIUS, CARD.CORNER_RADIUS, 0, 0]}
         />
       )}
 
-      {!isImage && !isFlipped && (
-        <FrontTextContent
-          title={node.title}
-          content={node.content}
-          contentLines={contentLayout.lines}
-          contentX={contentX}
-          contentOffsetY={contentOffsetY}
-          contentWidth={contentWidth}
-          contentFontFamily={contentFontFamily}
-          captionFontFamily={captionFontFamily}
-          contentLineHeight={contentLineHeight}
-          titleLineHeight={titleLineHeight}
-          captionLineHeight={captionLineHeight}
-          textColor={styles.text}
-          cardHeight={cardHeight}
-          caption={node.caption}
-          captionHeight={captionHeight}
-        />
+      {!hasImage && !isFlipped && (
+        <Group ref={frontTextRef}>
+          <FrontTextContent
+            title={node.title}
+            content={node.content}
+            contentLines={contentLayout.lines}
+            contentX={contentX}
+            contentOffsetY={contentOffsetY}
+            contentWidth={contentWidth}
+            contentFontFamily={contentFontFamily}
+            captionFontFamily={captionFontFamily}
+            contentLineHeight={contentLineHeight}
+            titleLineHeight={titleLineHeight}
+            captionLineHeight={captionLineHeight}
+            textColor={styles.text}
+            caption={node.caption}
+          />
+        </Group>
       )}
 
       {isFlipped && (
         <FlippedContent
-          isImage={node.type === 'image'}
+          isImage={hasImage}
           cardHeight={cardHeight}
           theme={theme}
           backTextWidth={backTextWidth}
@@ -833,7 +862,7 @@ const KonvaNodeInner: React.FC<KonvaNodeInnerProps> = ({
         />
       )}
 
-      {isImage && node.caption?.trim() && (
+      {hasImage && imageObj && node.caption?.trim() && (
         <Text text={node.caption} x={CARD.PADDING}
           y={CARD.WIDTH * (imageObj?.height || 0) / (imageObj?.width || 1) + CARD.PADDING / 2}
           width={CARD.WIDTH - CARD.PADDING * 2} fill={styles.text} fontSize={CARD.FONT_SIZE_SMALL}
