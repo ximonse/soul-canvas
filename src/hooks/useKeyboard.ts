@@ -94,6 +94,21 @@ export function useKeyboard(
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
     const typing = isTyping();
 
+    // Alt+1..6 = column view with N columns (works even when typing)
+    if (e.altKey && !e.ctrlKey && !e.metaKey) {
+      const degree = e.key >= '1' && e.key <= '6'
+        ? parseInt(e.key, 10)
+        : (e.code.startsWith('Digit') ? parseInt(e.code.replace('Digit', ''), 10) : NaN);
+      if (!Number.isNaN(degree) && degree >= 1 && degree <= 6) {
+        e.preventDefault();
+        const state = useBrainStore.getState();
+        state.setViewMode('column');
+        state.setColumnCount(degree);
+        state.setColumnShowOnlySelected(state.selectedNodeIds.size > 0);
+        return;
+      }
+    }
+
     // Space öppnar command palette (om inte typing)
     if (e.key === ' ' && !typing) {
       e.preventDefault();
@@ -306,18 +321,6 @@ export function useKeyboard(
         e.preventDefault();
         actions.onArrangeCircle();
         return;
-      }
-
-      // Alt+1..6 = expand scope degree
-      if (e.altKey && !e.ctrlKey && !e.metaKey) {
-        const degree = e.key >= '1' && e.key <= '6'
-          ? parseInt(e.key, 10)
-          : (e.code.startsWith('Digit') ? parseInt(e.code.replace('Digit', ''), 10) : NaN);
-        if (!Number.isNaN(degree) && degree >= 1 && degree <= 6) {
-          e.preventDefault();
-          actions.onExpandScopeDegree?.(degree);
-          return;
-        }
       }
 
       // Ctrl+A = select all

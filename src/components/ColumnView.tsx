@@ -1,5 +1,5 @@
 // src/components/ColumnView.tsx
-import React, { useMemo, useCallback, useState, useEffect } from 'react';
+import React, { useMemo, useCallback } from 'react';
 import type { MindNode, Synapse } from '../types/types';
 import type { Theme } from '../themes';
 import { sortNodes } from '../utils/sortNodes';
@@ -45,11 +45,9 @@ export const ColumnView: React.FC<ColumnViewProps> = ({
   const columnShowComments = useBrainStore((state) => state.columnShowComments);
   const columnShowTags = useBrainStore((state) => state.columnShowTags);
   const columnCount = useBrainStore((state) => state.columnCount);
+  const columnShowOnlySelected = useBrainStore((state) => state.columnShowOnlySelected);
   const selectedNodeIds = useBrainStore((state) => state.selectedNodeIds);
   const assets = useBrainStore((state) => state.assets);
-
-  // State för inline editing
-  const [showOnlySelected, setShowOnlySelected] = useState(false);
 
   // Sortera nodes
   const sortedNodes = useMemo(
@@ -59,9 +57,9 @@ export const ColumnView: React.FC<ColumnViewProps> = ({
 
   // Filter nodes based on selection
   const filteredNodes = useMemo(() => {
-    if (!showOnlySelected || selectedNodeIds.size === 0) return sortedNodes;
+    if (!columnShowOnlySelected || selectedNodeIds.size === 0) return sortedNodes;
     return sortedNodes.filter(node => selectedNodeIds.has(node.id));
-  }, [sortedNodes, showOnlySelected, selectedNodeIds]);
+  }, [sortedNodes, columnShowOnlySelected, selectedNodeIds]);
 
   const columnOrderedNodes = useMemo(() => {
     const count = Math.max(1, columnCount);
@@ -83,17 +81,6 @@ export const ColumnView: React.FC<ColumnViewProps> = ({
   const handleCardDoubleClick = useCallback((node: MindNode) => {
     onEditCard(node.id);
   }, [onEditCard]);
-
-  // Toggle filter on 'k'
-  useEffect(() => {
-    const handleKeyPress = (e: KeyboardEvent) => {
-      if (e.key === 'k' || e.key === 'K') {
-        setShowOnlySelected(prev => !prev);
-      }
-    };
-    window.addEventListener('keydown', handleKeyPress);
-    return () => window.removeEventListener('keydown', handleKeyPress);
-  }, []);
 
   // Hantera högerklick
   const handleContextMenu = useCallback((node: MindNode, e: React.MouseEvent) => {
@@ -163,7 +150,7 @@ export const ColumnView: React.FC<ColumnViewProps> = ({
             {displayTitle && (
               <h3
                 className="font-semibold mb-1 truncate"
-                style={{ color: theme.node.text }}
+                style={{ color: theme.node.text, fontSize: '1.1em' }}
               >
                 {displayTitle}
               </h3>
@@ -178,8 +165,8 @@ export const ColumnView: React.FC<ColumnViewProps> = ({
             )}
 
             <p
-              className="text-sm leading-relaxed whitespace-pre-wrap"
-              style={{ color: theme.node.text }}
+              className="leading-relaxed whitespace-pre-wrap"
+              style={{ color: theme.node.text, fontSize: '1.1em' }}
             >
               {node.content.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()}
             </p>
@@ -187,7 +174,7 @@ export const ColumnView: React.FC<ColumnViewProps> = ({
             {node.caption && (
               <p
                 className="text-sm mt-2 italic"
-                style={{ color: theme.node.text }}
+                style={{ color: theme.node.text, fontSize: '1.1em' }}
               >
                 {node.caption}
               </p>
@@ -249,13 +236,15 @@ export const ColumnView: React.FC<ColumnViewProps> = ({
 })}
         {filteredNodes.length === 0 && (
           <div className="text-center py-12 opacity-50">
-            {showOnlySelected ? 'Inga markerade kort' : 'Inga kort att visa'}
+            {columnShowOnlySelected ? 'Inga markerade kort' : 'Inga kort att visa'}
           </div>
         )}
       </div>
     </div>
   );
 };
+
+
 
 
 

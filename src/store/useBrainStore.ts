@@ -52,6 +52,7 @@ interface CoreState {
   columnShowComments: boolean;
   columnShowTags: boolean;
   columnCount: number;
+  columnShowOnlySelected: boolean;
 }
 
 // Core actions interface
@@ -116,6 +117,7 @@ interface CoreActions {
   toggleViewMode: () => void;
   setColumnSort: (sort: SortOption) => void;
   setColumnCount: (count: number) => void;
+  setColumnShowOnlySelected: (enabled: boolean) => void;
   toggleColumnShowComments: () => void;
   toggleColumnShowTags: () => void;
 }
@@ -182,6 +184,7 @@ export const useBrainStore = create<BrainStore>()((set) => ({
   columnShowComments: false,
   columnShowTags: true,
   columnCount: 1,
+  columnShowOnlySelected: false,
   ...historyInitialState,
   ...initialTrailState,
 
@@ -695,6 +698,7 @@ export const useBrainStore = create<BrainStore>()((set) => ({
   })),
   setColumnSort: (sort) => set({ columnSort: sort }),
   setColumnCount: (count) => set({ columnCount: Math.max(1, Math.min(6, count)) }),
+  setColumnShowOnlySelected: (enabled) => set({ columnShowOnlySelected: enabled }),
   toggleColumnShowComments: () => set((state) => ({ columnShowComments: !state.columnShowComments })),
   toggleColumnShowTags: () => set((state) => ({ columnShowTags: !state.columnShowTags })),
 

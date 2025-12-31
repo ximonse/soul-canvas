@@ -24,12 +24,15 @@ export const CardEditor = ({ cardId, onClose, theme }: CardEditorProps) => {
   const [linkUrl, setLinkUrl] = useState('');
   const [linkName, setLinkName] = useState(''); // Keep existing name from Zotero
   const [value, setValue] = useState<number | undefined>(undefined);
+  const [accentColor, setAccentColor] = useState<string | undefined>(undefined);
   const [semanticTags, setSemanticTags] = useState<string[]>([]);
   const [showAITags, setShowAITags] = useState(false);
   const [showCropper, setShowCropper] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const card = cardId ? nodes.get(cardId) : null;
+
+  const accentColors = ['#ffd400', '#ff6666', '#5fb236', '#2ea8e5', '#a28ae5', '#e56eee', '#f19837', '#aaaaaa'];
 
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
@@ -40,6 +43,7 @@ export const CardEditor = ({ cardId, onClose, theme }: CardEditorProps) => {
       setCaption(card.caption || '');
       setComment(card.comment || '');
       setValue(card.value);
+      setAccentColor(card.accentColor);
 
       // Parse link field if it exists
       if (card.link) {
@@ -85,6 +89,7 @@ export const CardEditor = ({ cardId, onClose, theme }: CardEditorProps) => {
       caption: caption.trim(),
       comment: comment.trim(),
       value: value,
+      accentColor: accentColor,
       link: linkUrl.trim() ? `[${linkName || 'Link'}](${linkUrl.trim()})` : '',
       semanticTags: semanticTags,
     });
@@ -247,71 +252,73 @@ export const CardEditor = ({ cardId, onClose, theme }: CardEditorProps) => {
             }}
           />
 
-          <input
-            type="text"
-            value={linkUrl}
-            onChange={e => setLinkUrl(e.target.value)}
-            placeholder="Länk (t.ex: https://example.com eller zotero://...)"
-            className="px-4 py-2 rounded-lg outline-none text-sm"
-            style={{
-              backgroundColor: theme.canvasColor,
-              color: theme.node.text,
-              borderColor: theme.node.border,
-              borderWidth: '1px',
-              borderStyle: 'solid'
-            }}
-          />
+          <div className="flex gap-3 items-start">
+            <input
+              type="text"
+              value={linkUrl}
+              onChange={e => setLinkUrl(e.target.value)}
+              placeholder="L??nk (t.ex: https://example.com eller zotero://...)"
+              className="flex-1 px-4 py-2 rounded-lg outline-none text-sm"
+              style={{
+                backgroundColor: theme.canvasColor,
+                color: theme.node.text,
+                borderColor: theme.node.border,
+                borderWidth: '1px',
+                borderStyle: 'solid'
+              }}
+            />
 
-          {/* Expanderbar AI-taggar sektion ("det undermedvetna") */}
-          <div
-            className="rounded-lg overflow-hidden"
-            style={{
-              backgroundColor: theme.canvasColor,
-              borderColor: theme.node.border,
-              borderWidth: '1px',
-              borderStyle: 'solid'
-            }}
-          >
-            <button
-              type="button"
-              onClick={() => setShowAITags(!showAITags)}
-              className="w-full px-4 py-2 text-sm text-left flex items-center justify-between opacity-60 hover:opacity-100"
-              style={{ color: theme.node.text }}
+            {/* Expanderbar AI-taggar sektion ("det undermedvetna") */}
+            <div
+              className="flex-1 rounded-lg overflow-hidden"
+              style={{
+                backgroundColor: theme.canvasColor,
+                borderColor: theme.node.border,
+                borderWidth: '1px',
+                borderStyle: 'solid'
+              }}
             >
-              <span>🌀 Fördolda {semanticTags.length > 0 && `(${semanticTags.length})`}</span>
-              <span>{showAITags ? '▲' : '▼'}</span>
-            </button>
+              <button
+                type="button"
+                onClick={() => setShowAITags(!showAITags)}
+                className="w-full px-4 py-2 text-sm text-left flex items-center justify-between opacity-60 hover:opacity-100"
+                style={{ color: theme.node.text }}
+              >
+                <span>?YO? F??rdolda {semanticTags.length > 0 && `(${semanticTags.length})`}</span>
+                <span>{showAITags ? '?-?' : '?-?'}</span>
+              </button>
 
-            {showAITags && (
-              <div className="px-4 pb-3 flex flex-wrap gap-2">
-                {semanticTags.length === 0 ? (
-                  <span className="text-xs opacity-50" style={{ color: theme.node.text }}>
-                    Inga fördolda taggar. Högerklicka på kortet och välj "Auto-tagga".
-                  </span>
-                ) : (
-                  semanticTags.map((tag, index) => (
-                    <span
-                      key={index}
-                      className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs"
-                      style={{
-                        backgroundColor: theme.node.selectedBorder + '30',
-                        color: theme.node.text
-                      }}
-                    >
-                      {tag}
-                      <button
-                        type="button"
-                        onClick={() => setSemanticTags(semanticTags.filter((_, i) => i !== index))}
-                        className="opacity-60 hover:opacity-100 ml-1"
-                        aria-label={`Ta bort tagg: ${tag}`}
-                      >
-                        ×
-                      </button>
+              {showAITags && (
+                <div className="px-4 pb-3 flex flex-wrap gap-2">
+                  {semanticTags.length === 0 ? (
+                    <span className="text-xs opacity-50" style={{ color: theme.node.text }}>
+                      Inga f??rdolda taggar. H??gerklicka p?? kortet och v??lj "Auto-tagga".
                     </span>
-                  ))
-                )}
-              </div>
-            )}
+                  ) : (
+                    semanticTags.map((tag, index) => (
+                      <span
+                        key={index}
+                        className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs"
+                        style={{
+                          backgroundColor: theme.node.selectedBorder + '30',
+                          color: theme.node.text
+                        }}
+                      >
+                        {tag}
+                        <button
+                          type="button"
+                          onClick={() => setSemanticTags(semanticTags.filter((_, i) => i !== index))}
+                          className="opacity-60 hover:opacity-100 ml-1"
+                          aria-label={`Ta bort tagg: ${tag}`}
+                        >
+                          ?-
+                        </button>
+                      </span>
+                    ))
+                  )}
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Value Input (Placed at bottom as requested) */}
@@ -343,6 +350,32 @@ export const CardEditor = ({ cardId, onClose, theme }: CardEditorProps) => {
                 borderStyle: 'solid'
               }}
             />
+            <div className="flex items-center gap-1">
+              {accentColors.map((color) => (
+                <button
+                  key={color}
+                  type="button"
+                  onClick={() => setAccentColor(color)}
+                  className="w-4 h-4 rounded-full"
+                  style={{
+                    backgroundColor: color,
+                    borderColor: accentColor === color ? theme.node.text : theme.node.border,
+                    borderWidth: accentColor === color ? '2px' : '1px',
+                    borderStyle: 'solid'
+                  }}
+                  aria-label={`Accent color ${color}`}
+                  title={color}
+                />
+              ))}
+            </div>
+            <button
+              type="button"
+              onClick={() => setAccentColor(undefined)}
+              className="text-xs opacity-60 hover:opacity-100"
+              style={{ color: theme.node.text }}
+            >
+              Rensa accent
+            </button>
             <span className="text-xs opacity-50" style={{ color: theme.node.text }}>(1=Viktigast, 6=Lägst)</span>
           </div>
         </div>

@@ -50,6 +50,7 @@ export function ContextMenu({
   const selectedCount = selectedNodes.length;
   const selectedImageCount = selectedNodes.filter((n: MindNode) => n.type === 'image').length;
   const useSelectedImages = selectedImageCount > 0 && Boolean(onRunOCROnSelected);
+  const accentColors = ['#ffd400', '#ff6666', '#5fb236', '#2ea8e5', '#a28ae5', '#e56eee', '#f19837', '#aaaaaa'];
 
   // Early return if node was deleted while menu was open
   if (!node) {
@@ -293,6 +294,53 @@ export function ContextMenu({
             className="w-full text-left px-4 py-2 text-sm text-red-300 hover:bg-red-900/50"
           >
             Rensa värde
+          </button>
+        </div>
+      </li>
+
+      {/* Accent Color Submenu */}
+      <li className="relative group" role="none">
+        <button
+          className="w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-gray-700 flex justify-between items-center"
+          role="menuitem"
+        >
+          <span>Accentfarg</span>
+          <span>?-?</span>
+        </button>
+        <div className="absolute left-full top-0 w-48 bg-gray-800 border border-gray-700 rounded shadow-xl py-1 hidden group-hover:block"
+          style={{ marginLeft: '-4px' }}>
+          <div className="px-3 py-2 flex flex-wrap gap-2">
+            {accentColors.map((color) => (
+              <button
+                key={color}
+                onClick={() => {
+                  if (selectedCount > 1) {
+                    selectedNodes.forEach(n => updateNode(n.id, { accentColor: color }));
+                  } else {
+                    updateNode(menu.nodeId, { accentColor: color });
+                  }
+                  onClose();
+                }}
+                className="w-4 h-4 rounded-full border border-gray-600"
+                style={{ backgroundColor: color }}
+                title={color}
+                aria-label={`Accent color ${color}`}
+              />
+            ))}
+          </div>
+          <div className="h-px bg-gray-700 my-1"></div>
+          <button
+            onClick={() => {
+              if (selectedCount > 1) {
+                selectedNodes.forEach(n => updateNode(n.id, { accentColor: undefined }));
+              } else {
+                updateNode(menu.nodeId, { accentColor: undefined });
+              }
+              onClose();
+            }}
+            className="w-full text-left px-4 py-2 text-sm text-red-300 hover:bg-red-900/50"
+          >
+            Rensa accent
           </button>
         </div>
       </li>
