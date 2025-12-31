@@ -257,7 +257,7 @@ export const CardEditor = ({ cardId, onClose, theme }: CardEditorProps) => {
               type="text"
               value={linkUrl}
               onChange={e => setLinkUrl(e.target.value)}
-              placeholder="L??nk (t.ex: https://example.com eller zotero://...)"
+              placeholder="L\u00e4nk (t.ex: https://example.com eller zotero://...)"
               className="flex-1 px-4 py-2 rounded-lg outline-none text-sm"
               style={{
                 backgroundColor: theme.canvasColor,
@@ -284,7 +284,7 @@ export const CardEditor = ({ cardId, onClose, theme }: CardEditorProps) => {
                 className="w-full px-4 py-2 text-sm text-left flex items-center justify-between opacity-60 hover:opacity-100"
                 style={{ color: theme.node.text }}
               >
-                <span>?YO? F??rdolda {semanticTags.length > 0 && `(${semanticTags.length})`}</span>
+                <span>F\u00f6rdolda {semanticTags.length > 0 && `(${semanticTags.length})`}</span>
                 <span>{showAITags ? '?-?' : '?-?'}</span>
               </button>
 
@@ -292,7 +292,7 @@ export const CardEditor = ({ cardId, onClose, theme }: CardEditorProps) => {
                 <div className="px-4 pb-3 flex flex-wrap gap-2">
                   {semanticTags.length === 0 ? (
                     <span className="text-xs opacity-50" style={{ color: theme.node.text }}>
-                      Inga f??rdolda taggar. H??gerklicka p?? kortet och v??lj "Auto-tagga".
+                      Inga f\u00f6rdolda taggar. H\u00f6gerklicka p\u00e5 kortet och v\u00e4lj "Auto-tagga".
                     </span>
                   ) : (
                     semanticTags.map((tag, index) => (
