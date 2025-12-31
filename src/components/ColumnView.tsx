@@ -113,7 +113,7 @@ export const ColumnView: React.FC<ColumnViewProps> = ({
       <div
         className="mx-auto py-4 px-4 pb-32"
         style={{
-          maxWidth: '1200px',
+          maxWidth: columnCount === 1 ? '600px' : '1200px',
           columnCount,
           columnGap: '12px',
         }}
@@ -256,6 +256,7 @@ export const ColumnView: React.FC<ColumnViewProps> = ({
     </div>
   );
 };
+
 
 
 
