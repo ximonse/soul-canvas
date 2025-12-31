@@ -24,11 +24,13 @@ export const CardEditor = ({ cardId, onClose, theme }: CardEditorProps) => {
   const [linkUrl, setLinkUrl] = useState('');
   const [linkName, setLinkName] = useState(''); // Keep existing name from Zotero
   const [value, setValue] = useState<number | undefined>(undefined);
+  const [eventDate, setEventDate] = useState('');
   const [accentColor, setAccentColor] = useState<string | undefined>(undefined);
   const [semanticTags, setSemanticTags] = useState<string[]>([]);
   const [showAITags, setShowAITags] = useState(false);
   const [showCropper, setShowCropper] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const eventInputRef = useRef<HTMLInputElement>(null);
 
   const card = cardId ? nodes.get(cardId) : null;
 
@@ -43,6 +45,7 @@ export const CardEditor = ({ cardId, onClose, theme }: CardEditorProps) => {
       setCaption(card.caption || '');
       setComment(card.comment || '');
       setValue(card.value);
+      setEventDate(card.event || '');
       setAccentColor(card.accentColor);
 
       // Parse link field if it exists
@@ -89,6 +92,7 @@ export const CardEditor = ({ cardId, onClose, theme }: CardEditorProps) => {
       caption: caption.trim(),
       comment: comment.trim(),
       value: value,
+      event: eventDate.trim() ? eventDate.trim() : undefined,
       accentColor: accentColor,
       link: linkUrl.trim() ? `[${linkName || 'Link'}](${linkUrl.trim()})` : '',
       semanticTags: semanticTags,
@@ -98,6 +102,18 @@ export const CardEditor = ({ cardId, onClose, theme }: CardEditorProps) => {
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'd' && !e.ctrlKey && !e.metaKey && !e.altKey) {
+      const activeEl = document.activeElement;
+      const isInput = activeEl instanceof HTMLInputElement || activeEl instanceof HTMLTextAreaElement;
+      if (!isInput) {
+        e.preventDefault();
+        e.stopPropagation();
+        eventInputRef.current?.focus();
+        eventInputRef.current?.select();
+        return;
+      }
+    }
+
     if (e.key === 'Escape') {
       onClose();
     } else if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
@@ -378,6 +394,26 @@ export const CardEditor = ({ cardId, onClose, theme }: CardEditorProps) => {
             </button>
             <span className="text-xs opacity-50" style={{ color: theme.node.text }}>(1=Viktigast, 6=Lägst)</span>
           </div>
+          <div className="flex items-center gap-2">
+            <span style={{ color: theme.node.text, fontSize: '0.875rem' }}>Event:</span>
+            <input
+              ref={eventInputRef}
+              type="text"
+              value={eventDate}
+              onChange={(e) => setEventDate(e.target.value)}
+              placeholder="YYMMDD_HHMM or YYYY-MM-DD HH:MM"
+              className="flex-1 px-3 py-1 rounded outline-none text-sm"
+              style={{
+                backgroundColor: theme.canvasColor,
+                color: theme.node.text,
+                borderColor: theme.node.border,
+                borderWidth: '1px',
+                borderStyle: 'solid'
+              }}
+            />
+            <span className="text-xs opacity-50" style={{ color: theme.node.text }}>Shortcut: d</span>
+          </div>
+
         </div>
 
         {/* Footer */}
