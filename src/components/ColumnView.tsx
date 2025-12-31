@@ -5,6 +5,7 @@ import type { Theme } from '../themes';
 import { sortNodes } from '../utils/sortNodes';
 import { getNodeDisplayTitle } from '../utils/nodeDisplay';
 import { resolveImageUrl } from '../utils/imageRefs';
+import { getNodeStyles } from '../utils/nodeStyles';
 import { useBrainStore } from '../store/useBrainStore';
 
 interface ColumnViewProps {
@@ -51,6 +52,7 @@ export const ColumnView: React.FC<ColumnViewProps> = ({
   const toggleSelection = useBrainStore((state) => state.toggleSelection);
   const columnShowComments = useBrainStore((state) => state.columnShowComments);
   const columnShowTags = useBrainStore((state) => state.columnShowTags);
+  const columnCount = useBrainStore((state) => state.columnCount);
   const selectedNodeIds = useBrainStore((state) => state.selectedNodeIds);
   const assets = useBrainStore((state) => state.assets);
   const updateNode = useBrainStore((state) => state.updateNode);
@@ -86,13 +88,6 @@ export const ColumnView: React.FC<ColumnViewProps> = ({
       // Toggle inline editing
       setEditingNodeId(prev => prev === node.id ? null : node.id);
     }
-  }, [toggleSelection]);
-
-  // Hantera checkbox
-  const handleCheckbox = useCallback((node: MindNode, e: React.ChangeEvent<HTMLInputElement>) => {
-    e.stopPropagation();
-    // Multi = true för att kunna markera flera med checkboxar
-    toggleSelection(node.id, true);
   }, [toggleSelection]);
 
   // Hantera crop mouse events
@@ -209,13 +204,26 @@ export const ColumnView: React.FC<ColumnViewProps> = ({
       }}
     >
       {/* Kortlista */}
-      <div className="max-w-2xl mx-auto py-4 px-4 space-y-3 pb-32">
+      <div
+        className="mx-auto py-4 px-4 pb-32"
+        style={{
+          maxWidth: '1200px',
+          columnCount,
+          columnGap: '12px',
+        }}
+      >
         {filteredNodes.map((node) => {
           const connections = countConnections(node.id, synapses);
           const tagCount = (node.tags?.length || 0) + (node.semanticTags?.length || 0);
           const displayTitle = getNodeDisplayTitle(node);
           const isSelected = selectedNodeIds.has(node.id);
           const imageUrl = node.type === 'image' ? resolveImageUrl(node, assets) : null;
+          const cardStyles = getNodeStyles(
+            theme,
+            node.updatedAt || node.createdAt,
+            isSelected,
+            node.backgroundColor
+          );
 
           return (
             <div
@@ -233,10 +241,15 @@ export const ColumnView: React.FC<ColumnViewProps> = ({
               onContextMenu={(e) => handleContextMenu(node, e)}
               className="rounded-lg cursor-pointer transition-all"
               style={{
-                backgroundColor: isSelected ? theme.node.selectedBg : theme.node.bg,
-                border: `1px solid ${isSelected ? theme.node.selectedBorder : theme.node.border}`,
+                backgroundColor: cardStyles.bg,
+                border: `1px solid ${cardStyles.border}`,
                 fontFamily: "'Noto Serif', Georgia, serif",
                 opacity: isSelected ? 0.95 : 1,
+                breakInside: 'avoid',
+                WebkitColumnBreakInside: 'avoid',
+                marginBottom: '12px',
+                lineBreak: 'anywhere',
+                overflowWrap: 'anywhere',
               }}
             >
               {/* Accent stripe för Zotero-kort */}
@@ -250,14 +263,6 @@ export const ColumnView: React.FC<ColumnViewProps> = ({
               <div className="p-4">
                 {/* Header med checkbox och metadata */}
                 <div className="flex items-start gap-3 mb-2">
-                  <input
-                    type="checkbox"
-                    checked={isSelected}
-                    onChange={(e) => handleCheckbox(node, e)}
-                    onClick={(e) => e.stopPropagation()}
-                    className="mt-1 w-4 h-4 cursor-pointer"
-                  />
-
                   <div className="flex-1 min-w-0">
                     {editingNodeId === node.id ? (
                       // INLINE EDITOR
@@ -472,7 +477,7 @@ export const ColumnView: React.FC<ColumnViewProps> = ({
                         {/* Innehåll preview */}
                         <p
                           className="text-sm leading-relaxed whitespace-pre-wrap"
-                          style={{ color: theme.node.text, opacity: 0.85 }}
+                          style={{ color: theme.node.text }}
                         >
                           {node.content.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()}
                         </p>
@@ -481,7 +486,7 @@ export const ColumnView: React.FC<ColumnViewProps> = ({
                         {node.caption && (
                           <p
                             className="text-sm mt-2 italic"
-                            style={{ color: theme.node.text, opacity: 0.7 }}
+                            style={{ color: theme.node.text }}
                           >
                             {node.caption}
                           </p>
@@ -556,3 +561,5 @@ export const ColumnView: React.FC<ColumnViewProps> = ({
     </div>
   );
 };
+
+

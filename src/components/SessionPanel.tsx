@@ -91,6 +91,8 @@ export const SessionPanel: React.FC<SessionPanelProps> = ({
   const setColumnSort = useBrainStore((state) => state.setColumnSort);
   const columnShowComments = useBrainStore((state) => state.columnShowComments);
   const columnShowTags = useBrainStore((state) => state.columnShowTags);
+  const columnCount = useBrainStore((state) => state.columnCount);
+  const setColumnCount = useBrainStore((state) => state.setColumnCount);
   const toggleColumnShowComments = useBrainStore((state) => state.toggleColumnShowComments);
   const toggleColumnShowTags = useBrainStore((state) => state.toggleColumnShowTags);
 
@@ -170,25 +172,46 @@ export const SessionPanel: React.FC<SessionPanelProps> = ({
           ⊞
         </span>
       ) : (
-        <select
-          value={columnSort}
-          onChange={(e) => {
-            e.stopPropagation();
-            setColumnSort(e.target.value as SortOption);
-          }}
-          onClick={(e) => e.stopPropagation()}
-          className="px-2 py-0.5 text-xs rounded cursor-pointer"
-          style={{
-            backgroundColor: theme.canvasColor,
-            color: theme.node.text,
-            border: `1px solid ${theme.node.border}`,
-          }}
-          title="Sortering (K för canvas-vy)"
-        >
-          {Object.entries(SORT_LABELS).map(([value, label]) => (
-            <option key={value} value={value}>{label}</option>
-          ))}
-        </select>
+        <>
+          <select
+            value={columnSort}
+            onChange={(e) => {
+              e.stopPropagation();
+              setColumnSort(e.target.value as SortOption);
+            }}
+            onClick={(e) => e.stopPropagation()}
+            className="px-2 py-0.5 text-xs rounded cursor-pointer"
+            style={{
+              backgroundColor: theme.canvasColor,
+              color: theme.node.text,
+              border: `1px solid ${theme.node.border}`,
+            }}
+            title="Sortering (K för canvas-vy)"
+          >
+            {Object.entries(SORT_LABELS).map(([value, label]) => (
+              <option key={value} value={value}>{label}</option>
+            ))}
+          </select>
+          <select
+            value={columnCount}
+            onChange={(e) => {
+              e.stopPropagation();
+              setColumnCount(Number(e.target.value));
+            }}
+            onClick={(e) => e.stopPropagation()}
+            className="px-2 py-0.5 text-xs rounded cursor-pointer"
+            style={{
+              backgroundColor: theme.canvasColor,
+              color: theme.node.text,
+              border: `1px solid ${theme.node.border}`,
+            }}
+            title="Kolumner (1-6)"
+          >
+            {[1, 2, 3, 4, 5, 6].map((count) => (
+              <option key={count} value={count}>{count} col</option>
+            ))}
+          </select>
+        </>
       )}
 
       {/* Kolumn-vy toggles */}

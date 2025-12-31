@@ -51,6 +51,7 @@ interface CoreState {
   columnSort: SortOption;
   columnShowComments: boolean;
   columnShowTags: boolean;
+  columnCount: number;
 }
 
 // Core actions interface
@@ -114,6 +115,7 @@ interface CoreActions {
   setViewMode: (mode: ViewMode) => void;
   toggleViewMode: () => void;
   setColumnSort: (sort: SortOption) => void;
+  setColumnCount: (count: number) => void;
   toggleColumnShowComments: () => void;
   toggleColumnShowTags: () => void;
 }
@@ -179,6 +181,7 @@ export const useBrainStore = create<BrainStore>()((set) => ({
   columnSort: 'newest',
   columnShowComments: false,
   columnShowTags: true,
+  columnCount: 1,
   ...historyInitialState,
   ...initialTrailState,
 
@@ -691,6 +694,7 @@ export const useBrainStore = create<BrainStore>()((set) => ({
     viewMode: state.viewMode === 'canvas' ? 'column' : 'canvas'
   })),
   setColumnSort: (sort) => set({ columnSort: sort }),
+  setColumnCount: (count) => set({ columnCount: Math.max(1, Math.min(6, count)) }),
   toggleColumnShowComments: () => set((state) => ({ columnShowComments: !state.columnShowComments })),
   toggleColumnShowTags: () => set((state) => ({ columnShowTags: !state.columnShowTags })),
 
