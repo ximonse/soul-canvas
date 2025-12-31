@@ -93,6 +93,14 @@ function parseEventDate(event?: string): Date | null {
   return Number.isNaN(parsed.getTime()) ? null : parsed;
 }
 
+function parseEventDates(event?: string): Date[] {
+  if (!event) return [];
+  return event
+    .split(',')
+    .map((part) => parseEventDate(part))
+    .filter((date): date is Date => Boolean(date));
+}
+
 function startOfWeekMonday(date: Date): Date {
   const d = new Date(date);
   const day = d.getDay(); // 0 = Sunday
@@ -186,16 +194,16 @@ export function useKeyboard(
         const matchedIds: string[] = [];
         state.nodes.forEach((node, id) => {
           if (!node.event) return;
-          const eventDate = parseEventDate(node.event);
-          if (!eventDate) return;
+          const eventDates = parseEventDates(node.event);
+          if (eventDates.length === 0) return;
           if (key === 'd') {
-            if (isSameDay(eventDate, now)) {
+            if (eventDates.some((eventDate) => isSameDay(eventDate, now))) {
               matchedIds.push(id);
             }
             return;
           }
           if (rangeStart && rangeEnd) {
-            if (eventDate >= rangeStart && eventDate <= rangeEnd) {
+            if (eventDates.some((eventDate) => eventDate >= rangeStart && eventDate <= rangeEnd)) {
               matchedIds.push(id);
             }
           }

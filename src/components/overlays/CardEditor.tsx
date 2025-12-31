@@ -25,16 +25,61 @@ export const CardEditor = ({ cardId, onClose, theme }: CardEditorProps) => {
   const [linkName, setLinkName] = useState(''); // Keep existing name from Zotero
   const [value, setValue] = useState<number | undefined>(undefined);
   const [eventDate, setEventDate] = useState('');
+  const [eventSlider, setEventSlider] = useState(0);
   const [accentColor, setAccentColor] = useState<string | undefined>(undefined);
   const [semanticTags, setSemanticTags] = useState<string[]>([]);
   const [showAITags, setShowAITags] = useState(false);
   const [showCropper, setShowCropper] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const eventInputRef = useRef<HTMLInputElement>(null);
 
   const card = cardId ? nodes.get(cardId) : null;
 
   const accentColors = ['#ffd400', '#ff6666', '#5fb236', '#2ea8e5', '#a28ae5', '#e56eee', '#f19837', '#aaaaaa'];
+
+  const eventSliderOptions = [
+    { label: 'nu', days: 0 },
+    { label: '1d', days: 1 },
+    { label: '3d', days: 3 },
+    { label: '7d', days: 7 },
+    { label: '2v', days: 14 },
+    { label: '1 m\u00e5n', months: 1 },
+    { label: '3 m\u00e5n', months: 3 },
+    { label: '6 m\u00e5n', months: 6 },
+  ];
+
+  const formatEventStamp = (date: Date) => {
+    const yy = String(date.getFullYear()).slice(-2);
+    const mm = String(date.getMonth() + 1).padStart(2, '0');
+    const dd = String(date.getDate()).padStart(2, '0');
+    const hh = String(date.getHours()).padStart(2, '0');
+    const min = String(date.getMinutes()).padStart(2, '0');
+    return `${yy}${mm}${dd}_${hh}${min}`;
+  };
+
+  const appendEventDate = (date: Date) => {
+    const stamp = formatEventStamp(date);
+    const parts = eventDate
+      .split(',')
+      .map((p) => p.trim())
+      .filter(Boolean);
+    if (!parts.includes(stamp)) {
+      const next = [...parts, stamp].join(', ');
+      setEventDate(next);
+    }
+  };
+
+  const addEventFromSlider = (index: number) => {
+    const option = eventSliderOptions[index];
+    if (!option) return;
+    const now = new Date();
+    const date = new Date(now);
+    if (option.months) {
+      date.setMonth(date.getMonth() + option.months);
+    } else if (typeof option.days === 'number') {
+      date.setDate(date.getDate() + option.days);
+    }
+    appendEventDate(date);
+  };
 
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
@@ -102,18 +147,6 @@ export const CardEditor = ({ cardId, onClose, theme }: CardEditorProps) => {
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'd' && !e.ctrlKey && !e.metaKey && !e.altKey) {
-      const activeEl = document.activeElement;
-      const isInput = activeEl instanceof HTMLInputElement || activeEl instanceof HTMLTextAreaElement;
-      if (!isInput) {
-        e.preventDefault();
-        e.stopPropagation();
-        eventInputRef.current?.focus();
-        eventInputRef.current?.select();
-        return;
-      }
-    }
-
     if (e.key === 'Escape') {
       onClose();
     } else if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
@@ -221,6 +254,31 @@ export const CardEditor = ({ cardId, onClose, theme }: CardEditorProps) => {
               fontFamily: 'Noto Serif, Georgia, serif'
             }}
           />
+
+          <div className="mt-2">
+            <div className="flex items-center gap-3">
+              <span style={{ color: theme.node.text, fontSize: '0.875rem' }}>Event:</span>
+              <input
+                type="range"
+                min="0"
+                max="7"
+                step="1"
+                value={eventSlider}
+                onChange={(e) => setEventSlider(Number(e.target.value))}
+                onMouseUp={() => addEventFromSlider(eventSlider)}
+                onTouchEnd={() => addEventFromSlider(eventSlider)}
+                className="flex-1"
+              />
+            </div>
+            <div className="flex text-xs mt-1" style={{ color: theme.node.text, opacity: 0.6 }}>
+              {eventSliderOptions.map((option) => (
+                <span key={option.label} className="flex-1 text-center">
+                  {option.label}
+                </span>
+              ))}
+            </div>
+          </div>
+
 
           <input
             type="text"
@@ -399,7 +457,6 @@ export const CardEditor = ({ cardId, onClose, theme }: CardEditorProps) => {
             </div>
             <span style={{ color: theme.node.text, fontSize: '0.875rem' }}>Event:</span>
             <input
-              ref={eventInputRef}
               type="text"
               value={eventDate}
               onChange={(e) => setEventDate(e.target.value)}
