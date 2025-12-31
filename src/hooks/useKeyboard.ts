@@ -60,6 +60,54 @@ function isTyping(): boolean {
   return el.tagName === 'TEXTAREA' || el.tagName === 'INPUT';
 }
 
+function parseEventDate(event?: string): Date | null {
+  if (!event) return null;
+  const trimmed = event.trim();
+  if (!trimmed) return null;
+
+  const compact = trimmed.match(/^(\d{2})(\d{2})(\d{2})(?:[_\s-]?(\d{2})(\d{2}))?$/);
+  if (compact) {
+    const year = 2000 + Number(compact[1]);
+    const month = Number(compact[2]);
+    const day = Number(compact[3]);
+    const hour = compact[4] ? Number(compact[4]) : 0;
+    const minute = compact[5] ? Number(compact[5]) : 0;
+    if (month >= 1 && month <= 12 && day >= 1 && day <= 31) {
+      return new Date(year, month - 1, day, hour, minute);
+    }
+  }
+
+  const iso = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{2}):(\d{2}))?$/);
+  if (iso) {
+    const year = Number(iso[1]);
+    const month = Number(iso[2]);
+    const day = Number(iso[3]);
+    const hour = iso[4] ? Number(iso[4]) : 0;
+    const minute = iso[5] ? Number(iso[5]) : 0;
+    if (month >= 1 && month <= 12 && day >= 1 && day <= 31) {
+      return new Date(year, month - 1, day, hour, minute);
+    }
+  }
+
+  const parsed = new Date(trimmed);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function startOfWeekMonday(date: Date): Date {
+  const d = new Date(date);
+  const day = d.getDay(); // 0 = Sunday
+  const diff = (day + 6) % 7;
+  d.setDate(d.getDate() - diff);
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
+function isSameDay(a: Date, b: Date): boolean {
+  return a.getFullYear() === b.getFullYear()
+    && a.getMonth() === b.getMonth()
+    && a.getDate() === b.getDate();
+}
+
 // Track g-combo state outside of useEffect to persist across re-renders
 // Exported so other components can check if G is pressed (e.g., to disable zoom)
 export const gComboState = {
@@ -105,6 +153,58 @@ export function useKeyboard(
         state.setViewMode('column');
         state.setColumnCount(degree);
         state.setColumnShowOnlySelected(state.selectedNodeIds.size > 0);
+        return;
+      }
+    }
+
+    // Alt+D/W/N = select cards by event date (works even when typing)
+    if (e.altKey && !e.ctrlKey && !e.metaKey) {
+      const key = e.key.toLowerCase();
+      if (key === 'd' || key === 'w' || key === 'n') {
+        e.preventDefault();
+        const state = useBrainStore.getState();
+        const now = new Date();
+        let rangeStart: Date | null = null;
+        let rangeEnd: Date | null = null;
+
+        if (key === 'd') {
+          rangeStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+          rangeEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+        } else if (key === 'w') {
+          rangeStart = startOfWeekMonday(now);
+          rangeEnd = new Date(rangeStart);
+          rangeEnd.setDate(rangeEnd.getDate() + 7);
+          rangeEnd.setMilliseconds(rangeEnd.getMilliseconds() - 1);
+        } else if (key === 'n') {
+          rangeStart = startOfWeekMonday(now);
+          rangeStart.setDate(rangeStart.getDate() + 7);
+          rangeEnd = new Date(rangeStart);
+          rangeEnd.setDate(rangeEnd.getDate() + 7);
+          rangeEnd.setMilliseconds(rangeEnd.getMilliseconds() - 1);
+        }
+
+        const matchedIds: string[] = [];
+        state.nodes.forEach((node, id) => {
+          if (!node.event) return;
+          const eventDate = parseEventDate(node.event);
+          if (!eventDate) return;
+          if (key === 'd') {
+            if (isSameDay(eventDate, now)) {
+              matchedIds.push(id);
+            }
+            return;
+          }
+          if (rangeStart && rangeEnd) {
+            if (eventDate >= rangeStart && eventDate <= rangeEnd) {
+              matchedIds.push(id);
+            }
+          }
+        });
+
+        state.clearSelection();
+        if (matchedIds.length > 0) {
+          state.selectNodes(matchedIds);
+        }
         return;
       }
     }

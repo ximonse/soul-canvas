@@ -367,6 +367,19 @@ export const CardEditor = ({ cardId, onClose, theme }: CardEditorProps) => {
               }}
             />
             <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => setAccentColor(undefined)}
+                className="w-4 h-4 rounded-full"
+                style={{
+                  backgroundColor: '#ffffff',
+                  borderColor: accentColor ? '#b3b3b3' : '#6b7280',
+                  borderWidth: accentColor ? '1px' : '2px',
+                  borderStyle: 'solid'
+                }}
+                aria-label="Ingen accentfarg"
+                title="Ingen accentfarg"
+              />
               {accentColors.map((color) => (
                 <button
                   key={color}
@@ -384,17 +397,6 @@ export const CardEditor = ({ cardId, onClose, theme }: CardEditorProps) => {
                 />
               ))}
             </div>
-            <button
-              type="button"
-              onClick={() => setAccentColor(undefined)}
-              className="text-xs opacity-60 hover:opacity-100"
-              style={{ color: theme.node.text }}
-            >
-              Rensa accent
-            </button>
-            <span className="text-xs opacity-50" style={{ color: theme.node.text }}>(1=Viktigast, 6=Lägst)</span>
-          </div>
-          <div className="flex items-center gap-2">
             <span style={{ color: theme.node.text, fontSize: '0.875rem' }}>Event:</span>
             <input
               ref={eventInputRef}
@@ -411,9 +413,7 @@ export const CardEditor = ({ cardId, onClose, theme }: CardEditorProps) => {
                 borderStyle: 'solid'
               }}
             />
-            <span className="text-xs opacity-50" style={{ color: theme.node.text }}>Shortcut: d</span>
           </div>
-
         </div>
 
         {/* Footer */}
