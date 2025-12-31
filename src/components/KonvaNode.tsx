@@ -669,7 +669,9 @@ const KonvaNodeInner: React.FC<KonvaNodeInnerProps> = ({
     return '#4a4a4a';
   }, [isSelected, styles.border, isGravitating, gravitatingColor, isScopeSelected, node.scopeDegree]);
 
-  const strokeWidth = isSelected ? 3 : isGravitating ? 3 : isScopeSelected ? 2 : 1;
+  const isSoftBorderTheme = theme.name === 'Papper' || theme.name === 'Moln';
+  const baseStrokeWidth = isSoftBorderTheme ? 0.1 : 1;
+  const strokeWidth = isSelected ? 3 : isGravitating ? 3 : isScopeSelected ? 2 : baseStrokeWidth;
 
   return (
     <Group
