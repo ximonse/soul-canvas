@@ -47,6 +47,7 @@ export interface MindNode {
   // Rating/Value
   value?: number;          // 1-6 (1=Highest, 6=Lowest)
   event?: string;          // Event date/time string (e.g. YYMMDD_HHMM or ISO)
+  remindAt?: string;       // Reminder date/time string(s), comma separated
 
   // Selection Scope (transient, ej sparad till fil)
   scopeDegree?: number;    // 0 = ej scope, 1-6 = grad av koppling från bas-selektion

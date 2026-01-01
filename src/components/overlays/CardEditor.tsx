@@ -26,7 +26,8 @@ export const CardEditor = ({ cardId, onClose, theme }: CardEditorProps) => {
   const [linkName, setLinkName] = useState(''); // Keep existing name from Zotero
   const [value, setValue] = useState<number | undefined>(undefined);
   const [eventDate, setEventDate] = useState('');
-  const [eventSlider, setEventSlider] = useState(0);
+  const [remindAt, setRemindAt] = useState('');
+  const [remindSlider, setRemindSlider] = useState(0);
   const [accentColor, setAccentColor] = useState<string | undefined>(undefined);
   const [semanticTags, setSemanticTags] = useState<string[]>([]);
   const [showAITags, setShowAITags] = useState(false);
@@ -37,7 +38,7 @@ export const CardEditor = ({ cardId, onClose, theme }: CardEditorProps) => {
 
   const accentColors = ['#ffd400', '#ff6666', '#5fb236', '#2ea8e5', '#a28ae5', '#e56eee', '#f19837', '#aaaaaa'];
 
-  const eventSliderOptions = [
+  const remindSliderOptions = [
     { label: '-', none: true },
     { label: 'nu', days: 0 },
     { label: '1d', days: 1 },
@@ -49,7 +50,7 @@ export const CardEditor = ({ cardId, onClose, theme }: CardEditorProps) => {
     { label: '6 m\u00e5n', months: 6 },
   ];
 
-  const formatEventStamp = (date: Date) => {
+  const formatReminderStamp = (date: Date) => {
     const yy = String(date.getFullYear()).slice(-2);
     const mm = String(date.getMonth() + 1).padStart(2, '0');
     const dd = String(date.getDate()).padStart(2, '0');
@@ -58,20 +59,20 @@ export const CardEditor = ({ cardId, onClose, theme }: CardEditorProps) => {
     return `${yy}${mm}${dd}_${hh}${min}`;
   };
 
-  const appendEventDate = (date: Date) => {
-    const stamp = formatEventStamp(date);
-    const parts = eventDate
+  const appendReminderDate = (date: Date) => {
+    const stamp = formatReminderStamp(date);
+    const parts = remindAt
       .split(',')
       .map((p) => p.trim())
       .filter(Boolean);
     if (!parts.includes(stamp)) {
       const next = [...parts, stamp].join(', ');
-      setEventDate(next);
+      setRemindAt(next);
     }
   };
 
-  const addEventFromSlider = (index: number) => {
-    const option = eventSliderOptions[index];
+  const addReminderFromSlider = (index: number) => {
+    const option = remindSliderOptions[index];
     if (!option || option.none) return;
     const now = new Date();
     const date = new Date(now);
@@ -80,8 +81,13 @@ export const CardEditor = ({ cardId, onClose, theme }: CardEditorProps) => {
     } else if (typeof option.days === 'number') {
       date.setDate(date.getDate() + option.days);
     }
-    appendEventDate(date);
+    appendReminderDate(date);
   };
+
+  const reminderParts = remindAt
+    .split(',')
+    .map((p) => p.trim())
+    .filter(Boolean);
 
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
@@ -93,6 +99,8 @@ export const CardEditor = ({ cardId, onClose, theme }: CardEditorProps) => {
       setComment(card.comment || '');
       setValue(card.value);
       setEventDate(card.event || '');
+      setRemindAt(card.remindAt || '');
+      setRemindSlider(0);
       setAccentColor(card.accentColor);
 
       // Parse link field if it exists
@@ -134,6 +142,7 @@ export const CardEditor = ({ cardId, onClose, theme }: CardEditorProps) => {
 
     const nextLink = linkUrl.trim() ? `[${linkName || 'Link'}](${linkUrl.trim()})` : '';
     const nextEvent = eventDate.trim() ? eventDate.trim() : undefined;
+    const nextRemindAt = remindAt.trim() ? remindAt.trim() : undefined;
     const nextTitle = title.trim();
     const nextCaption = caption.trim();
     const nextComment = comment.trim();
@@ -152,6 +161,7 @@ export const CardEditor = ({ cardId, onClose, theme }: CardEditorProps) => {
     if (!arraysEqual(semanticTags, card.semanticTags || [])) updates.semanticTags = semanticTags;
     if (value !== card.value) updates.value = value;
     if ((nextEvent || undefined) !== (card.event || undefined)) updates.event = nextEvent;
+    if ((nextRemindAt || undefined) !== (card.remindAt || undefined)) updates.remindAt = nextRemindAt;
     if ((accentColor || undefined) !== (card.accentColor || undefined)) updates.accentColor = accentColor;
 
     if (Object.keys(updates).length > 0) {
@@ -275,23 +285,63 @@ export const CardEditor = ({ cardId, onClose, theme }: CardEditorProps) => {
             }}
           />
 
+          <div className="mt-2 flex items-center gap-3">
+            <span style={{ color: theme.node.text, fontSize: '0.875rem' }}>Event:</span>
+            <input
+              type="text"
+              value={eventDate}
+              onChange={(e) => setEventDate(e.target.value)}
+              placeholder="YYMMDD_HHMM or YYYY-MM-DD HH:MM"
+              className="flex-1 px-3 rounded outline-none text-sm"
+              style={{
+                backgroundColor: theme.canvasColor,
+              paddingTop: '0.2em',
+              paddingBottom: '0.2rem',
+                color: theme.node.text,
+                borderColor: theme.node.border,
+                borderWidth: '1px',
+                borderStyle: 'solid'
+              }}
+            />
+          </div>
           <div className="mt-2">
             <div className="flex items-center gap-3">
-              <span style={{ color: theme.node.text, fontSize: '0.875rem' }}>Event:</span>
+              <span style={{ color: theme.node.text, fontSize: '0.875rem' }}>{'P\u00e5minn:'}</span>
               <input
                 type="range"
                 min="0"
                 max="8"
                 step="1"
-                value={eventSlider}
-                onChange={(e) => setEventSlider(Number(e.target.value))}
-                onMouseUp={() => addEventFromSlider(eventSlider)}
-                onTouchEnd={() => addEventFromSlider(eventSlider)}
+                value={remindSlider}
+                onChange={(e) => setRemindSlider(Number(e.target.value))}
+                onMouseUp={() => addReminderFromSlider(remindSlider)}
+                onTouchEnd={() => addReminderFromSlider(remindSlider)}
                 className="flex-1"
               />
+              <select
+                value=""
+                onChange={() => { }}
+                className="text-xs px-2 py-1 rounded"
+                style={{
+                  backgroundColor: theme.canvasColor,
+                  color: theme.node.text,
+                  border: `1px solid ${theme.node.border}`,
+                  minWidth: '160px',
+                }}
+                title={'P\u00e5minnelser'}
+              >
+                <option value="" disabled>{'P\u00e5minnelser'}</option>
+                {reminderParts.length === 0 ? (
+                  <option value="__none" disabled>(inga)</option>
+                ) : (
+                  reminderParts.map((stamp) => (
+                    <option key={stamp} value={stamp}>{stamp}</option>
+                  ))
+                )}
+              </select>
             </div>
             <div className="flex text-xs mt-1" style={{ color: theme.node.text, opacity: 0.6 }}>
-              {eventSliderOptions.map((option) => (
+              {remindSliderOptions.map((option) => (
                 <span key={option.label} className="flex-1 text-center">
                   {option.label}
                 </span>
@@ -488,23 +538,6 @@ export const CardEditor = ({ cardId, onClose, theme }: CardEditorProps) => {
                 />
               ))}
             </div>
-            <span style={{ color: theme.node.text, fontSize: '0.875rem' }}>Event:</span>
-            <input
-              type="text"
-              value={eventDate}
-              onChange={(e) => setEventDate(e.target.value)}
-              placeholder="YYMMDD_HHMM or YYYY-MM-DD HH:MM"
-              className="flex-1 px-3 rounded outline-none text-sm"
-              style={{
-                backgroundColor: theme.canvasColor,
-              paddingTop: '0.2em',
-              paddingBottom: '0.2rem',
-                color: theme.node.text,
-                borderColor: theme.node.border,
-                borderWidth: '1px',
-                borderStyle: 'solid'
-              }}
-            />
           </div>
         </div>
 
