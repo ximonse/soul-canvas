@@ -53,6 +53,7 @@ interface CoreState {
   columnShowTags: boolean;
   columnCount: number;
   columnShowOnlySelected: boolean;
+  canvasWeekView: boolean;
 }
 
 // Core actions interface
@@ -118,6 +119,7 @@ interface CoreActions {
   setColumnSort: (sort: SortOption) => void;
   setColumnCount: (count: number) => void;
   setColumnShowOnlySelected: (enabled: boolean) => void;
+  setCanvasWeekView: (enabled: boolean) => void;
   toggleColumnShowComments: () => void;
   toggleColumnShowTags: () => void;
 }
@@ -185,6 +187,7 @@ export const useBrainStore = create<BrainStore>()((set) => ({
   columnShowTags: true,
   columnCount: 1,
   columnShowOnlySelected: false,
+  canvasWeekView: false,
   ...historyInitialState,
   ...initialTrailState,
 
@@ -692,13 +695,18 @@ export const useBrainStore = create<BrainStore>()((set) => ({
   })),
 
   // View mode actions
-  setViewMode: (mode) => set({ viewMode: mode }),
+  setViewMode: (mode) => set((state) => ({
+    viewMode: mode,
+    canvasWeekView: mode === 'canvas' ? state.canvasWeekView : false,
+  })),
   toggleViewMode: () => set((state) => ({
-    viewMode: state.viewMode === 'canvas' ? 'column' : 'canvas'
+    viewMode: state.viewMode === 'canvas' ? 'column' : 'canvas',
+    canvasWeekView: state.viewMode === 'canvas' ? false : state.canvasWeekView,
   })),
   setColumnSort: (sort) => set({ columnSort: sort }),
   setColumnCount: (count) => set({ columnCount: Math.max(1, Math.min(6, count)) }),
   setColumnShowOnlySelected: (enabled) => set({ columnShowOnlySelected: enabled }),
+  setCanvasWeekView: (enabled) => set({ canvasWeekView: enabled }),
   toggleColumnShowComments: () => set((state) => ({ columnShowComments: !state.columnShowComments })),
   toggleColumnShowTags: () => set((state) => ({ columnShowTags: !state.columnShowTags })),
 

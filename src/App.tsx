@@ -23,6 +23,7 @@ import { NotificationSystem } from './components/NotificationSystem';
 import { ModalManager } from './components/ModalManager';
 import KonvaCanvas from './components/KonvaCanvas';
 import { ColumnView } from './components/ColumnView';
+import { CanvasWeekView } from './components/CanvasWeekView';
 import { MiniMap } from './components/overlays/MiniMap';
 import { SessionPanel } from './components/SessionPanel';
 import { AIBatchStatus } from './components/overlays/AIBatchStatus';
@@ -52,6 +53,7 @@ function App() {
   const claudeKey = useBrainStore((state) => state.claudeKey);
   const enableAutoLink = useBrainStore((state) => state.enableAutoLink);
   const viewMode = useBrainStore((state) => state.viewMode);
+  const canvasWeekView = useBrainStore((state) => state.canvasWeekView);
   const pendingSave = useBrainStore((state) => state.pendingSave);
   const setPendingSave = useBrainStore((state) => state.setPendingSave);
   const saveStateForUndo = useBrainStore((state) => state.saveStateForUndo);
@@ -446,24 +448,34 @@ function App() {
       onDrop={(e) => { setIsDraggingFile(false); handleDrop(e); }}
     >
       {viewMode === 'canvas' ? (
-        <KonvaCanvas
-          currentThemeKey={currentThemeKey}
-          onEditCard={setEditingCardId}
-          canvas={canvas}
-          stageRef={stageRef}
-          nodes={filteredNodesArray}
-          isWandering={wandering.isWandering}
-          onWanderStep={wandering.stepTo}
-          gravitatingNodes={wandering.gravitatingNodes}
-          gravitatingColorMode={wandering.colorMode}
-          wanderingCurrentNodeId={wandering.currentNodeId}
-          activeTrail={wandering.activeTrail}
-          selectedTrails={wandering.selectedTrails}
-          showActiveTrailLine={wandering.showActiveTrailLine}
-          onContextMenu={handleContextMenu}
-          onZoomChange={setCurrentZoom}
-          onLinkHover={setHoveredLink}
-        />
+        <>
+          <KonvaCanvas
+            currentThemeKey={currentThemeKey}
+            onEditCard={setEditingCardId}
+            canvas={canvas}
+            stageRef={stageRef}
+            nodes={filteredNodesArray}
+            isWandering={wandering.isWandering}
+            onWanderStep={wandering.stepTo}
+            gravitatingNodes={wandering.gravitatingNodes}
+            gravitatingColorMode={wandering.colorMode}
+            wanderingCurrentNodeId={wandering.currentNodeId}
+            activeTrail={wandering.activeTrail}
+            selectedTrails={wandering.selectedTrails}
+            showActiveTrailLine={wandering.showActiveTrailLine}
+            onContextMenu={handleContextMenu}
+            onZoomChange={setCurrentZoom}
+            onLinkHover={setHoveredLink}
+          />
+          {canvasWeekView && (
+            <CanvasWeekView
+              nodes={filteredNodesArray}
+              theme={theme}
+              onEditCard={setEditingCardId}
+              onContextMenu={handleContextMenu}
+            />
+          )}
+        </>
       ) : (
         <ColumnView
           nodes={filteredNodesArray}

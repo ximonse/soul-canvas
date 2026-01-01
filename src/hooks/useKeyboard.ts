@@ -3,6 +3,7 @@
 
 import { useEffect, useCallback, useRef } from 'react';
 import { useBrainStore } from '../store/useBrainStore';
+import { parseEventDates, startOfWeekMonday, isSameDay } from '../utils/eventDates';
 
 interface KeyboardActions {
   onOpenCommandPalette: () => void;
@@ -60,62 +61,6 @@ function isTyping(): boolean {
   return el.tagName === 'TEXTAREA' || el.tagName === 'INPUT';
 }
 
-function parseEventDate(event?: string): Date | null {
-  if (!event) return null;
-  const trimmed = event.trim();
-  if (!trimmed) return null;
-
-  const compact = trimmed.match(/^(\d{2})(\d{2})(\d{2})(?:[_\s-]?(\d{2})(\d{2}))?$/);
-  if (compact) {
-    const year = 2000 + Number(compact[1]);
-    const month = Number(compact[2]);
-    const day = Number(compact[3]);
-    const hour = compact[4] ? Number(compact[4]) : 0;
-    const minute = compact[5] ? Number(compact[5]) : 0;
-    if (month >= 1 && month <= 12 && day >= 1 && day <= 31) {
-      return new Date(year, month - 1, day, hour, minute);
-    }
-  }
-
-  const iso = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{2}):(\d{2}))?$/);
-  if (iso) {
-    const year = Number(iso[1]);
-    const month = Number(iso[2]);
-    const day = Number(iso[3]);
-    const hour = iso[4] ? Number(iso[4]) : 0;
-    const minute = iso[5] ? Number(iso[5]) : 0;
-    if (month >= 1 && month <= 12 && day >= 1 && day <= 31) {
-      return new Date(year, month - 1, day, hour, minute);
-    }
-  }
-
-  const parsed = new Date(trimmed);
-  return Number.isNaN(parsed.getTime()) ? null : parsed;
-}
-
-function parseEventDates(event?: string): Date[] {
-  if (!event) return [];
-  return event
-    .split(',')
-    .map((part) => parseEventDate(part))
-    .filter((date): date is Date => Boolean(date));
-}
-
-function startOfWeekMonday(date: Date): Date {
-  const d = new Date(date);
-  const day = d.getDay(); // 0 = Sunday
-  const diff = (day + 6) % 7;
-  d.setDate(d.getDate() - diff);
-  d.setHours(0, 0, 0, 0);
-  return d;
-}
-
-function isSameDay(a: Date, b: Date): boolean {
-  return a.getFullYear() === b.getFullYear()
-    && a.getMonth() === b.getMonth()
-    && a.getDate() === b.getDate();
-}
-
 // Track g-combo state outside of useEffect to persist across re-renders
 // Exported so other components can check if G is pressed (e.g., to disable zoom)
 export const gComboState = {
@@ -149,6 +94,19 @@ export function useKeyboard(
 
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
     const typing = isTyping();
+
+    // Alt+L = weekly canvas view (works even when typing)
+    if (e.altKey && !e.ctrlKey && !e.metaKey) {
+      const key = e.key.toLowerCase();
+      if (key === 'l') {
+        e.preventDefault();
+        const state = useBrainStore.getState();
+        const nextEnabled = state.viewMode !== 'canvas' || !state.canvasWeekView;
+        state.setViewMode('canvas');
+        state.setCanvasWeekView(nextEnabled);
+        return;
+      }
+    }
 
     // Alt+1..6 = column view with N columns (works even when typing)
     if (e.altKey && !e.ctrlKey && !e.metaKey) {

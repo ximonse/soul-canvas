@@ -185,6 +185,14 @@ export function useImportHandlers({ canvas, hasFile, saveAsset }: ImportHandlers
                 tags: allTags,
                 link: note.pdfLink ? `[${linkName}](${note.pdfLink})` : undefined,
                 accentColor: note.color,
+                event: note.caption?.match(/Event:\s*([0-9]{6}_[0-9]{4})/i)?.[1]
+                  || note.content?.match(/Event:\s*([0-9]{6}_[0-9]{4})/i)?.[1]
+                  || undefined,
+                value: (() => {
+                  const match = note.caption?.match(/Value:\s*([1-6])/i)
+                    || note.content?.match(/Value:\s*([1-6])/i);
+                  return match ? Number(match[1]) : undefined;
+                })(),
               });
             });
           } else {

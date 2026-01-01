@@ -2,6 +2,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useBrainStore } from '../../store/useBrainStore';
 import { type Theme } from '../../themes';
+import type { MindNode } from '../../types/types';
 import { ImageCropper } from '../ImageCropper';
 import { resolveImageUrl } from '../../utils/imageRefs';
 
@@ -37,6 +38,7 @@ export const CardEditor = ({ cardId, onClose, theme }: CardEditorProps) => {
   const accentColors = ['#ffd400', '#ff6666', '#5fb236', '#2ea8e5', '#a28ae5', '#e56eee', '#f19837', '#aaaaaa'];
 
   const eventSliderOptions = [
+    { label: '-', none: true },
     { label: 'nu', days: 0 },
     { label: '1d', days: 1 },
     { label: '3d', days: 3 },
@@ -70,7 +72,7 @@ export const CardEditor = ({ cardId, onClose, theme }: CardEditorProps) => {
 
   const addEventFromSlider = (index: number) => {
     const option = eventSliderOptions[index];
-    if (!option) return;
+    if (!option || option.none) return;
     const now = new Date();
     const date = new Date(now);
     if (option.months) {
@@ -123,25 +125,38 @@ export const CardEditor = ({ cardId, onClose, theme }: CardEditorProps) => {
   /* eslint-enable react-hooks/set-state-in-effect */
 
   const handleSave = () => {
-    if (!cardId) return;
+    if (!cardId || !card) return;
 
     const tagsArray = tags
       .split(',')
       .map(t => t.trim())
       .filter(t => t.length > 0);
 
-    updateNode(cardId, {
-      content,
-      tags: tagsArray,
-      title: title.trim(),
-      caption: caption.trim(),
-      comment: comment.trim(),
-      value: value,
-      event: eventDate.trim() ? eventDate.trim() : undefined,
-      accentColor: accentColor,
-      link: linkUrl.trim() ? `[${linkName || 'Link'}](${linkUrl.trim()})` : '',
-      semanticTags: semanticTags,
-    });
+    const nextLink = linkUrl.trim() ? `[${linkName || 'Link'}](${linkUrl.trim()})` : '';
+    const nextEvent = eventDate.trim() ? eventDate.trim() : undefined;
+    const nextTitle = title.trim();
+    const nextCaption = caption.trim();
+    const nextComment = comment.trim();
+
+    const arraysEqual = (a: string[], b: string[]) =>
+      a.length === b.length && a.every((value, index) => value === b[index]);
+
+    const updates: Partial<MindNode> = {};
+
+    if (content !== (card.content || '')) updates.content = content;
+    if (nextTitle !== (card.title || '')) updates.title = nextTitle;
+    if (nextCaption !== (card.caption || '')) updates.caption = nextCaption;
+    if (nextComment !== (card.comment || '')) updates.comment = nextComment;
+    if (nextLink !== (card.link || '')) updates.link = nextLink;
+    if (!arraysEqual(tagsArray, card.tags || [])) updates.tags = tagsArray;
+    if (!arraysEqual(semanticTags, card.semanticTags || [])) updates.semanticTags = semanticTags;
+    if (value !== card.value) updates.value = value;
+    if ((nextEvent || undefined) !== (card.event || undefined)) updates.event = nextEvent;
+    if ((accentColor || undefined) !== (card.accentColor || undefined)) updates.accentColor = accentColor;
+
+    if (Object.keys(updates).length > 0) {
+      updateNode(cardId, updates);
+    }
 
     onClose();
   };
@@ -171,7 +186,8 @@ export const CardEditor = ({ cardId, onClose, theme }: CardEditorProps) => {
           backgroundColor: theme.node.bg,
           borderColor: theme.node.border,
           borderWidth: '1px',
-          borderStyle: 'solid'
+          borderStyle: 'solid',
+          maxHeight: 'none'
         }}
         onClick={e => e.stopPropagation()}
         onKeyDown={handleKeyDown}
@@ -227,9 +243,11 @@ export const CardEditor = ({ cardId, onClose, theme }: CardEditorProps) => {
             value={title}
             onChange={e => setTitle(e.target.value)}
             placeholder="Rubrik (visas på kortet)"
-            className="px-4 py-2 rounded-lg outline-none text-sm"
+            className="px-4 rounded-lg outline-none text-sm"
             style={{
               backgroundColor: theme.canvasColor,
+              paddingTop: '0.2em',
+              paddingBottom: '0.2rem',
               color: theme.node.text,
               borderColor: theme.node.border,
               borderWidth: '1px',
@@ -243,9 +261,11 @@ export const CardEditor = ({ cardId, onClose, theme }: CardEditorProps) => {
             value={content}
             onChange={e => setContent(e.target.value)}
             placeholder="Skriv din anteckning här..."
-            className="flex-1 px-4 py-3 rounded-lg outline-none resize-none text-sm"
+            className="flex-1 px-4 rounded-lg outline-none resize-none text-sm"
             style={{
-              minHeight: '300px',
+              minHeight: '200px',
+              paddingTop: '0.2em',
+              paddingBottom: '0.2rem',
               backgroundColor: theme.canvasColor,
               color: theme.node.text,
               borderColor: theme.node.border,
@@ -261,7 +281,7 @@ export const CardEditor = ({ cardId, onClose, theme }: CardEditorProps) => {
               <input
                 type="range"
                 min="0"
-                max="7"
+                max="8"
                 step="1"
                 value={eventSlider}
                 onChange={(e) => setEventSlider(Number(e.target.value))}
@@ -285,9 +305,11 @@ export const CardEditor = ({ cardId, onClose, theme }: CardEditorProps) => {
             value={caption}
             onChange={e => setCaption(e.target.value)}
             placeholder="Bildtext / caption (synlig under kortet)"
-            className="px-4 py-2 rounded-lg outline-none text-sm"
+            className="px-4 rounded-lg outline-none text-sm"
             style={{
               backgroundColor: theme.canvasColor,
+              paddingTop: '0.2em',
+              paddingBottom: '0.2rem',
               color: theme.node.text,
               borderColor: theme.node.border,
               borderWidth: '1px',
@@ -301,9 +323,11 @@ export const CardEditor = ({ cardId, onClose, theme }: CardEditorProps) => {
             value={tags}
             onChange={e => setTags(e.target.value)}
             placeholder="Taggar (kommaseparerade, t.ex: viktigt, projekt, idé)"
-            className="px-4 py-2 rounded-lg outline-none text-sm"
+            className="px-4 rounded-lg outline-none text-sm"
             style={{
               backgroundColor: theme.canvasColor,
+              paddingTop: '0.2em',
+              paddingBottom: '0.2rem',
               color: theme.node.text,
               borderColor: theme.node.border,
               borderWidth: '1px',
@@ -315,14 +339,17 @@ export const CardEditor = ({ cardId, onClose, theme }: CardEditorProps) => {
             value={comment}
             onChange={e => setComment(e.target.value)}
             placeholder="Anteckning (visas vid hover, stödjer [länkar](url) och #rubriker)"
-            className="px-4 py-2 rounded-lg outline-none text-sm resize-none"
+            className="px-4 rounded-lg outline-none text-sm resize-none"
             rows={3}
             style={{
+              minHeight: '200px',
               backgroundColor: theme.canvasColor,
               color: theme.node.text,
               borderColor: theme.node.border,
               borderWidth: '1px',
-              borderStyle: 'solid'
+              borderStyle: 'solid',
+              paddingTop: '0.2em',
+              paddingBottom: '0.2rem'
             }}
           />
 
@@ -331,10 +358,12 @@ export const CardEditor = ({ cardId, onClose, theme }: CardEditorProps) => {
               type="text"
               value={linkUrl}
               onChange={e => setLinkUrl(e.target.value)}
-              placeholder="L\u00e4nk (t.ex: https://example.com eller zotero://...)"
-              className="flex-1 px-4 py-2 rounded-lg outline-none text-sm"
+              placeholder={"L\u00e4nk (t.ex: https://example.com eller zotero://...)"}
+              className="flex-1 px-4 rounded-lg outline-none text-sm"
               style={{
                 backgroundColor: theme.canvasColor,
+              paddingTop: '0.2em',
+              paddingBottom: '0.2rem',
                 color: theme.node.text,
                 borderColor: theme.node.border,
                 borderWidth: '1px',
@@ -347,6 +376,8 @@ export const CardEditor = ({ cardId, onClose, theme }: CardEditorProps) => {
               className="flex-1 rounded-lg overflow-hidden"
               style={{
                 backgroundColor: theme.canvasColor,
+              paddingTop: '0.2em',
+              paddingBottom: '0.2rem',
                 borderColor: theme.node.border,
                 borderWidth: '1px',
                 borderStyle: 'solid'
@@ -355,10 +386,10 @@ export const CardEditor = ({ cardId, onClose, theme }: CardEditorProps) => {
               <button
                 type="button"
                 onClick={() => setShowAITags(!showAITags)}
-                className="w-full px-4 py-2 text-sm text-left flex items-center justify-between opacity-60 hover:opacity-100"
-                style={{ color: theme.node.text }}
-              >
-                <span>F\u00f6rdolda {semanticTags.length > 0 && `(${semanticTags.length})`}</span>
+                className="w-full px-4 text-sm text-left flex items-center justify-between opacity-60 hover:opacity-100"
+                style={{ color: theme.node.text, marginTop: 0, marginBottom: 0, paddingTop: 0, paddingBottom: 0 }}
+                >
+                <span>{`F\u00f6rdolda${semanticTags.length > 0 ? ` (${semanticTags.length})` : ''}`}</span>
                 <span>{showAITags ? '?-?' : '?-?'}</span>
               </button>
 
@@ -366,7 +397,7 @@ export const CardEditor = ({ cardId, onClose, theme }: CardEditorProps) => {
                 <div className="px-4 pb-3 flex flex-wrap gap-2">
                   {semanticTags.length === 0 ? (
                     <span className="text-xs opacity-50" style={{ color: theme.node.text }}>
-                      Inga f\u00f6rdolda taggar. H\u00f6gerklicka p\u00e5 kortet och v\u00e4lj "Auto-tagga".
+                      {"Inga f\u00f6rdolda taggar. H\u00f6gerklicka p\u00e5 kortet och v\u00e4lj \"Auto-tagga\"."}
                     </span>
                   ) : (
                     semanticTags.map((tag, index) => (
@@ -415,9 +446,11 @@ export const CardEditor = ({ cardId, onClose, theme }: CardEditorProps) => {
                 }
               }}
               placeholder="-"
-              className="px-2 py-1 rounded outline-none text-sm w-16 text-center"
+              className="px-2 rounded outline-none text-sm w-16 text-center"
               style={{
                 backgroundColor: theme.canvasColor,
+              paddingTop: '0.2em',
+              paddingBottom: '0.2rem',
                 color: theme.node.text,
                 borderColor: theme.node.border,
                 borderWidth: '1px',
@@ -461,9 +494,11 @@ export const CardEditor = ({ cardId, onClose, theme }: CardEditorProps) => {
               value={eventDate}
               onChange={(e) => setEventDate(e.target.value)}
               placeholder="YYMMDD_HHMM or YYYY-MM-DD HH:MM"
-              className="flex-1 px-3 py-1 rounded outline-none text-sm"
+              className="flex-1 px-3 rounded outline-none text-sm"
               style={{
                 backgroundColor: theme.canvasColor,
+              paddingTop: '0.2em',
+              paddingBottom: '0.2rem',
                 color: theme.node.text,
                 borderColor: theme.node.border,
                 borderWidth: '1px',
