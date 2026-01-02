@@ -282,8 +282,8 @@ export const ModalManager: React.FC<ModalManagerProps> = ({
           onCopy={copySelectedNodes}
           onPaste={() => {
             saveStateForUndo();
-            const centerPos = canvas.screenToWorld(window.innerWidth / 2, window.innerHeight / 2);
-            pasteNodes(centerPos.x, centerPos.y);
+            const cursorPos = canvas.cursorPos;
+            pasteNodes(cursorPos.x, cursorPos.y);
           }}
           onUndo={undo}
           onRedo={redo}

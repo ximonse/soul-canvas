@@ -90,7 +90,45 @@ function App() {
   const setSelectedNodeIds = useCallback((ids: Set<string>) => {
     useBrainStore.setState({ selectedNodeIds: ids });
   }, []);
-  const { arrangeVertical, arrangeHorizontal, arrangeGridHorizontal, arrangeGridVertical, arrangeCircle, arrangeKanban, arrangeCentrality } = useArrangement(canvas.cursorPos);
+  const {
+    arrangeVertical: arrangeVerticalBase,
+    arrangeHorizontal: arrangeHorizontalBase,
+    arrangeGridHorizontal: arrangeGridHorizontalBase,
+    arrangeGridVertical: arrangeGridVerticalBase,
+    arrangeCircle: arrangeCircleBase,
+    arrangeKanban: arrangeKanbanBase,
+    arrangeCentrality: arrangeCentralityBase,
+  } = useArrangement(canvas.cursorPos);
+  const arrangeFromClipboard = useCallback((arrange: (center?: { x: number; y: number }) => void) => {
+    const state = useBrainStore.getState();
+    const clipboard = state.clipboard;
+    if (clipboard.length === 0) {
+      arrange();
+      return;
+    }
+
+    const selectedIds = state.selectedNodeIds;
+    const clipboardIds = new Set(clipboard.map((node) => node.id));
+    const selectionMatches = selectedIds.size === 0
+      || (selectedIds.size === clipboardIds.size && Array.from(selectedIds).every((id) => clipboardIds.has(id)));
+
+    if (!selectionMatches) {
+      arrange();
+      return;
+    }
+
+    saveStateForUndo();
+    const cursorPos = canvas.cursorPos;
+    pasteNodes(cursorPos.x, cursorPos.y);
+    arrange(cursorPos);
+  }, [canvas, pasteNodes, saveStateForUndo]);
+  const arrangeVertical = useCallback(() => arrangeFromClipboard(arrangeVerticalBase), [arrangeFromClipboard, arrangeVerticalBase]);
+  const arrangeHorizontal = useCallback(() => arrangeFromClipboard(arrangeHorizontalBase), [arrangeFromClipboard, arrangeHorizontalBase]);
+  const arrangeGridHorizontal = useCallback(() => arrangeFromClipboard(arrangeGridHorizontalBase), [arrangeFromClipboard, arrangeGridHorizontalBase]);
+  const arrangeGridVertical = useCallback(() => arrangeFromClipboard(arrangeGridVerticalBase), [arrangeFromClipboard, arrangeGridVerticalBase]);
+  const arrangeCircle = useCallback(() => arrangeFromClipboard(arrangeCircleBase), [arrangeFromClipboard, arrangeCircleBase]);
+  const arrangeKanban = useCallback(() => arrangeFromClipboard(arrangeKanbanBase), [arrangeFromClipboard, arrangeKanbanBase]);
+  const arrangeCentrality = useCallback(() => arrangeFromClipboard(arrangeCentralityBase), [arrangeFromClipboard, arrangeCentralityBase]);
   const aiChat = useAIChat({
     toolContext: useMemo(() => ({
       nodes,
@@ -103,13 +141,13 @@ function App() {
         addNodeWithId(id, content, x, y, type);
         return id;
       },
-      arrangeVertical,
-      arrangeHorizontal,
-      arrangeGridVertical,
-      arrangeGridHorizontal,
-      arrangeCircle,
-      arrangeKanban,
-      arrangeCentrality,
+      arrangeVertical: arrangeVerticalBase,
+      arrangeHorizontal: arrangeHorizontalBase,
+      arrangeGridVertical: arrangeGridVerticalBase,
+      arrangeGridHorizontal: arrangeGridHorizontalBase,
+      arrangeCircle: arrangeCircleBase,
+      arrangeKanban: arrangeKanbanBase,
+      arrangeCentrality: arrangeCentralityBase,
       centerOnNodes: (ids: string[]) => {
         if (ids.length === 0) return;
         const nodeList = ids.map(id => nodes.get(id)).filter(Boolean) as MindNode[];
@@ -129,7 +167,7 @@ function App() {
         canvas.setView(nextView);
       },
       saveStateForUndo,
-    }), [nodes, selectedNodeIds, selectNodes, setSelectedNodeIds, updateNode, addNodeWithId, arrangeVertical, arrangeHorizontal, arrangeGridVertical, arrangeGridHorizontal, arrangeCircle, arrangeKanban, arrangeCentrality, saveStateForUndo, canvas]),
+    }), [nodes, selectedNodeIds, selectNodes, setSelectedNodeIds, updateNode, addNodeWithId, arrangeVerticalBase, arrangeHorizontalBase, arrangeGridVerticalBase, arrangeGridHorizontalBase, arrangeCircleBase, arrangeKanbanBase, arrangeCentralityBase, saveStateForUndo, canvas]),
   });
 
   // Session-filtrering: först session, sedan taggar

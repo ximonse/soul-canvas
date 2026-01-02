@@ -68,6 +68,9 @@ export const CanvasEternalView: React.FC<CanvasEternalViewProps> = ({
 }) => {
   const toggleSelection = useBrainStore((state) => state.toggleSelection);
   const selectedNodeIds = useBrainStore((state) => state.selectedNodeIds);
+  const columnShowTags = useBrainStore((state) => state.columnShowTags);
+  const columnShowComments = useBrainStore((state) => state.columnShowComments);
+  const columnShowCaptions = useBrainStore((state) => state.columnShowCaptions);
 
   const [rangeStart, setRangeStart] = useState(() =>
     startOfDay(addDays(new Date(), -INITIAL_PAST_DAYS))
@@ -265,7 +268,44 @@ export const CanvasEternalView: React.FC<CanvasEternalViewProps> = ({
                         lineBreak: 'anywhere',
                       }}
                     >
-                      {label}
+                      <div className="leading-snug">{label}</div>
+                      {columnShowCaptions && node.caption && (
+                        <div className="text-xs italic mt-1">
+                          {node.caption}
+                        </div>
+                      )}
+                      {columnShowComments && node.comment && (
+                        <div
+                          className="text-xs mt-1 p-1 rounded"
+                          style={{
+                            backgroundColor: theme.canvasColor,
+                            color: theme.node.text,
+                          }}
+                        >
+                          {node.comment}
+                        </div>
+                      )}
+                      {columnShowTags && node.tags?.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {node.tags.slice(0, 4).map((tag) => (
+                            <span
+                              key={tag}
+                              className="text-[10px] px-1.5 py-0.5 rounded"
+                              style={{
+                                backgroundColor: theme.canvasColor,
+                                color: theme.node.text,
+                              }}
+                            >
+                              {tag}
+                            </span>
+                          ))}
+                          {node.tags.length > 4 && (
+                            <span className="text-[10px]">
+                              +{node.tags.length - 4}
+                            </span>
+                          )}
+                        </div>
+                      )}
                     </div>
                   );
                 })}

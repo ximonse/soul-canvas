@@ -12,6 +12,7 @@ import { THEMES } from '../themes';
 import { GRAVITY, VIEWPORT, ZOOM } from '../utils/constants';
 import type { MindNode, GravitatingNode, GravitatingColorMode, Trail } from '../types/types';
 import { getGravitatingColor, getSemanticThemeColor } from '../utils/nodeStyles';
+import { FEATURE_FLAGS } from '../utils/featureFlags';
 
 interface KonvaCanvasProps {
   currentThemeKey: string;
@@ -42,7 +43,7 @@ const toWorldPosition = (stage: Konva.Stage, pointer: { x: number; y: number }) 
 };
 const GRAVITY_SCROLL_SCALE = 0.003;
 const GRAVITY_SCROLL_MAX_STEP = 0.6;
-const VIEW_COMMIT_DELAY_MS = 250; // Increased from 80ms to reduce re-renders during scroll
+const VIEW_COMMIT_DELAY_MS = FEATURE_FLAGS.viewCommitDelayMs;
 const WHEEL_DELTA_CLAMP = 120;
 const WHEEL_ZOOM_SENSITIVITY = 0.0015;
 const WHEEL_ZOOM_DAMPING = 0.42;
@@ -125,6 +126,14 @@ const KonvaCanvas: React.FC<KonvaCanvasProps> = ({
   }, []);
 
   const scheduleViewCommit = useCallback((nextView: { x: number; y: number; k: number }) => {
+    if (VIEW_COMMIT_DELAY_MS <= 0) {
+      canvas.setView(nextView);
+      if (nextView.k !== lastZoomRef.current) {
+        lastZoomRef.current = nextView.k;
+        onZoomChange?.(nextView.k);
+      }
+      return;
+    }
     pendingViewRef.current = nextView;
     if (viewCommitTimeoutRef.current) {
       window.clearTimeout(viewCommitTimeoutRef.current);
@@ -196,6 +205,10 @@ const KonvaCanvas: React.FC<KonvaCanvasProps> = ({
   }, [scheduleViewCommit]);
 
   const scheduleCursorPos = useCallback((nextPos: { x: number; y: number }) => {
+    if (!FEATURE_FLAGS.useCursorRaf) {
+      canvas.setCursorPos(nextPos);
+      return;
+    }
     pendingCursorRef.current = nextPos;
     if (cursorRafRef.current !== null) return;
     cursorRafRef.current = window.requestAnimationFrame(() => {

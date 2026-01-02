@@ -99,7 +99,6 @@ export const CommandPalette = ({
   const selectedNodeIds = useBrainStore((state) => state.selectedNodeIds);
   const selectAll = useBrainStore((state) => state.selectAll);
   const clearSelection = useBrainStore((state) => state.clearSelection);
-  const removeNode = useBrainStore((state) => state.removeNode);
   const intelligence = useIntelligence();
   const [query, setQuery] = useState('');
   const [selectedIndex, setSelectedIndex] = useState(0);
@@ -121,63 +120,58 @@ export const CommandPalette = ({
       shortcut: `alt+${degree}`,
       action: () => { onExpandScopeDegree(degree); onClose(); },
       category: 'view',
-      icon: '🧭',
+      icon: '\u25CE',
     }))
     : [];
 
   const commands: Command[] = [
     // AI Commands
-    { id: 'ai-panel', name: 'Open AI Panel', shortcut: 'b', action: () => { onOpenAIPanel(); onClose(); }, category: 'ai', icon: '🤖' },
-    { id: 'ai-chat', name: 'AI Chat (manual provider)', shortcut: 'a', action: () => { onOpenAIChat(); onClose(); }, category: 'ai', icon: '💬' },
-    { id: 'quote-extractor', name: 'AI Quote Extractor', shortcut: 'e', action: () => { onQuoteExtractor(); onClose(); }, category: 'ai', icon: '📝' },
-    { id: 'embed', name: 'Generate Embeddings', shortcut: 'emb', action: async () => { await intelligence.embedAllNodes(); onClose(); }, category: 'ai', icon: '🧬' },
-    { id: 'link', name: 'Auto-Link Similar', shortcut: 'link', action: async () => { await intelligence.autoLinkSimilarNodes(); onClose(); }, category: 'ai', icon: '🔗' },
-    { id: 'reflect', name: 'AI Reflection', shortcut: 'ref', action: async () => { await intelligence.reflect(); onClose(); }, category: 'ai', icon: '💭' },
-    { id: 'tags', name: 'Generate Tags', shortcut: 'tag', action: async () => { await intelligence.generateTagsForSelection(); onClose(); }, category: 'ai', icon: '🏷️' },
+    { id: 'ai-panel', name: 'Open AI Panel', shortcut: 'b', action: () => { onOpenAIPanel(); onClose(); }, category: 'ai', icon: '\u{1F9E0}' },
+    { id: 'ai-chat', name: 'AI Chat (manual provider)', shortcut: 'a', action: () => { onOpenAIChat(); onClose(); }, category: 'ai', icon: '\u{1F4AC}' },
+    { id: 'quote-extractor', name: 'AI Quote Extractor', shortcut: 'e', action: () => { onQuoteExtractor(); onClose(); }, category: 'ai', icon: '\u2728' },
+    { id: 'embed', name: 'Generate Embeddings', shortcut: 'emb', action: async () => { await intelligence.embedAllNodes(); onClose(); }, category: 'ai', icon: '\u{1F9EC}' },
+    { id: 'link', name: 'Auto-Link Similar', shortcut: 'link', action: async () => { await intelligence.autoLinkSimilarNodes(); onClose(); }, category: 'ai', icon: '\u{1F517}' },
+    { id: 'reflect', name: 'AI Reflection', shortcut: 'ref', action: async () => { await intelligence.reflect(); onClose(); }, category: 'ai', icon: '\u{1F914}' },
+    { id: 'tags', name: 'Generate Tags', shortcut: 'tag', action: async () => { await intelligence.generateTagsForSelection(); onClose(); }, category: 'ai', icon: '\u{1F3F7}' },
 
     // View Commands
-    { id: 'canvas-eternal', name: 'Evig canvasvy', shortcut: 'alt+e', action: () => { handleToggleEternalView(); }, category: 'view', icon: 'E' },
-    { id: 'center', name: 'Center Camera (0,0)', shortcut: '', action: () => { onCenterCamera(); onClose(); }, category: 'view', icon: '🎯' },
-    { id: 'fit-all', name: 'Fit All Nodes', shortcut: '-', action: () => { onFitAllNodes(); onClose(); }, category: 'view', icon: '🔍' },
-    { id: 'zen', name: 'Toggle Zen Mode', shortcut: 'z', action: () => { onToggleZen(); onClose(); }, category: 'view', icon: '🧘' },
-    { id: 'theme', name: 'Change Theme', shortcut: 'theme', action: () => { onToggleTheme(); onClose(); }, category: 'view', icon: '🎨' },
-    { id: 'tag-quick', name: 'Tag Selected (AI)', shortcut: 't', action: async () => { await intelligence.generateTagsForSelection(); onClose(); }, category: 'ai', icon: '🏷️' },
+    { id: 'canvas-eternal', name: 'Evig canvasvy', shortcut: 'alt+e', action: () => { handleToggleEternalView(); }, category: 'view', icon: '\u221E' },
+    { id: 'center', name: 'Center Camera (0,0)', shortcut: '', action: () => { onCenterCamera(); onClose(); }, category: 'view', icon: '\u{1F3AF}' },
+    { id: 'fit-all', name: 'Fit All Nodes', shortcut: '-', action: () => { onFitAllNodes(); onClose(); }, category: 'view', icon: '\u2922' },
+    { id: 'zen', name: 'Toggle Zen Mode', shortcut: 'z', action: () => { onToggleZen(); onClose(); }, category: 'view', icon: '\u{1F9D8}' },
+    { id: 'theme', name: 'Change Theme', shortcut: 'theme', action: () => { onToggleTheme(); onClose(); }, category: 'view', icon: '\u{1F3A8}' },
     { id: 'reset-zoom', name: 'Reset Zoom', shortcut: '0', action: () => { onResetZoom(); onClose(); }, category: 'view', icon: '100%' },
-    { id: 'view-mode', name: 'Toggle View Mode (Canvas/Column)', shortcut: 'k', action: () => { onToggleViewMode(); onClose(); }, category: 'view', icon: '📑' },
-    { id: 'session-panel', name: 'Toggle Session Panel', shortcut: 's', action: () => { onToggleSessionPanel(); onClose(); }, category: 'view', icon: '🗃️' },
-    { id: 'scope-panel', name: 'Toggle Scope Panel', shortcut: 'ctrl+§', action: () => { onToggleScopePanel(); onClose(); }, category: 'view', icon: '🔭' },
-    { id: 'wandering', name: 'Toggle Wandering Mode', shortcut: 'w', action: () => { onToggleWandering(); onClose(); }, category: 'view', icon: '🚶' },
-    { id: 'synapse-lines', name: 'Toggle Synapse Lines', shortcut: 'l', action: () => { onToggleSynapseLines(); onClose(); }, category: 'view', icon: '🕸️' },
+    { id: 'view-mode', name: 'Toggle View Mode (Canvas/Column)', shortcut: 'k', action: () => { onToggleViewMode(); onClose(); }, category: 'view', icon: '\u{1F5FA}' },
+    { id: 'session-panel', name: 'Toggle Session Panel', shortcut: 's', action: () => { onToggleSessionPanel(); onClose(); }, category: 'view', icon: '\u{1F5C2}' },
+    { id: 'scope-panel', name: 'Toggle Scope Panel', shortcut: 'ctrl+`', action: () => { onToggleScopePanel(); onClose(); }, category: 'view', icon: '\u{1F9ED}' },
+    { id: 'wandering', name: 'Toggle Wandering Mode', shortcut: 'w', action: () => { onToggleWandering(); onClose(); }, category: 'view', icon: '\u{1F6B6}' },
+    { id: 'synapse-lines', name: 'Toggle Synapse Lines', shortcut: 'l', action: () => { onToggleSynapseLines(); onClose(); }, category: 'view', icon: '\u{1F500}' },
 
     // Create Commands
-    { id: 'new-card', name: 'New Card', shortcut: 'n', action: () => { onNewCard(); onClose(); }, category: 'edit', icon: '➕' },
-    { id: 'import', name: 'Import (Images, JSON, Zotero)', shortcut: 'i', action: () => { onImport(); onClose(); }, category: 'edit', icon: '📥' },
-    { id: 'mass-import', name: 'Mass Import (Text)', shortcut: 'm', action: () => { onMassImport(); onClose(); }, category: 'edit', icon: '📚' },
-    { id: 'focus-search', name: 'Focus Search', shortcut: 'f', action: () => { onFocusSearch(); onClose(); }, category: 'edit', icon: '🔎' },
-    { id: 'mass-import', name: 'Mass Import', shortcut: 'm', action: () => { onMassImport?.(); onClose(); }, category: 'edit', icon: '📝' },
-    { id: 'quote-extractor', name: 'Quote Extractor', shortcut: 'e', action: () => { onQuoteExtractor?.(); onClose(); }, category: 'edit', icon: '📜' },
-    { id: 'toggle-view', name: 'Toggle Canvas/Column View', shortcut: 'k', action: () => { onToggleViewMode?.(); onClose(); }, category: 'view', icon: '🔄' },
-    { id: 'toggle-wandering', name: 'Toggle Wandering Mode', shortcut: 'w', action: () => { onToggleWandering?.(); onClose(); }, category: 'view', icon: '🚶' },
+    { id: 'new-card', name: 'New Card', shortcut: 'n', action: () => { onNewCard(); onClose(); }, category: 'edit', icon: '\u2795' },
+    { id: 'import', name: 'Import (Images, JSON, Zotero)', shortcut: 'i', action: () => { onImport(); onClose(); }, category: 'edit', icon: '\u2B06' },
+    { id: 'mass-import', name: 'Mass Import (Text)', shortcut: 'm', action: () => { onMassImport(); onClose(); }, category: 'edit', icon: '\u{1F4E5}' },
+    { id: 'focus-search', name: 'Focus Search', shortcut: 'f', action: () => { onFocusSearch(); onClose(); }, category: 'edit', icon: '\u{1F50D}' },
 
     // Arrangement Commands
-    { id: 'arrange-vertical', name: 'Arrange Vertical', shortcut: 'v', action: () => { onArrangeVertical(); onClose(); }, category: 'edit', icon: '↕️' },
-    { id: 'arrange-horizontal', name: 'Arrange Horizontal', shortcut: 'h', action: () => { onArrangeHorizontal(); onClose(); }, category: 'edit', icon: '↔️' },
-    { id: 'arrange-circle', name: 'Arrange Stack', shortcut: 'q', action: () => { onArrangeCircle(); onClose(); }, category: 'edit', icon: '🌀' },
-    { id: 'arrange-grid-vertical', name: 'Arrange Grid Vertical', shortcut: 'g+v', action: () => { onArrangeGridVertical(); onClose(); }, category: 'edit', icon: '🧱' },
-    { id: 'arrange-grid-horizontal', name: 'Arrange Grid Horizontal', shortcut: 'g+h', action: () => { onArrangeGridHorizontal(); onClose(); }, category: 'edit', icon: '🧊' },
-    { id: 'arrange-kanban', name: 'Arrange Overlapping Rows', shortcut: 'g+t', action: () => { onArrangeKanban(); onClose(); }, category: 'edit', icon: '🗂️' },
-    { id: 'arrange-centrality', name: 'Arrange Grid Centrality', shortcut: 'g+c', action: () => { onArrangeCentrality(); onClose(); }, category: 'edit', icon: '☢️' },
+    { id: 'arrange-vertical', name: 'Arrange Vertical', shortcut: 'v', action: () => { onArrangeVertical(); onClose(); }, category: 'edit', icon: '\u2195' },
+    { id: 'arrange-horizontal', name: 'Arrange Horizontal', shortcut: 'h', action: () => { onArrangeHorizontal(); onClose(); }, category: 'edit', icon: '\u2194' },
+    { id: 'arrange-circle', name: 'Arrange Stack', shortcut: 'q', action: () => { onArrangeCircle(); onClose(); }, category: 'edit', icon: '\u2B55' },
+    { id: 'arrange-grid-vertical', name: 'Arrange Grid Vertical', shortcut: 'g+v', action: () => { onArrangeGridVertical(); onClose(); }, category: 'edit', icon: '\u25A6' },
+    { id: 'arrange-grid-horizontal', name: 'Arrange Grid Horizontal', shortcut: 'g+h', action: () => { onArrangeGridHorizontal(); onClose(); }, category: 'edit', icon: '\u25A4' },
+    { id: 'arrange-kanban', name: 'Arrange Overlapping Rows', shortcut: 'g+t', action: () => { onArrangeKanban(); onClose(); }, category: 'edit', icon: '\u{1F9F1}' },
+    { id: 'arrange-centrality', name: 'Arrange Grid Centrality', shortcut: 'g+c', action: () => { onArrangeCentrality(); onClose(); }, category: 'edit', icon: '\u25CE' },
 
     ...scopeCommands,
 
     // Edit Commands
-    { id: 'copy', name: 'Copy Selected', shortcut: 'ctrl+c', action: () => { onCopy(); onClose(); }, category: 'edit', icon: '📄' },
-    { id: 'duplicate', name: 'Duplicate Selected', shortcut: 'c', action: () => { onDuplicate(); onClose(); }, category: 'edit', icon: '👥' },
-    { id: 'paste', name: 'Paste', shortcut: 'ctrl+v', action: () => { onPaste(); onClose(); }, category: 'edit', icon: '📋' },
-    { id: 'undo', name: 'Undo', shortcut: 'ctrl+z', action: () => { onUndo(); onClose(); }, category: 'edit', icon: '↩️' },
-    { id: 'redo', name: 'Redo', shortcut: 'ctrl+y', action: () => { onRedo(); onClose(); }, category: 'edit', icon: '↪️' },
-    { id: 'select-all', name: 'Select All', shortcut: 'ctrl+a', action: () => { selectAll(); onClose(); }, category: 'edit', icon: '✨' },
-    { id: 'clear', name: 'Clear Selection', shortcut: 'esc', action: () => { clearSelection(); onClose(); }, category: 'edit', icon: '❌' },
+    { id: 'copy', name: 'Copy Selected', shortcut: 'ctrl+c', action: () => { onCopy(); onClose(); }, category: 'edit', icon: '\u29C9' },
+    { id: 'duplicate', name: 'Duplicate Selected', shortcut: 'c', action: () => { onDuplicate(); onClose(); }, category: 'edit', icon: '\u{1F4D1}' },
+    { id: 'paste', name: 'Paste', shortcut: 'ctrl+v', action: () => { onPaste(); onClose(); }, category: 'edit', icon: '\u{1F4CB}' },
+    { id: 'undo', name: 'Undo', shortcut: 'ctrl+z', action: () => { onUndo(); onClose(); }, category: 'edit', icon: '\u21B6' },
+    { id: 'redo', name: 'Redo', shortcut: 'ctrl+y', action: () => { onRedo(); onClose(); }, category: 'edit', icon: '\u21B7' },
+    { id: 'select-all', name: 'Select All', shortcut: 'ctrl+a', action: () => { selectAll(); onClose(); }, category: 'edit', icon: '\u2611' },
+    { id: 'clear', name: 'Clear Selection', shortcut: 'esc', action: () => { clearSelection(); onClose(); }, category: 'edit', icon: '\u2716' },
     {
       id: 'remove-from-session',
       name: 'Remove from Session',
@@ -191,7 +185,7 @@ export const CommandPalette = ({
         onClose();
       },
       category: 'edit',
-      icon: '📤'
+      icon: '\u21A9'
     },
     {
       id: 'delete-permanent',
@@ -203,35 +197,35 @@ export const CommandPalette = ({
         onClose();
       },
       category: 'edit',
-      icon: '🗑️'
+      icon: '\u{1F5D1}'
     },
-    { id: 'pin', name: 'Pin/Unpin Selected', shortcut: 'p', action: () => { onTogglePin(); onClose(); }, category: 'edit', icon: '📌' },
-    { id: 'flip-text', name: 'Flip Images to Text', shortcut: 'o+o', action: () => { onFlipToText(); onClose(); }, category: 'edit', icon: '📝' },
-    { id: 'flip-image', name: 'Flip Images to Image', shortcut: 'o', action: () => { onFlipToImage(); onClose(); }, category: 'edit', icon: '🖼️' },
+    { id: 'pin', name: 'Pin/Unpin Selected', shortcut: 'p', action: () => { onTogglePin(); onClose(); }, category: 'edit', icon: '\u{1F4CC}' },
+    { id: 'flip-text', name: 'Flip Images to Text', shortcut: 'o+o', action: () => { onFlipToText(); onClose(); }, category: 'edit', icon: '\u{1F4DD}' },
+    { id: 'flip-image', name: 'Flip Images to Image', shortcut: 'o', action: () => { onFlipToImage(); onClose(); }, category: 'edit', icon: '\u{1F5BC}' },
 
     // File Commands
-    { id: 'save', name: 'Save', shortcut: 'ctrl+enter', action: () => { onSave(); onClose(); }, category: 'file', icon: '💾' },
+    { id: 'save', name: 'Save', shortcut: 'ctrl+enter', action: () => { onSave(); onClose(); }, category: 'file', icon: '\u{1F4BE}' },
     {
       id: 'export-sif', name: 'Export to Cytoscape (SIF)', shortcut: 'sif', action: () => {
         const nodesArray = Array.from(nodes.values()) as MindNode[];
         exportToCytoscape(nodesArray, synapses);
         onClose();
-      }, category: 'file', icon: '🕸️'
+      }, category: 'file', icon: 'SIF'
     },
     {
       id: 'export-csv', name: 'Export to Cytoscape (CSV)', shortcut: 'csv', action: () => {
         const nodesArray = Array.from(nodes.values()) as MindNode[];
         exportToCSV(nodesArray, synapses);
         onClose();
-      }, category: 'file', icon: '📊'
+      }, category: 'file', icon: 'CSV'
     },
-    { id: 'settings', name: 'Settings', shortcut: '', action: () => { onOpenSettings(); onClose(); }, category: 'file', icon: '⚙️' },
+    { id: 'settings', name: 'Settings', shortcut: '', action: () => { onOpenSettings(); onClose(); }, category: 'file', icon: '\u2699' },
     {
-      id: 'migrate-links', name: 'Migrate Links (Comment → Link Field)', shortcut: 'migrate', action: () => {
+      id: 'migrate-links', name: 'Migrate Links (Comment -> Link Field)', shortcut: 'migrate', action: () => {
         const migratedCount = useBrainStore.getState().migrateLinksFromCommentToLink();
-        alert(`✅ Migrated ${migratedCount} cards`);
+        alert(`OK. Migrated ${migratedCount} cards`);
         onClose();
-      }, category: 'file', icon: '🔄'
+      }, category: 'file', icon: '\u{1F501}'
     },
   ];
 

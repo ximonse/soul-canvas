@@ -1,7 +1,7 @@
 // store/slices/historySlice.ts
 // Hanterar undo/redo och clipboard
 
-import type { MindNode, Synapse } from '../../types/types';
+import type { MindNode, Session, Synapse } from '../../types/types';
 
 const MAX_UNDO_STACK = 50;
 const MAX_REDO_STACK = 50;
@@ -25,6 +25,8 @@ interface FullState extends HistoryState {
   nodes: Map<string, MindNode>;
   synapses: Synapse[];
   selectedNodeIds: Set<string>;
+  sessions: Session[];
+  activeSessionId: string | null;
 }
 
 type SetState = (fn: (state: FullState) => Partial<FullState>) => void;
@@ -61,6 +63,7 @@ export const createHistorySlice = (set: SetState): HistoryActions => ({
 
     const newNodesMap = new Map(state.nodes);
     const newSelected = new Set<string>();
+    const newIds: string[] = [];
 
     // Paste nodes with offset
     const pasteTag = 'pasted_' + new Date().toISOString().slice(2, 10).replace(/-/g, '');
@@ -91,9 +94,19 @@ export const createHistorySlice = (set: SetState): HistoryActions => ({
       };
       newNodesMap.set(newNode.id, newNode);
       newSelected.add(newNode.id);
+      newIds.push(newNode.id);
     });
 
-    return { nodes: newNodesMap, selectedNodeIds: newSelected, pendingSave: true };
+    let newSessions = state.sessions;
+    if (state.activeSessionId) {
+      newSessions = state.sessions.map((session) => {
+        if (session.id !== state.activeSessionId) return session;
+        const cardIds = new Set([...session.cardIds, ...newIds]);
+        return { ...session, cardIds: Array.from(cardIds) };
+      });
+    }
+
+    return { nodes: newNodesMap, selectedNodeIds: newSelected, sessions: newSessions, pendingSave: true };
   }),
 
   saveStateForUndo: () => set((state) => {

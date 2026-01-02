@@ -38,6 +38,9 @@ export const CanvasWeekView: React.FC<CanvasWeekViewProps> = ({
   const toggleSelection = useBrainStore((state) => state.toggleSelection);
   const selectedNodeIds = useBrainStore((state) => state.selectedNodeIds);
   const assets = useBrainStore((state) => state.assets);
+  const columnShowTags = useBrainStore((state) => state.columnShowTags);
+  const columnShowComments = useBrainStore((state) => state.columnShowComments);
+  const columnShowCaptions = useBrainStore((state) => state.columnShowCaptions);
 
   const weekStart = startOfWeekMonday(new Date());
   const weekStartMs = weekStart.getTime();
@@ -162,7 +165,6 @@ export const CanvasWeekView: React.FC<CanvasWeekViewProps> = ({
                           backgroundColor: cardStyles.bg,
                           border: `${isSoftBorderTheme ? '0.1px' : '1px'} solid ${cardStyles.border}`,
                           fontFamily: "'Noto Serif', Georgia, serif",
-                          opacity: isSelected ? 0.95 : 1,
                           lineBreak: 'anywhere',
                           overflowWrap: 'anywhere',
                         }}
@@ -175,7 +177,7 @@ export const CanvasWeekView: React.FC<CanvasWeekViewProps> = ({
                         )}
                         <div className="p-4">
                           {hasTime && (
-                            <div className="text-xs mb-1 opacity-60">
+                            <div className="text-xs mb-1">
                               {formatTime(eventDate)}
                             </div>
                           )}
@@ -200,13 +202,45 @@ export const CanvasWeekView: React.FC<CanvasWeekViewProps> = ({
                           >
                             {node.content.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()}
                           </p>
-                          {node.caption && (
+                          {columnShowCaptions && node.caption && (
                             <p
                               className="text-sm mt-2 italic"
                               style={{ color: theme.node.text, fontSize: '1.05em' }}
                             >
                               {node.caption}
                             </p>
+                          )}
+                          {columnShowComments && node.comment && (
+                            <div
+                              className="text-sm mt-2 p-2 rounded"
+                              style={{
+                                backgroundColor: theme.canvasColor,
+                                color: theme.node.text,
+                              }}
+                            >
+                              {node.comment}
+                            </div>
+                          )}
+                          {columnShowTags && node.tags?.length > 0 && (
+                            <div className="flex flex-wrap gap-1 mt-2">
+                              {node.tags.slice(0, 4).map((tag) => (
+                                <span
+                                  key={tag}
+                                  className="text-xs px-2 py-0.5 rounded"
+                                  style={{
+                                    backgroundColor: theme.canvasColor,
+                                    color: theme.node.text,
+                                  }}
+                                >
+                                  {tag}
+                                </span>
+                              ))}
+                              {node.tags.length > 4 && (
+                                <span className="text-xs">
+                                  +{node.tags.length - 4}
+                                </span>
+                              )}
+                            </div>
                           )}
                         </div>
                       </div>

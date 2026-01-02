@@ -93,6 +93,9 @@ export const SessionPanel: React.FC<SessionPanelProps> = ({
   const columnShowTags = useBrainStore((state) => state.columnShowTags);
   const columnShowMeta = useBrainStore((state) => state.columnShowMeta);
   const columnShowCaptions = useBrainStore((state) => state.columnShowCaptions);
+  const clipboardCount = useBrainStore((state) => state.clipboard.length);
+  const canvasWeekView = useBrainStore((state) => state.canvasWeekView);
+  const canvasEternalView = useBrainStore((state) => state.canvasEternalView);
   const columnCount = useBrainStore((state) => state.columnCount);
   const setColumnCount = useBrainStore((state) => state.setColumnCount);
   const toggleColumnShowComments = useBrainStore((state) => state.toggleColumnShowComments);
@@ -104,6 +107,7 @@ export const SessionPanel: React.FC<SessionPanelProps> = ({
     () => sessions.find(s => s.id === activeSessionId) || null,
     [sessions, activeSessionId]
   );
+  const showDetailToggles = viewMode === 'column' || (viewMode === 'canvas' && (canvasWeekView || canvasEternalView));
 
   // Samla alla unika taggar med antal från synliga kort
   const tagCounts = useMemo(() => {
@@ -219,7 +223,7 @@ export const SessionPanel: React.FC<SessionPanelProps> = ({
       )}
 
       {/* Kolumn-vy toggles */}
-      {viewMode === 'column' && (
+      {showDetailToggles && (
         <>
           <button
             onClick={(e) => {
@@ -251,7 +255,8 @@ export const SessionPanel: React.FC<SessionPanelProps> = ({
           >
             🏷️
           </button>
-          <button
+          {viewMode === 'column' && (
+            <button
             id="column-meta-toggle"
             onClick={(e) => {
               e.stopPropagation();
@@ -266,7 +271,8 @@ export const SessionPanel: React.FC<SessionPanelProps> = ({
             title="Visa/dolj info"
           >
             i
-          </button>
+            </button>
+          )}
           <button
             id="column-caption-toggle"
             onClick={(e) => {
@@ -292,6 +298,13 @@ export const SessionPanel: React.FC<SessionPanelProps> = ({
       {selectedCount > 0 && (
         <span className="px-2 py-0.5 text-xs bg-blue-600/50 rounded-full">
           {selectedCount} markerade
+        </span>
+      )}
+
+      {/* Kopierade kort */}
+      {clipboardCount > 0 && (
+        <span className="px-2 py-0.5 text-xs bg-emerald-600/50 rounded-full">
+          {clipboardCount} kopierade
         </span>
       )}
 

@@ -131,7 +131,6 @@ export const ColumnView: React.FC<ColumnViewProps> = ({
                 backgroundColor: cardStyles.bg,
                 border: `${isSoftBorderTheme ? '0.1px' : '1px'} solid ${cardStyles.border}`,
                 fontFamily: "'Noto Serif', Georgia, serif",
-                opacity: isSelected ? 0.95 : 1,
                 breakInside: 'avoid',
                 WebkitColumnBreakInside: 'avoid',
                 marginBottom: '12px',
@@ -188,7 +187,6 @@ export const ColumnView: React.FC<ColumnViewProps> = ({
                         style={{
                           backgroundColor: theme.canvasColor,
                           color: theme.node.text,
-                          opacity: 0.8,
                         }}
                       >
                         {node.comment}
@@ -209,20 +207,19 @@ export const ColumnView: React.FC<ColumnViewProps> = ({
                         style={{
                           backgroundColor: theme.canvasColor,
                           color: theme.node.text,
-                          opacity: 0.8,
                         }}
                       >
                         {tag}
                       </span>
                     ))}
                     {columnShowTags && (node.tags?.length || 0) > 5 && (
-                      <span className="text-xs opacity-50">
+                      <span className="text-xs">
                         +{(node.tags?.length || 0) - 5}
                       </span>
                     )}
 
                     {columnShowMeta && (
-                      <div className="ml-auto flex items-center gap-3 text-xs opacity-50">
+                      <div className="ml-auto flex items-center gap-3 text-xs">
                         {connections > 0 && (
                           <span title="Kopplingar">{connections} kopplade</span>
                         )}

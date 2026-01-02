@@ -31,6 +31,18 @@ src/
 
 Data sparas lokalt: `data.json` + `assets/`-mapp.
 
+## Data tools
+
+`clean_json.py` cleans/compresses `data.json` by removing `embedding`, de-duping nodes
+by content or position, and resetting `updatedAt`. It writes `<input>_clean.json`
+unless you pass an output path. Windows helper: `clean_json.bat` (drag/drop or run
+`clean_json.bat file.json`).
+
+```bash
+python clean_json.py data.json
+python clean_json.py data.json output.json
+```
+
 ---
 
 ## För AI-assistenter

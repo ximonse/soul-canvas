@@ -2,7 +2,7 @@
 // Measure and lay out markdown/plain text for Konva rendering.
 
 import Konva from 'konva';
-import { parseMarkdown } from './markdownParser';
+import { parseMarkdown, type MarkdownSegment } from './markdownParser';
 
 export interface TextMeasureOptions {
   width: number;
@@ -18,6 +18,7 @@ export interface MarkdownLineLayout {
   fontSize: number;
   fontStyle: string;
   height: number;
+  segments?: MarkdownSegment[];
 }
 
 export interface MarkdownLayoutResult {
@@ -92,7 +93,7 @@ export function layoutMarkdownText(
 
   for (const line of parsedLines) {
     let lineFontSize = options.fontSize;
-    let fontStyle = 'normal';
+    let fontStyle = line.fontStyle || 'normal';
 
     if (line.isHeading === 1) {
       lineFontSize = options.fontSize * 1.5;
@@ -117,6 +118,7 @@ export function layoutMarkdownText(
       fontSize: lineFontSize,
       fontStyle,
       height,
+      segments: line.segments,
     });
 
     currentY += height;
