@@ -1,6 +1,7 @@
 // hooks/useKeyboardHandlers.ts
 // Samlar all keyboard shortcut-logik och kopplar till useKeyboard hook
 
+import { useRef } from 'react';
 import { useKeyboard } from './useKeyboard';
 import { useBrainStore } from '../store/useBrainStore';
 import { type CanvasAPI } from './useCanvas';
@@ -15,6 +16,18 @@ interface KeyboardHandlersProps {
   hasFile: boolean;
   selectedNodesCount: number;
   visibleNodeIds: Set<string>;  // IDs av synliga kort (efter session + taggfilter)
+  contextMenu: ContextMenuState | null;
+  editingCardId: string | null;
+  showCommandPalette: boolean;
+  showSettings: boolean;
+  showAIPanel: boolean;
+  showAIChat: boolean;
+  isChatMinimized: boolean;
+  showMassImport: boolean;
+  showQuoteExtractor: boolean;
+  showTrailPanel: boolean;
+  showGuidance: boolean;
+  isScopePanelOpen: boolean;
 
   // Actions
   centerCamera: () => void;
@@ -36,6 +49,8 @@ interface KeyboardHandlersProps {
   // UI state setters
   setShowCommandPalette: (show: boolean | ((prev: boolean) => boolean)) => void;
   setShowAIPanel: (show: boolean | ((prev: boolean) => boolean)) => void;
+  setShowAIChat: (show: boolean | ((prev: boolean) => boolean)) => void;
+  setIsChatMinimized: (show: boolean | ((prev: boolean) => boolean)) => void;
   onOpenAIChat: () => void;
   onOpenMassImport: () => void;
   onOpenQuoteExtractor: () => void;
@@ -43,7 +58,12 @@ interface KeyboardHandlersProps {
   setShowSettings: (show: boolean | ((prev: boolean) => boolean)) => void;
   setContextMenu: (menu: ContextMenuState | null) => void;
   setEditingCardId: (id: string | null) => void;
+  setShowMassImport: (show: boolean | ((prev: boolean) => boolean)) => void;
+  setShowQuoteExtractor: (show: boolean | ((prev: boolean) => boolean)) => void;
+  setShowTrailPanel: (show: boolean | ((prev: boolean) => boolean)) => void;
+  setShowGuidance: (show: boolean | ((prev: boolean) => boolean)) => void;
   onToggleScopePanel?: () => void;
+  onCloseScopePanel?: () => void;
   onExpandScopeDegree?: (degree: number) => void;
   onToggleSessionPanel?: () => void;
   isSessionPanelOpen?: boolean;
@@ -62,6 +82,18 @@ export function useKeyboardHandlers({
   hasFile,
   selectedNodesCount,
   visibleNodeIds,
+  contextMenu,
+  editingCardId,
+  showCommandPalette,
+  showSettings,
+  showAIPanel,
+  showAIChat,
+  isChatMinimized,
+  showMassImport,
+  showQuoteExtractor,
+  showTrailPanel,
+  showGuidance,
+  isScopePanelOpen,
   centerCamera,
   fitAllNodes,
   resetZoom,
@@ -77,6 +109,8 @@ export function useKeyboardHandlers({
   arrangeCentrality,
   setShowCommandPalette,
   setShowAIPanel,
+  setShowAIChat,
+  setIsChatMinimized,
   onOpenAIChat,
   onOpenMassImport,
   onOpenQuoteExtractor,
@@ -84,7 +118,12 @@ export function useKeyboardHandlers({
   setShowSettings,
   setContextMenu,
   setEditingCardId,
+  setShowMassImport,
+  setShowQuoteExtractor,
+  setShowTrailPanel,
+  setShowGuidance,
   onToggleScopePanel,
+  onCloseScopePanel,
   onExpandScopeDegree,
   onToggleSessionPanel,
   isSessionPanelOpen,
@@ -94,6 +133,7 @@ export function useKeyboardHandlers({
   onBacktrackTrail,
   onForwardTrail,
 }: KeyboardHandlersProps) {
+  const lastEscapeAtRef = useRef(0);
   const nodes = useBrainStore((state) => state.nodes);
   const selectedNodeIds = useBrainStore((state) => state.selectedNodeIds);
   const sequences = useBrainStore((state) => state.sequences);
@@ -133,12 +173,72 @@ export function useKeyboardHandlers({
     },
 
     onEscape: () => {
+      const now = Date.now();
+      const last = lastEscapeAtRef.current;
+      const isDoubleEscape = now - last < 400;
+      lastEscapeAtRef.current = now;
+
+      if (contextMenu) {
+        setContextMenu(null);
+        return;
+      }
+
+      if (showCommandPalette) {
+        setShowCommandPalette(false);
+        return;
+      }
+
+      if (editingCardId) {
+        setEditingCardId(null);
+        return;
+      }
+
+      if (showAIChat) {
+        setShowAIChat(false);
+        setIsChatMinimized(false);
+        return;
+      }
+
+      if (showSettings) {
+        setShowSettings(false);
+        return;
+      }
+
+      if (showAIPanel) {
+        setShowAIPanel(false);
+        return;
+      }
+
       if (search.isOpen) {
         search.closeSearch();
         return;
       }
 
-      // Stäng SessionPanel om den är öppen
+      if (showQuoteExtractor) {
+        setShowQuoteExtractor(false);
+        return;
+      }
+
+      if (showMassImport) {
+        setShowMassImport(false);
+        return;
+      }
+
+      if (showGuidance) {
+        setShowGuidance(false);
+        return;
+      }
+
+      if (showTrailPanel) {
+        setShowTrailPanel(false);
+        return;
+      }
+
+      if (isScopePanelOpen) {
+        onCloseScopePanel?.();
+        return;
+      }
+
       if (isSessionPanelOpen) {
         onCloseSessionPanel?.();
         return;
@@ -165,11 +265,33 @@ export function useKeyboardHandlers({
         }
       }
 
+      if (isDoubleEscape) {
+        const state = useBrainStore.getState();
+        if (state.viewMode !== 'canvas' || state.canvasWeekView || state.canvasEternalView) {
+          state.setViewMode('canvas');
+          state.setCanvasWeekView(false);
+          state.setCanvasEternalView(false);
+        }
+        setContextMenu(null);
+        setShowCommandPalette(false);
+        setShowSettings(false);
+        setShowAIPanel(false);
+        setShowAIChat(false);
+        setIsChatMinimized(false);
+        setEditingCardId(null);
+        setShowMassImport(false);
+        setShowQuoteExtractor(false);
+        setShowTrailPanel(false);
+        setShowGuidance(false);
+        onCloseSessionPanel?.();
+        onCloseScopePanel?.();
+        if (search.isOpen) {
+          search.closeSearch();
+        }
+        return;
+      }
+
       setZenMode(false);
-      setContextMenu(null);
-      setShowSettings(false);
-      setShowAIPanel(false);
-      setShowCommandPalette(false);
       clearSelection();
     },
 

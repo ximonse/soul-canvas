@@ -24,6 +24,7 @@ import { ModalManager } from './components/ModalManager';
 import KonvaCanvas from './components/KonvaCanvas';
 import { ColumnView } from './components/ColumnView';
 import { CanvasWeekView } from './components/CanvasWeekView';
+import { CanvasEternalView } from './components/CanvasEternalView';
 import { MiniMap } from './components/overlays/MiniMap';
 import { SessionPanel } from './components/SessionPanel';
 import { AIBatchStatus } from './components/overlays/AIBatchStatus';
@@ -54,6 +55,7 @@ function App() {
   const enableAutoLink = useBrainStore((state) => state.enableAutoLink);
   const viewMode = useBrainStore((state) => state.viewMode);
   const canvasWeekView = useBrainStore((state) => state.canvasWeekView);
+  const canvasEternalView = useBrainStore((state) => state.canvasEternalView);
   const pendingSave = useBrainStore((state) => state.pendingSave);
   const setPendingSave = useBrainStore((state) => state.setPendingSave);
   const saveStateForUndo = useBrainStore((state) => state.saveStateForUndo);
@@ -374,6 +376,18 @@ function App() {
     hasFile,
     selectedNodesCount,
     visibleNodeIds,
+    contextMenu,
+    editingCardId,
+    showCommandPalette,
+    showSettings,
+    showAIPanel,
+    showAIChat,
+    isChatMinimized,
+    showMassImport,
+    showQuoteExtractor,
+    showTrailPanel,
+    showGuidance,
+    isScopePanelOpen: selectionScope.isVisible,
     centerCamera,
     fitAllNodes,
     resetZoom,
@@ -389,6 +403,8 @@ function App() {
     arrangeCentrality,
     setShowCommandPalette,
     setShowAIPanel,
+    setShowAIChat,
+    setIsChatMinimized,
     onOpenAIChat: () => { setShowAIChat(true); setIsChatMinimized(false); setIsReflectionChat(false); },
     onOpenMassImport: () => setShowMassImport(true),
     onOpenQuoteExtractor: () => setShowQuoteExtractor(true),
@@ -400,7 +416,12 @@ function App() {
     setShowSettings,
     setContextMenu,
     setEditingCardId,
+    setShowMassImport,
+    setShowQuoteExtractor,
+    setShowTrailPanel,
+    setShowGuidance,
     onToggleScopePanel: selectionScope.toggleVisibility,
+    onCloseScopePanel: selectionScope.close,
     onExpandScopeDegree: handleExpandScopeDegree,
     onToggleWandering: handleToggleWandering,
     onBacktrackTrail: wandering.backtrack,
@@ -467,8 +488,16 @@ function App() {
             onZoomChange={setCurrentZoom}
             onLinkHover={setHoveredLink}
           />
-          {canvasWeekView && (
+          {canvasWeekView && !canvasEternalView && (
             <CanvasWeekView
+              nodes={filteredNodesArray}
+              theme={theme}
+              onEditCard={setEditingCardId}
+              onContextMenu={handleContextMenu}
+            />
+          )}
+          {canvasEternalView && (
+            <CanvasEternalView
               nodes={filteredNodesArray}
               theme={theme}
               onEditCard={setEditingCardId}

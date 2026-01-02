@@ -222,6 +222,12 @@ export const CanvasWeekView: React.FC<CanvasWeekViewProps> = ({
             Inga kort med event denna vecka
           </div>
         )}
+        <div
+          className="fixed bottom-4 right-4 text-xs pointer-events-none select-none"
+          style={{ color: theme.node.text, opacity: 0.35 }}
+        >
+          Esc x2: canvas
+        </div>
       </div>
     </div>
   );

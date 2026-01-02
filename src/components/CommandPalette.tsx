@@ -105,6 +105,15 @@ export const CommandPalette = ({
   const [selectedIndex, setSelectedIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  const handleToggleEternalView = () => {
+    const state = useBrainStore.getState();
+    const nextEnabled = state.viewMode !== 'canvas' || !state.canvasEternalView;
+    state.setViewMode('canvas');
+    state.setCanvasWeekView(false);
+    state.setCanvasEternalView(nextEnabled);
+    onClose();
+  };
+
   const scopeCommands: Command[] = onExpandScopeDegree
     ? [1, 2, 3, 4, 5, 6].map((degree) => ({
       id: `scope-${degree}`,
@@ -127,6 +136,7 @@ export const CommandPalette = ({
     { id: 'tags', name: 'Generate Tags', shortcut: 'tag', action: async () => { await intelligence.generateTagsForSelection(); onClose(); }, category: 'ai', icon: '🏷️' },
 
     // View Commands
+    { id: 'canvas-eternal', name: 'Evig canvasvy', shortcut: 'alt+e', action: () => { handleToggleEternalView(); }, category: 'view', icon: 'E' },
     { id: 'center', name: 'Center Camera (0,0)', shortcut: '', action: () => { onCenterCamera(); onClose(); }, category: 'view', icon: '🎯' },
     { id: 'fit-all', name: 'Fit All Nodes', shortcut: '-', action: () => { onFitAllNodes(); onClose(); }, category: 'view', icon: '🔍' },
     { id: 'zen', name: 'Toggle Zen Mode', shortcut: 'z', action: () => { onToggleZen(); onClose(); }, category: 'view', icon: '🧘' },
@@ -339,4 +349,5 @@ export const CommandPalette = ({
     </div>
   );
 };
+
 

@@ -44,6 +44,8 @@ export const ColumnView: React.FC<ColumnViewProps> = ({
   const toggleSelection = useBrainStore((state) => state.toggleSelection);
   const columnShowComments = useBrainStore((state) => state.columnShowComments);
   const columnShowTags = useBrainStore((state) => state.columnShowTags);
+  const columnShowMeta = useBrainStore((state) => state.columnShowMeta);
+  const columnShowCaptions = useBrainStore((state) => state.columnShowCaptions);
   const columnCount = useBrainStore((state) => state.columnCount);
   const columnShowOnlySelected = useBrainStore((state) => state.columnShowOnlySelected);
   const selectedNodeIds = useBrainStore((state) => state.selectedNodeIds);
@@ -106,158 +108,150 @@ export const ColumnView: React.FC<ColumnViewProps> = ({
         }}
       >
         {columnOrderedNodes.map((node) => {
-  const connections = countConnections(node.id, synapses);
-  const tagCount = (node.tags?.length || 0) + (node.semanticTags?.length || 0);
-  const displayTitle = getNodeDisplayTitle(node);
-  const isSelected = selectedNodeIds.has(node.id);
-  const imageUrl = node.type === 'image' ? resolveImageUrl(node, assets) : null;
-  const cardStyles = getNodeStyles(
-    theme,
-    node.updatedAt || node.createdAt,
-    isSelected,
-    node.backgroundColor
-  );
+          const connections = countConnections(node.id, synapses);
+          const tagCount = (node.tags?.length || 0) + (node.semanticTags?.length || 0);
+          const displayTitle = getNodeDisplayTitle(node);
+          const isSelected = selectedNodeIds.has(node.id);
+          const imageUrl = node.type === 'image' ? resolveImageUrl(node, assets) : null;
+          const cardStyles = getNodeStyles(
+            theme,
+            node.updatedAt || node.createdAt,
+            isSelected,
+            node.backgroundColor
+          );
 
-  return (
-    <div
-      key={node.id}
-      onClick={(e) => handleCardClick(node, e)}
-      onDoubleClick={() => handleCardDoubleClick(node)}
-      onContextMenu={(e) => handleContextMenu(node, e)}
-      className="rounded-lg cursor-pointer transition-all"
-      style={{
-        backgroundColor: cardStyles.bg,
-        border: `${isSoftBorderTheme ? '0.1px' : '1px'} solid ${cardStyles.border}`,
-        fontFamily: "'Noto Serif', Georgia, serif",
-        opacity: isSelected ? 0.95 : 1,
-        breakInside: 'avoid',
-        WebkitColumnBreakInside: 'avoid',
-        marginBottom: '12px',
-        lineBreak: 'anywhere',
-        overflowWrap: 'anywhere',
-      }}
-    >
-      {node.accentColor && (
-        <div
-          className="h-5 rounded-t-lg"
-          style={{ backgroundColor: node.accentColor }}
-        />
-      )}
-
-      <div className="p-4">
-        <div className="flex items-start gap-3 mb-2">
-          <div className="flex-1 min-w-0">
-            {displayTitle && (
-              <h3
-                className="font-semibold mb-1 truncate"
-                style={{ color: theme.node.text, fontSize: '1.1em' }}
-              >
-                {displayTitle}
-              </h3>
-            )}
-
-            {imageUrl && (
-              <img
-                src={imageUrl}
-                alt={node.caption || ''}
-                className="w-full object-contain rounded mb-2 bg-black/5"
-              />
-            )}
-
-            <p
-              className="leading-relaxed whitespace-pre-wrap"
-              style={{ color: theme.node.text, fontSize: '1.1em' }}
-            >
-              {node.content.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()}
-            </p>
-
-            {node.caption && (
-              <p
-                className="text-sm mt-2 italic"
-                style={{ color: theme.node.text, fontSize: '1.1em' }}
-              >
-                {node.caption}
-              </p>
-            )}
-
-            {columnShowComments && node.comment && (
-              <p
-                className="text-sm mt-2 p-2 rounded"
-                style={{
-                  backgroundColor: theme.canvasColor,
-                  color: theme.node.text,
-                  opacity: 0.8,
-                }}
-              >
-                {node.comment}
-              </p>
-            )}
-          </div>
-        </div>
-
-        <div
-          className="flex flex-wrap items-center gap-2 mt-3 pt-2 border-t"
-          style={{ borderColor: theme.node.border }}
-        >
-          {columnShowTags && node.tags?.slice(0, 5).map((tag) => (
-            <span
-              key={tag}
-              className="text-xs px-2 py-0.5 rounded"
+          return (
+            <div
+              key={node.id}
+              onClick={(e) => handleCardClick(node, e)}
+              onDoubleClick={() => handleCardDoubleClick(node)}
+              onContextMenu={(e) => handleContextMenu(node, e)}
+              className="rounded-lg cursor-pointer transition-all"
               style={{
-                backgroundColor: theme.canvasColor,
-                color: theme.node.text,
-                opacity: 0.8,
+                backgroundColor: cardStyles.bg,
+                border: `${isSoftBorderTheme ? '0.1px' : '1px'} solid ${cardStyles.border}`,
+                fontFamily: "'Noto Serif', Georgia, serif",
+                opacity: isSelected ? 0.95 : 1,
+                breakInside: 'avoid',
+                WebkitColumnBreakInside: 'avoid',
+                marginBottom: '12px',
+                lineBreak: 'anywhere',
+                overflowWrap: 'anywhere',
               }}
             >
-              {tag}
-            </span>
-          ))}
-          {columnShowTags && (node.tags?.length || 0) > 5 && (
-            <span className="text-xs opacity-50">
-              +{(node.tags?.length || 0) - 5}
-            </span>
-          )}
+              {node.accentColor && (
+                <div
+                  className="h-5 rounded-t-lg"
+                  style={{ backgroundColor: node.accentColor }}
+                />
+              )}
 
-          <div className="ml-auto flex items-center gap-3 text-xs opacity-50">
-            {connections > 0 && (
-              <span title="Kopplingar">{connections} kopplade</span>
-            )}
-            {tagCount > 0 && (
-              <span title="Taggar">{tagCount} taggar</span>
-            )}
-            <span title={node.updatedAt ? 'Senast ändrad' : 'Skapad'}>
-              {formatDate(node.updatedAt || node.createdAt)}
-            </span>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-})}
+              <div className="p-4">
+                <div className="flex items-start gap-3 mb-2">
+                  <div className="flex-1 min-w-0">
+                    {displayTitle && (
+                      <h3
+                        className="font-semibold mb-1 truncate"
+                        style={{ color: theme.node.text, fontSize: '1.1em' }}
+                      >
+                        {displayTitle}
+                      </h3>
+                    )}
+
+                    {imageUrl && (
+                      <img
+                        src={imageUrl}
+                        alt={node.caption || ''}
+                        className="w-full object-contain rounded mb-2 bg-black/5"
+                      />
+                    )}
+
+                    <p
+                      className="leading-relaxed whitespace-pre-wrap"
+                      style={{ color: theme.node.text, fontSize: '1.1em' }}
+                    >
+                      {node.content.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()}
+                    </p>
+
+                    {columnShowCaptions && node.caption && (
+                      <p
+                        className="text-sm mt-2 italic"
+                        style={{ color: theme.node.text, fontSize: '1.1em' }}
+                      >
+                        {node.caption}
+                      </p>
+                    )}
+
+                    {columnShowComments && node.comment && (
+                      <p
+                        className="text-sm mt-2 p-2 rounded"
+                        style={{
+                          backgroundColor: theme.canvasColor,
+                          color: theme.node.text,
+                          opacity: 0.8,
+                        }}
+                      >
+                        {node.comment}
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                {(columnShowTags || columnShowMeta) && (
+                  <div
+                    className="flex flex-wrap items-center gap-2 mt-3 pt-2 border-t"
+                    style={{ borderColor: theme.node.border }}
+                  >
+                    {columnShowTags && node.tags?.slice(0, 5).map((tag) => (
+                      <span
+                        key={tag}
+                        className="text-xs px-2 py-0.5 rounded"
+                        style={{
+                          backgroundColor: theme.canvasColor,
+                          color: theme.node.text,
+                          opacity: 0.8,
+                        }}
+                      >
+                        {tag}
+                      </span>
+                    ))}
+                    {columnShowTags && (node.tags?.length || 0) > 5 && (
+                      <span className="text-xs opacity-50">
+                        +{(node.tags?.length || 0) - 5}
+                      </span>
+                    )}
+
+                    {columnShowMeta && (
+                      <div className="ml-auto flex items-center gap-3 text-xs opacity-50">
+                        {connections > 0 && (
+                          <span title="Kopplingar">{connections} kopplade</span>
+                        )}
+                        {tagCount > 0 && (
+                          <span title="Taggar">{tagCount} taggar</span>
+                        )}
+                        <span title={node.updatedAt ? 'Senast andrad' : 'Skapad'}>
+                          {formatDate(node.updatedAt || node.createdAt)}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })}
         {filteredNodes.length === 0 && (
           <div className="text-center py-12 opacity-50">
             {columnShowOnlySelected ? 'Inga markerade kort' : 'Inga kort att visa'}
           </div>
         )}
       </div>
+      <div
+        className="fixed bottom-4 right-4 text-xs pointer-events-none select-none"
+        style={{ color: theme.node.text, opacity: 0.35 }}
+      >
+        Esc x2: canvas
+      </div>
     </div>
   );
 };
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

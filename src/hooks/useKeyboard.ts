@@ -95,14 +95,25 @@ export function useKeyboard(
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
     const typing = isTyping();
 
+    // Alt+E = eternal canvas view (works even when typing)
     // Alt+L = weekly canvas view (works even when typing)
     if (e.altKey && !e.ctrlKey && !e.metaKey) {
       const key = e.key.toLowerCase();
+      if (key === 'e') {
+        e.preventDefault();
+        const state = useBrainStore.getState();
+        const nextEnabled = state.viewMode !== 'canvas' || !state.canvasEternalView;
+        state.setViewMode('canvas');
+        state.setCanvasWeekView(false);
+        state.setCanvasEternalView(nextEnabled);
+        return;
+      }
       if (key === 'l') {
         e.preventDefault();
         const state = useBrainStore.getState();
         const nextEnabled = state.viewMode !== 'canvas' || !state.canvasWeekView;
         state.setViewMode('canvas');
+        state.setCanvasEternalView(false);
         state.setCanvasWeekView(nextEnabled);
         return;
       }

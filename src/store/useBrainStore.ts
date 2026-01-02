@@ -51,9 +51,12 @@ interface CoreState {
   columnSort: SortOption;
   columnShowComments: boolean;
   columnShowTags: boolean;
+  columnShowMeta: boolean;
+  columnShowCaptions: boolean;
   columnCount: number;
   columnShowOnlySelected: boolean;
   canvasWeekView: boolean;
+  canvasEternalView: boolean;
 }
 
 // Core actions interface
@@ -120,8 +123,11 @@ interface CoreActions {
   setColumnCount: (count: number) => void;
   setColumnShowOnlySelected: (enabled: boolean) => void;
   setCanvasWeekView: (enabled: boolean) => void;
+  setCanvasEternalView: (enabled: boolean) => void;
   toggleColumnShowComments: () => void;
   toggleColumnShowTags: () => void;
+  toggleColumnShowMeta: () => void;
+  toggleColumnShowCaptions: () => void;
 }
 
 const shouldTouchUpdatedAt = (updates: Partial<MindNode>): boolean => (
@@ -185,9 +191,12 @@ export const useBrainStore = create<BrainStore>()((set) => ({
   columnSort: 'newest',
   columnShowComments: false,
   columnShowTags: true,
+  columnShowMeta: true,
+  columnShowCaptions: true,
   columnCount: 1,
   columnShowOnlySelected: false,
   canvasWeekView: false,
+  canvasEternalView: false,
   ...historyInitialState,
   ...initialTrailState,
 
@@ -698,17 +707,22 @@ export const useBrainStore = create<BrainStore>()((set) => ({
   setViewMode: (mode) => set((state) => ({
     viewMode: mode,
     canvasWeekView: mode === 'canvas' ? state.canvasWeekView : false,
+    canvasEternalView: mode === 'canvas' ? state.canvasEternalView : false,
   })),
   toggleViewMode: () => set((state) => ({
     viewMode: state.viewMode === 'canvas' ? 'column' : 'canvas',
     canvasWeekView: state.viewMode === 'canvas' ? false : state.canvasWeekView,
+    canvasEternalView: state.viewMode === 'canvas' ? false : state.canvasEternalView,
   })),
   setColumnSort: (sort) => set({ columnSort: sort }),
   setColumnCount: (count) => set({ columnCount: Math.max(1, Math.min(6, count)) }),
   setColumnShowOnlySelected: (enabled) => set({ columnShowOnlySelected: enabled }),
   setCanvasWeekView: (enabled) => set({ canvasWeekView: enabled }),
+  setCanvasEternalView: (enabled) => set({ canvasEternalView: enabled }),
   toggleColumnShowComments: () => set((state) => ({ columnShowComments: !state.columnShowComments })),
   toggleColumnShowTags: () => set((state) => ({ columnShowTags: !state.columnShowTags })),
+  toggleColumnShowMeta: () => set((state) => ({ columnShowMeta: !state.columnShowMeta })),
+  toggleColumnShowCaptions: () => set((state) => ({ columnShowCaptions: !state.columnShowCaptions })),
 
   // Migration: Move links from comment to link field
   migrateLinksFromCommentToLink: () => {

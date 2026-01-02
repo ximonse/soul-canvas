@@ -28,6 +28,7 @@ export const CardEditor = ({ cardId, onClose, theme }: CardEditorProps) => {
   const [eventDate, setEventDate] = useState('');
   const [remindAt, setRemindAt] = useState('');
   const [remindSlider, setRemindSlider] = useState(0);
+  const [reminderMenuOpen, setReminderMenuOpen] = useState(false);
   const [accentColor, setAccentColor] = useState<string | undefined>(undefined);
   const [semanticTags, setSemanticTags] = useState<string[]>([]);
   const [showAITags, setShowAITags] = useState(false);
@@ -84,10 +85,12 @@ export const CardEditor = ({ cardId, onClose, theme }: CardEditorProps) => {
     appendReminderDate(date);
   };
 
-  const reminderParts = remindAt
-    .split(',')
-    .map((p) => p.trim())
-    .filter(Boolean);
+  const reminderParts = Array.from(new Set(
+    remindAt
+      .split(',')
+      .map((p) => p.trim())
+      .filter(Boolean)
+  ));
 
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
@@ -286,7 +289,7 @@ export const CardEditor = ({ cardId, onClose, theme }: CardEditorProps) => {
           />
 
           <div className="mt-2 flex items-center gap-3">
-            <span style={{ color: theme.node.text, fontSize: '0.875rem' }}>Event:</span>
+            <span style={{ color: theme.node.text, fontSize: '0.875rem' }}>Datum:</span>
             <input
               type="text"
               value={eventDate}
@@ -318,27 +321,78 @@ export const CardEditor = ({ cardId, onClose, theme }: CardEditorProps) => {
                 onTouchEnd={() => addReminderFromSlider(remindSlider)}
                 className="flex-1"
               />
-              <select
-                value=""
-                onChange={() => { }}
-                className="text-xs px-2 py-1 rounded"
-                style={{
-                  backgroundColor: theme.canvasColor,
-                  color: theme.node.text,
-                  border: `1px solid ${theme.node.border}`,
-                  minWidth: '160px',
-                }}
-                title={'P\u00e5minnelser'}
-              >
-                <option value="" disabled>{'P\u00e5minnelser'}</option>
-                {reminderParts.length === 0 ? (
-                  <option value="__none" disabled>(inga)</option>
-                ) : (
-                  reminderParts.map((stamp) => (
-                    <option key={stamp} value={stamp}>{stamp}</option>
-                  ))
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setReminderMenuOpen((prev) => !prev)}
+                  className="text-xs px-2 py-1 rounded"
+                  style={{
+                    backgroundColor: theme.canvasColor,
+                    color: theme.node.text,
+                    border: `1px solid ${theme.node.border}`,
+                    minWidth: '160px',
+                  }}
+                  title={'P\u00e5minnelser'}
+                >
+                  P\u00e5minnelser
+                </button>
+                {reminderMenuOpen && (
+                  <div
+                    className="absolute right-0 mt-1 rounded border shadow-lg z-10"
+                    style={{
+                      backgroundColor: theme.canvasColor,
+                      borderColor: theme.node.border,
+                      color: theme.node.text,
+                      minWidth: '160px',
+                    }}
+                  >
+                    {reminderParts.length === 0 ? (
+                      <div className="px-2 py-1 text-xs opacity-60">(inga)</div>
+                    ) : (
+                      <div className="max-h-40 overflow-y-auto">
+                        {reminderParts.map((stamp) => (
+                          <div
+                            key={stamp}
+                            className="flex items-center justify-between gap-3 px-2 py-1 text-xs"
+                          >
+                            <span>{stamp}</span>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const next = reminderParts.filter((part) => part !== stamp);
+                                setRemindAt(next.join(', '));
+                                setRemindSlider(0);
+                                if (next.length === 0) {
+                                  setReminderMenuOpen(false);
+                                }
+                              }}
+                              className="opacity-70 hover:opacity-100"
+                              title={`Ta bort ${stamp}`}
+                            >
+                              x
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {reminderParts.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setRemindAt('');
+                          setRemindSlider(0);
+                          setReminderMenuOpen(false);
+                        }}
+                        className="w-full px-2 py-1 text-xs border-t opacity-70 hover:opacity-100"
+                        style={{ borderColor: theme.node.border }}
+                        title="Ta bort alla p\u00e5minnelser"
+                      >
+                        x alla
+                      </button>
+                    )}
+                  </div>
                 )}
-              </select>
+              </div>
             </div>
             <div className="flex text-xs mt-1" style={{ color: theme.node.text, opacity: 0.6 }}>
               {remindSliderOptions.map((option) => (

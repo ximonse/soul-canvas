@@ -91,10 +91,14 @@ export const SessionPanel: React.FC<SessionPanelProps> = ({
   const setColumnSort = useBrainStore((state) => state.setColumnSort);
   const columnShowComments = useBrainStore((state) => state.columnShowComments);
   const columnShowTags = useBrainStore((state) => state.columnShowTags);
+  const columnShowMeta = useBrainStore((state) => state.columnShowMeta);
+  const columnShowCaptions = useBrainStore((state) => state.columnShowCaptions);
   const columnCount = useBrainStore((state) => state.columnCount);
   const setColumnCount = useBrainStore((state) => state.setColumnCount);
   const toggleColumnShowComments = useBrainStore((state) => state.toggleColumnShowComments);
   const toggleColumnShowTags = useBrainStore((state) => state.toggleColumnShowTags);
+  const toggleColumnShowMeta = useBrainStore((state) => state.toggleColumnShowMeta);
+  const toggleColumnShowCaptions = useBrainStore((state) => state.toggleColumnShowCaptions);
 
   const activeSession = useMemo(
     () => sessions.find(s => s.id === activeSessionId) || null,
@@ -246,6 +250,38 @@ export const SessionPanel: React.FC<SessionPanelProps> = ({
             title="Visa/dölj taggar"
           >
             🏷️
+          </button>
+          <button
+            id="column-meta-toggle"
+            onClick={(e) => {
+              e.stopPropagation();
+              toggleColumnShowMeta();
+            }}
+            className={`px-2 py-0.5 text-xs rounded transition-opacity ${columnShowMeta ? 'opacity-100' : 'opacity-40'}`}
+            style={{
+              backgroundColor: columnShowMeta ? theme.node.selectedBorder : theme.canvasColor,
+              color: columnShowMeta ? theme.node.bg : theme.node.text,
+              border: `1px solid ${theme.node.border}`,
+            }}
+            title="Visa/dolj info"
+          >
+            i
+          </button>
+          <button
+            id="column-caption-toggle"
+            onClick={(e) => {
+              e.stopPropagation();
+              toggleColumnShowCaptions();
+            }}
+            className={`px-2 py-0.5 text-xs rounded transition-opacity ${columnShowCaptions ? 'opacity-100' : 'opacity-40'}`}
+            style={{
+              backgroundColor: columnShowCaptions ? theme.node.selectedBorder : theme.canvasColor,
+              color: columnShowCaptions ? theme.node.bg : theme.node.text,
+              border: `1px solid ${theme.node.border}`,
+            }}
+            title="Visa/dolj bildtext"
+          >
+            C
           </button>
         </>
       )}
@@ -616,3 +652,9 @@ export const SessionPanel: React.FC<SessionPanelProps> = ({
     </>
   );
 };
+
+
+
+
+
+
