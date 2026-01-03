@@ -136,66 +136,6 @@ export function useImportHandlers({
     return updates;
   };
 
-  const parseUriList = (raw: string) => (
-    raw
-      .split(/\r?\n/)
-      .map((line) => line.trim())
-      .filter((line) => line && !line.startsWith('#'))
-  );
-
-  const extractZoteroInfo = (raw: string) => {
-    const entries = parseUriList(raw);
-    for (const entry of entries) {
-      if (!entry.startsWith('file://')) continue;
-      const decoded = decodeURIComponent(entry);
-      const match = decoded.match(/[/\\]Zotero[/\\]storage[/\\]([A-Z0-9]{8})[/\\]/i);
-      if (!match) continue;
-      return {
-        zoteroItemKey: match[1],
-        zoteroPdfPath: entry,
-      };
-    }
-    return null;
-  };
-
-  const parsePdfId = (pdfId: string) => {
-    const match = pdfId.match(/^(.*)_(\d+)_(\d+)$/);
-    if (!match) return null;
-    return {
-      group: match[1],
-      page: Number(match[2]),
-      total: Number(match[3]),
-    };
-  };
-
-  const findPdfGroupForZoteroKey = (key?: string) => {
-    if (!key) return null;
-    const matches = Array.from(useBrainStore.getState().nodes.values())
-      .filter((node) => node.zoteroItemKey === key && node.pdfId)
-      .map((node) => parsePdfId(node.pdfId || ''))
-      .filter((parsed): parsed is NonNullable<typeof parsed> => Boolean(parsed));
-    if (matches.length === 0) return null;
-    const group = matches[0].group;
-    const total = matches.reduce((max, item) => Math.max(max, item.total), 0);
-    return { group, total };
-  };
-
-  const extractPageFromPdfLink = (link?: string) => {
-    if (!link) return null;
-    const match = link.match(/[?&]page=(\d+)/);
-    return match ? Number(match[1]) : null;
-  };
-
-  const resolvePdfIdForNote = (note: ZoteroNote) => {
-    const group = findPdfGroupForZoteroKey(note.zoteroItemKey);
-    if (!group) return undefined;
-    const page = extractPageFromPdfLink(note.pdfLink);
-    if (page) {
-      return `${group.group}_${page}_${group.total}`;
-    }
-    return `${group.group}_0_${group.total}`;
-  };
-
   const buildZoteroPdfLink = (zoteroItemKey?: string, page?: number) => {
     if (!zoteroItemKey) return null;
     const pageSuffix = page && page > 0 ? `?page=${page}` : '';
@@ -204,6 +144,43 @@ export function useImportHandlers({
 
   const addZoteroNotes = useCallback((notes: ZoteroNote[], originX: number, originY: number) => {
     if (notes.length === 0) return;
+    const parsePdfId = (pdfId: string) => {
+      const match = pdfId.match(/^(.*)_(\d+)_(\d+)$/);
+      if (!match) return null;
+      return {
+        group: match[1],
+        page: Number(match[2]),
+        total: Number(match[3]),
+      };
+    };
+
+    const findPdfGroupForZoteroKey = (key?: string) => {
+      if (!key) return null;
+      const matches = Array.from(useBrainStore.getState().nodes.values())
+        .filter((node) => node.zoteroItemKey === key && node.pdfId)
+        .map((node) => parsePdfId(node.pdfId || ''))
+        .filter((parsed): parsed is NonNullable<typeof parsed> => Boolean(parsed));
+      if (matches.length === 0) return null;
+      const group = matches[0].group;
+      const total = matches.reduce((max, item) => Math.max(max, item.total), 0);
+      return { group, total };
+    };
+
+    const extractPageFromPdfLink = (link?: string) => {
+      if (!link) return null;
+      const match = link.match(/[?&]page=(\d+)/);
+      return match ? Number(match[1]) : null;
+    };
+
+    const resolvePdfIdForNote = (note: ZoteroNote) => {
+      const group = findPdfGroupForZoteroKey(note.zoteroItemKey);
+      if (!group) return undefined;
+      const page = extractPageFromPdfLink(note.pdfLink);
+      if (page) {
+        return `${group.group}_${page}_${group.total}`;
+      }
+      return `${group.group}_0_${group.total}`;
+    };
     const spacing = 350;
     const cols = Math.ceil(Math.sqrt(notes.length));
     notes.forEach((note, index) => {
@@ -330,6 +307,26 @@ export function useImportHandlers({
 
     const worldPos = canvas.screenToWorld(e.clientX, e.clientY);
     const files = Array.from(e.dataTransfer.files);
+    const parseUriList = (raw: string) => (
+      raw
+        .split(/\r?\n/)
+        .map((line) => line.trim())
+        .filter((line) => line && !line.startsWith('#'))
+    );
+    const extractZoteroInfo = (raw: string) => {
+      const entries = parseUriList(raw);
+      for (const entry of entries) {
+        if (!entry.startsWith('file://')) continue;
+        const decoded = decodeURIComponent(entry);
+        const match = decoded.match(/[/\\]Zotero[/\\]storage[/\\]([A-Z0-9]{8})[/\\]/i);
+        if (!match) continue;
+        return {
+          zoteroItemKey: match[1],
+          zoteroPdfPath: entry,
+        };
+      }
+      return null;
+    };
     const risMetadataByBaseName = new Map<string, RisMetadata>();
     const risFromText = extractRisFromText(
       e.dataTransfer.getData('application/x-research-info-systems')
@@ -504,7 +501,20 @@ export function useImportHandlers({
         }
       }
     }
-  }, [hasFile, canvas, saveAsset, saveOriginal, handleJSONImport, addNode, addNodeWithId, updateNode, askPdfGroupName, extractRisFromText, addZoteroNotes]);
+  }, [
+    hasFile,
+    canvas,
+    saveAsset,
+    saveOriginal,
+    handleJSONImport,
+    addNode,
+    addNodeWithId,
+    updateNode,
+    askPdfGroupName,
+    extractRisFromText,
+    addZoteroNotes,
+    saveStateForUndo,
+  ]);
 
   // Handle paste events (images)
   useEffect(() => {

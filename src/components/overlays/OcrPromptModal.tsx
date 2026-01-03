@@ -19,8 +19,11 @@ export const OcrPromptModal = ({ onClose, theme }: OcrPromptModalProps) => {
   }, [ocrPrompt]);
 
   useEffect(() => {
-    textareaRef.current?.focus();
-    textareaRef.current?.setSelectionRange(draft.length, draft.length);
+    const el = textareaRef.current;
+    if (!el) return;
+    el.focus();
+    const len = el.value.length;
+    el.setSelectionRange(len, len);
   }, []);
 
   const handleSave = () => {

@@ -317,7 +317,7 @@ export function useFileSystem() {
     } catch {
       return null;
     }
-  }, [fileHandle]);
+  }, [fileHandle, ensureNestedDirectory, ensureOriginalsReadme]);
 
   // Restore session from IndexedDB
   useEffect(() => {
