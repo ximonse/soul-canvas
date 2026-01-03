@@ -214,6 +214,7 @@ function App() {
   const [showAIPanel, setShowAIPanel] = useState(false);
   const [showCommandPalette, setShowCommandPalette] = useState(false);
   const [showAIChat, setShowAIChat] = useState(false);
+  const [showOcrPrompt, setShowOcrPrompt] = useState(false);
   const [isChatMinimized, setIsChatMinimized] = useState(false);
   const [isReflectionChat, setIsReflectionChat] = useState(false);
   const [showMassImport, setShowMassImport] = useState(false);
@@ -786,6 +787,7 @@ function App() {
           showAIPanel={showAIPanel}
           showCommandPalette={showCommandPalette}
           showAIChat={showAIChat}
+          showOcrPrompt={showOcrPrompt}
           contextMenu={contextMenu}
           editingCardId={editingCardId}
           searchIsOpen={search.isOpen}
@@ -845,6 +847,7 @@ function App() {
           setShowAIPanel={setShowAIPanel}
           setShowCommandPalette={setShowCommandPalette}
           setShowAIChat={setShowAIChat}
+          setShowOcrPrompt={setShowOcrPrompt}
           setContextMenu={setContextMenu}
           setEditingCardId={setEditingCardId}
           setThemeIndex={setThemeIndex}

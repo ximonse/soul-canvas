@@ -11,6 +11,7 @@ export interface ZoteroNote {
   tags: string[];         // Författare + år från citation
   pdfLink?: string;       // zotero://open-pdf/... länken
   pdfName?: string;       // Saniterat PDF-namn för tagg
+  zoteroItemKey?: string; // Zotero item key from link
   zoteroLink?: string;    // zotero://select/... länken
   color?: string;         // Highlightfärgen
 }
@@ -24,7 +25,7 @@ const extractTagsFromCitation = (citationText: string): string[] => {
   const tags: string[] = [];
 
   // Matcha författare och år: (Författare, YYYY, ...)
-  const match = citationText.match(/\(([^,]+),\s*(\d{4})/);
+  const match = citationText.match(/\(?([^,]+),\s*(\d{4})/);
   if (match) {
     tags.push(match[1].trim());  // Författare
     tags.push(match[2]);         // År
@@ -61,6 +62,22 @@ const extractPdfName = (pdfLink: string | undefined): string | undefined => {
 
   // Sanitize: keep only letters and numbers, replace everything else with _
   return filename.replace(/[^a-zA-Z0-9]/g, '_');
+};
+
+
+const extractZoteroItemKey = (pdfLink: string | undefined): string | undefined => {
+  if (!pdfLink) return undefined;
+  const zoteroMatch = pdfLink.match(/\/items\/([A-Z0-9]+)/);
+  return zoteroMatch ? zoteroMatch[1] : undefined;
+};
+
+const stripMarkdownLinks = (text: string): string => (
+  text.replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+);
+
+const extractQuotedText = (text: string): string => {
+  const match = text.match(/[“"]([\s\S]+?)[”"]/);
+  return match ? match[1].trim() : '';
 };
 
 export const parseZoteroHTML = (html: string): ZoteroNote[] => {
@@ -130,6 +147,7 @@ export const parseZoteroHTML = (html: string): ZoteroNote[] => {
 
     // Extract and sanitize PDF name for tag
     const pdfName = extractPdfName(pdfLink);
+    const zoteroItemKey = extractZoteroItemKey(pdfLink);
 
     notes.push({
       content,
@@ -137,10 +155,62 @@ export const parseZoteroHTML = (html: string): ZoteroNote[] => {
       tags,
       pdfLink,
       pdfName,
+      zoteroItemKey,
       zoteroLink,
       color,
     });
   });
+
+  return notes;
+};
+
+export const parseZoteroPlainText = (text: string): ZoteroNote[] => {
+  if (!text) return [];
+  if (!text.includes('zotero://open-pdf')) return [];
+
+  const blocks = text
+    .replace(/\r\n/g, '\n')
+    .split(/\n\s*\n/)
+    .map((block) => block.trim())
+    .filter(Boolean);
+
+  const notes: ZoteroNote[] = [];
+
+  for (const block of blocks) {
+    if (!block.includes('zotero://open-pdf')) continue;
+
+    const pdfLinkMatch = block.match(/zotero:\/\/open-pdf\/[^\s)]+/);
+    if (!pdfLinkMatch) continue;
+    const pdfLink = pdfLinkMatch[0];
+
+    const zoteroLinkMatch = block.match(/zotero:\/\/select\/[^\s)]+/);
+    const zoteroLink = zoteroLinkMatch ? zoteroLinkMatch[0] : undefined;
+
+    let content = extractQuotedText(block);
+    if (!content) {
+      const cleaned = stripMarkdownLinks(block).replace(/\s+/g, ' ').trim();
+      if (!cleaned) continue;
+      content = cleaned;
+    }
+
+    const citationMatch = block.match(/\[([^\]]+)\]\(zotero:\/\/select\/[^\)]+\)/);
+    const citationText = citationMatch?.[1] || '';
+    const tags = citationText ? extractTagsFromCitation(citationText) : [];
+
+    const pdfName = extractPdfName(pdfLink);
+    const zoteroItemKey = extractZoteroItemKey(pdfLink);
+
+    notes.push({
+      content,
+      caption: undefined,
+      tags,
+      pdfLink,
+      pdfName,
+      zoteroItemKey,
+      zoteroLink,
+      color: undefined,
+    });
+  }
 
   return notes;
 };

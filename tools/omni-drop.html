@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Omni Drop Inspector</title>
+    <style>
+      :root {
+        color-scheme: light;
+      }
+      body {
+        margin: 0;
+        font-family: "Times New Roman", Times, serif;
+        background: #f7f2e9;
+        color: #2a2620;
+      }
+      header {
+        padding: 18px 20px 12px;
+        border-bottom: 1px solid #c9bba6;
+      }
+      h1 {
+        margin: 0 0 6px;
+        font-size: 20px;
+      }
+      p {
+        margin: 0;
+        font-size: 14px;
+        opacity: 0.8;
+      }
+      main {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+        padding: 16px 20px 24px;
+      }
+      .drop {
+        border: 2px dashed #9d8f7c;
+        border-radius: 14px;
+        padding: 20px;
+        min-height: 260px;
+        background: #fff8ee;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        justify-content: center;
+        align-items: center;
+        text-align: center;
+      }
+      .drop.active {
+        border-color: #4b7bec;
+        background: #eef4ff;
+      }
+      .controls {
+        display: flex;
+        gap: 8px;
+      }
+      button {
+        border: 1px solid #c9bba6;
+        background: #fff;
+        padding: 6px 10px;
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 13px;
+      }
+      pre {
+        margin: 0;
+        padding: 12px;
+        border-radius: 12px;
+        border: 1px solid #e2d7c4;
+        background: #fff;
+        max-height: 70vh;
+        overflow: auto;
+        font-size: 12px;
+        line-height: 1.35;
+      }
+      .panel h2 {
+        margin: 0 0 8px;
+        font-size: 14px;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+      }
+      .panel {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+      @media (max-width: 900px) {
+        main {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>Omni Drop Inspector</h1>
+      <p>Drop a Zotero item, PDF, or text here to see what DataTransfer exposes.</p>
+    </header>
+    <main>
+      <section class="drop" id="drop">
+        <div>Drop here</div>
+        <div class="controls">
+          <button id="clear">Clear</button>
+          <button id="copy">Copy JSON</button>
+        </div>
+      </section>
+      <section class="panel">
+        <h2>Captured data</h2>
+        <pre id="output">{}</pre>
+      </section>
+    </main>
+
+    <script>
+      const drop = document.getElementById("drop");
+      const output = document.getElementById("output");
+      const clearBtn = document.getElementById("clear");
+      const copyBtn = document.getElementById("copy");
+
+      const snapshot = (data) => {
+        output.textContent = JSON.stringify(data, null, 2);
+      };
+
+      const capture = async (event) => {
+        const dt = event.dataTransfer;
+        if (!dt) return;
+
+        const data = {
+          types: Array.from(dt.types || []),
+          files: [],
+          items: [],
+          payloads: {},
+        };
+
+        if (dt.files && dt.files.length > 0) {
+          data.files = Array.from(dt.files).map((file) => ({
+            name: file.name,
+            type: file.type,
+            size: file.size,
+          }));
+        }
+
+        if (dt.items && dt.items.length > 0) {
+          data.items = Array.from(dt.items).map((item) => ({
+            kind: item.kind,
+            type: item.type,
+          }));
+        }
+
+        for (const type of data.types) {
+          try {
+            const text = dt.getData(type);
+            if (text) {
+              data.payloads[type] = text.slice(0, 50000);
+            }
+          } catch (err) {
+            data.payloads[type] = `[error reading type: ${type}]`;
+          }
+        }
+
+        snapshot(data);
+      };
+
+      drop.addEventListener("dragover", (event) => {
+        event.preventDefault();
+        drop.classList.add("active");
+      });
+      drop.addEventListener("dragleave", () => {
+        drop.classList.remove("active");
+      });
+      drop.addEventListener("drop", (event) => {
+        event.preventDefault();
+        drop.classList.remove("active");
+        capture(event);
+      });
+
+      clearBtn.addEventListener("click", () => snapshot({}));
+      copyBtn.addEventListener("click", async () => {
+        try {
+          await navigator.clipboard.writeText(output.textContent || "{}");
+        } catch (err) {
+          alert("Clipboard write failed.");
+        }
+      });
+    </script>
+  </body>
+</html>

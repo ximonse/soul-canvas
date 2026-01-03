@@ -46,13 +46,17 @@ export async function processPdfFile(
         canvas.height = viewport.height;
         canvas.width = viewport.width;
 
-        // Render PDF page into canvas context
+        // Render PDF page into canvas context with a slight contrast bump
+        context.fillStyle = '#ffffff';
+        context.fillRect(0, 0, canvas.width, canvas.height);
+        context.filter = 'contrast(115%)';
         const renderContext = {
             canvas,
             viewport,
         };
 
         await page.render(renderContext).promise;
+        context.filter = 'none';
 
         // Convert canvas to Blob
         const blob = await new Promise<Blob | null>((resolve) => {

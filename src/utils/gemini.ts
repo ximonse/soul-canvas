@@ -10,31 +10,7 @@ export const GEMINI_OCR_MODELS = [
   'gemini-2.5-pro',
 ];
 
-// Vi definierar vad vi förväntar oss att få tillbaka
-interface AIResult {
-  text: string;
-  description: string;
-  tags: string[];
-}
-
-export const performOCR = async (
-  imageBase64: string,
-  apiKey: string,
-  modelId: string = GEMINI_OCR_MODELS[0]
-): Promise<AIResult> => {
-  if (!apiKey) throw new Error("Ingen API-nyckel inställd");
-
-  try {
-    const genAI = new GoogleGenerativeAI(apiKey);
-    const chosenModel = GEMINI_OCR_MODELS.includes(modelId) ? modelId : GEMINI_OCR_MODELS[0];
-    const model = genAI.getGenerativeModel({
-      model: chosenModel,
-      generationConfig: { responseMimeType: "application/json" }
-    });
-
-    const base64Data = imageBase64.split(',')[1] || imageBase64;
-
-    const prompt = `
+export const DEFAULT_OCR_PROMPT = `
     Analysera denna bild noggrant. Gör följande tre saker:
 
     1. **Transkribera (OCR):** Läs av all text i bilden exakt. Om det är handstil, gör ditt bästa.
@@ -57,6 +33,35 @@ export const performOCR = async (
       "tags": ["tag1", "tag2"]
     }
     `;
+
+// Vi definierar vad vi förväntar oss att få tillbaka
+interface AIResult {
+  text: string;
+  description: string;
+  tags: string[];
+}
+
+export const performOCR = async (
+  imageBase64: string,
+  apiKey: string,
+  modelId: string = GEMINI_OCR_MODELS[0],
+  promptOverride?: string
+): Promise<AIResult> => {
+  if (!apiKey) throw new Error("Ingen API-nyckel inställd");
+
+  try {
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const chosenModel = GEMINI_OCR_MODELS.includes(modelId) ? modelId : GEMINI_OCR_MODELS[0];
+    const model = genAI.getGenerativeModel({
+      model: chosenModel,
+      generationConfig: { responseMimeType: "application/json" }
+    });
+
+    const base64Data = imageBase64.split(',')[1] || imageBase64;
+
+    const prompt = (promptOverride && promptOverride.trim())
+      ? promptOverride.trim()
+      : DEFAULT_OCR_PROMPT.trim();
 
     logTokenEstimate('gemini ocr', [{ label: 'prompt', text: prompt }]);
     if (FEATURE_FLAGS.logChatPayload) {

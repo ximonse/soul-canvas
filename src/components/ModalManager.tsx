@@ -19,6 +19,7 @@ const CardEditor = lazy(() => import('./overlays/CardEditor').then(m => ({ defau
 const AIPanel = lazy(() => import('./AIPanel').then(m => ({ default: m.AIPanel })));
 const CommandPalette = lazy(() => import('./CommandPalette').then(m => ({ default: m.CommandPalette })));
 const PdfImportPrompt = lazy(() => import('./overlays/PdfImportPrompt').then(m => ({ default: m.PdfImportPrompt })));
+const OcrPromptModal = lazy(() => import('./overlays/OcrPromptModal').then(m => ({ default: m.OcrPromptModal })));
 
 
 interface ModalManagerProps {
@@ -31,6 +32,7 @@ interface ModalManagerProps {
   contextMenu: ContextMenuState | null;
   editingCardId: string | null;
   searchIsOpen: boolean;
+  showOcrPrompt: boolean;
 
   // Search
   search: SearchAPI;
@@ -100,6 +102,7 @@ interface ModalManagerProps {
   setShowAIPanel: (show: boolean) => void;
   setShowCommandPalette: (show: boolean) => void;
   setShowAIChat: (show: boolean) => void;
+  setShowOcrPrompt: (show: boolean) => void;
   setContextMenu: (menu: ContextMenuState | null) => void;
   setEditingCardId: (id: string | null) => void;
   setThemeIndex: (fn: (i: number) => number) => void;
@@ -145,6 +148,7 @@ export const ModalManager: React.FC<ModalManagerProps> = ({
   contextMenu,
   editingCardId,
   searchIsOpen,
+  showOcrPrompt,
   search,
   onSearchConfirm,
   canvas,
@@ -199,6 +203,7 @@ export const ModalManager: React.FC<ModalManagerProps> = ({
   setShowAIPanel,
   setShowCommandPalette,
   setShowAIChat,
+  setShowOcrPrompt,
   setIsChatMinimized,
   setContextMenu,
   setEditingCardId,
@@ -234,6 +239,7 @@ export const ModalManager: React.FC<ModalManagerProps> = ({
       )}
 
       {showSettings && <SettingsModal onClose={() => setShowSettings(false)} theme={theme} />}
+      {showOcrPrompt && <OcrPromptModal onClose={() => setShowOcrPrompt(false)} theme={theme} />}
 
       {contextMenu && (
         <ContextMenu
@@ -277,6 +283,10 @@ export const ModalManager: React.FC<ModalManagerProps> = ({
           onOpenAIChat={() => {
             setShowCommandPalette(false);
             setShowAIChat(true);
+          }}
+          onOpenOcrPrompt={() => {
+            setShowCommandPalette(false);
+            setShowOcrPrompt(true);
           }}
           onSave={handleManualSave}
           onToggleTheme={() => setThemeIndex((i) => (i + 1) % 4)} // Assumes 4 themes

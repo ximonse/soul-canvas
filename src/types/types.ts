@@ -21,6 +21,9 @@ export interface MindNode {
   originalCreatedAt?: string; // When the original card was created
   imageRef?: string;
   pdfId?: string;          // Grupp + sidinfo for importerade PDF-bilder
+  sourceId?: string;       // Stable identifier (e.g. doi:..., url:...)
+  zoteroItemKey?: string;  // Zotero item/attachment key (from storage path)
+  zoteroPdfPath?: string;  // Zotero file URI (file://...)
 
   // NYA FÄLT
   type: 'text' | 'image' | 'zotero'; // För att veta hur vi ska rendera

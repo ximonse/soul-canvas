@@ -20,6 +20,7 @@ interface CommandPaletteProps {
   onOpenSettings: () => void;
   onOpenAIPanel: () => void;
   onOpenAIChat: () => void;
+  onOpenOcrPrompt: () => void;
   onSave: () => void;
   onToggleTheme: () => void;
   onCenterCamera: () => void;
@@ -60,6 +61,7 @@ export const CommandPalette = ({
   onOpenSettings,
   onOpenAIPanel,
   onOpenAIChat,
+  onOpenOcrPrompt,
   onSave,
   onToggleTheme,
   onCenterCamera,
@@ -129,6 +131,7 @@ export const CommandPalette = ({
     { id: 'ai-panel', name: 'Open AI Panel', shortcut: 'b', action: () => { onOpenAIPanel(); onClose(); }, category: 'ai', icon: '\u{1F9E0}' },
     { id: 'ai-chat', name: 'AI Chat (manual provider)', shortcut: 'a', action: () => { onOpenAIChat(); onClose(); }, category: 'ai', icon: '\u{1F4AC}' },
     { id: 'quote-extractor', name: 'AI Quote Extractor', shortcut: 'e', action: () => { onQuoteExtractor(); onClose(); }, category: 'ai', icon: '\u2728' },
+    { id: 'ocr-prompt', name: 'Edit OCR Prompt', shortcut: 'ocr', action: () => { onOpenOcrPrompt(); onClose(); }, category: 'ai', icon: '\u270D' },
     { id: 'embed', name: 'Generate Embeddings', shortcut: 'emb', action: async () => { await intelligence.embedAllNodes(); onClose(); }, category: 'ai', icon: '\u{1F9EC}' },
     { id: 'link', name: 'Auto-Link Similar', shortcut: 'link', action: async () => { await intelligence.autoLinkSimilarNodes(); onClose(); }, category: 'ai', icon: '\u{1F517}' },
     { id: 'reflect', name: 'AI Reflection', shortcut: 'ref', action: async () => { await intelligence.reflect(); onClose(); }, category: 'ai', icon: '\u{1F914}' },
@@ -200,8 +203,8 @@ export const CommandPalette = ({
       icon: '\u{1F5D1}'
     },
     { id: 'pin', name: 'Pin/Unpin Selected', shortcut: 'p', action: () => { onTogglePin(); onClose(); }, category: 'edit', icon: '\u{1F4CC}' },
-    { id: 'flip-text', name: 'Flip Images to Text', shortcut: 'o+o', action: () => { onFlipToText(); onClose(); }, category: 'edit', icon: '\u{1F4DD}' },
-    { id: 'flip-image', name: 'Flip Images to Image', shortcut: 'o', action: () => { onFlipToImage(); onClose(); }, category: 'edit', icon: '\u{1F5BC}' },
+    { id: 'flip-text', name: 'Flip Images to Text (Selected/All)', shortcut: 'o+o', action: () => { onFlipToText(); onClose(); }, category: 'edit', icon: '\u{1F4DD}' },
+    { id: 'flip-image', name: 'Flip Images to Image (Selected/All)', shortcut: 'o', action: () => { onFlipToImage(); onClose(); }, category: 'edit', icon: '\u{1F5BC}' },
 
     // File Commands
     { id: 'save', name: 'Save', shortcut: 'ctrl+enter', action: () => { onSave(); onClose(); }, category: 'file', icon: '\u{1F4BE}' },

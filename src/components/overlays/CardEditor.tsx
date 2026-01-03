@@ -4,7 +4,7 @@ import { useBrainStore } from '../../store/useBrainStore';
 import { type Theme } from '../../themes';
 import type { MindNode } from '../../types/types';
 import { ImageCropper } from '../ImageCropper';
-import { resolveImageUrl } from '../../utils/imageRefs';
+import { getImageRef, resolveImageUrl } from '../../utils/imageRefs';
 
 interface CardEditorProps {
   cardId: string | null;
@@ -95,7 +95,12 @@ export const CardEditor = ({ cardId, onClose, theme }: CardEditorProps) => {
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     if (card) {
-      setContent(card.content || '');
+      const imageRef = getImageRef(card);
+      const contentValue = card.content || '';
+      const contentIsImageRef = card.type === 'image'
+        && Boolean(imageRef)
+        && contentValue.trim() === imageRef;
+      setContent(contentIsImageRef ? '' : contentValue);
       setTags((card.tags || []).join(', '));
       setTitle(card.title || '');
       setCaption(card.caption || '');
@@ -155,7 +160,29 @@ export const CardEditor = ({ cardId, onClose, theme }: CardEditorProps) => {
 
     const updates: Partial<MindNode> = {};
 
-    if (content !== (card.content || '')) updates.content = content;
+    const resolvedImageRef = card.type === 'image' ? getImageRef(card) : null;
+    const contentWasImageRef = Boolean(
+      resolvedImageRef
+      && (card.content || '').trim() === resolvedImageRef
+    );
+    const nextContent = content;
+
+    if (card.type === 'image') {
+      if (resolvedImageRef && card.imageRef !== resolvedImageRef) {
+        updates.imageRef = resolvedImageRef;
+      }
+      if (contentWasImageRef) {
+        if (nextContent.trim()) {
+          if (nextContent !== (card.content || '')) updates.content = nextContent;
+        } else if ((card.content || '') !== '') {
+          updates.content = '';
+        }
+      } else if (nextContent !== (card.content || '')) {
+        updates.content = nextContent;
+      }
+    } else if (nextContent !== (card.content || '')) {
+      updates.content = nextContent;
+    }
     if (nextTitle !== (card.title || '')) updates.title = nextTitle;
     if (nextCaption !== (card.caption || '')) updates.caption = nextCaption;
     if (nextComment !== (card.comment || '')) updates.comment = nextComment;
@@ -188,7 +215,17 @@ export const CardEditor = ({ cardId, onClose, theme }: CardEditorProps) => {
   return (
     <div
       className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 backdrop-blur-sm"
-      onClick={onClose}
+      onMouseDown={(e) => {
+        if (e.target === e.currentTarget) {
+          onClose();
+        }
+      }}
+      onContextMenu={(e) => {
+        if (e.target === e.currentTarget) {
+          e.preventDefault();
+          onClose();
+        }
+      }}
       role="dialog"
       aria-modal="true"
       aria-labelledby="card-editor-title"
@@ -200,9 +237,9 @@ export const CardEditor = ({ cardId, onClose, theme }: CardEditorProps) => {
           borderColor: theme.node.border,
           borderWidth: '1px',
           borderStyle: 'solid',
-          maxHeight: 'none'
         }}
         onClick={e => e.stopPropagation()}
+        onMouseDown={e => e.stopPropagation()}
         onKeyDown={handleKeyDown}
       >
         {/* Header */}
@@ -593,6 +630,15 @@ export const CardEditor = ({ cardId, onClose, theme }: CardEditorProps) => {
               ))}
             </div>
           </div>
+          {(card.pdfId || card.zoteroItemKey) && (
+            <div
+              className="text-xs mt-2"
+              style={{ color: theme.node.text, opacity: 0.6 }}
+            >
+              {card.pdfId && <div>{`pdfId: ${card.pdfId}`}</div>}
+              {card.zoteroItemKey && <div>{`zoteroItemKey: ${card.zoteroItemKey}`}</div>}
+            </div>
+          )}
         </div>
 
         {/* Footer */}

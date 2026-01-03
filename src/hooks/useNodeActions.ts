@@ -24,6 +24,7 @@ export function useNodeActions({ stageRef, canvas, setShowSettings, setContextMe
   const selectedNodeIds = useBrainStore((state) => state.selectedNodeIds);
   const geminiKey = useBrainStore((state) => state.geminiKey);
   const geminiOcrModel = useBrainStore((state) => state.geminiOcrModel);
+  const ocrPrompt = useBrainStore((state) => state.ocrPrompt);
   const assets = useBrainStore((state) => state.assets);
   const updateNode = useBrainStore((state) => state.updateNode);
   const setNodeAIProcessing = useBrainStore((state) => state.setNodeAIProcessing);
@@ -162,7 +163,7 @@ export function useNodeActions({ stageRef, canvas, setShowSettings, setContextMe
         reader.readAsDataURL(blob);
       });
 
-      const result = await performOCR(base64, geminiKey || '', geminiOcrModel);
+      const result = await performOCR(base64, geminiKey || '', geminiOcrModel, ocrPrompt);
 
       // Re-fetch node to avoid stale closure - node might have changed
       const currentNode = useBrainStore.getState().nodes.get(id);
@@ -192,7 +193,7 @@ export function useNodeActions({ stageRef, canvas, setShowSettings, setContextMe
     } finally {
       setNodeAIProcessing(id, null);
     }
-  }, [nodes, geminiKey, geminiOcrModel, assets, updateNode, setNodeAIProcessing, setShowSettings, setContextMenu]);
+  }, [nodes, geminiKey, geminiOcrModel, ocrPrompt, assets, updateNode, setNodeAIProcessing, setShowSettings, setContextMenu]);
 
   // Run OCR on all selected image nodes
   const runOCROnSelected = useCallback(async () => {

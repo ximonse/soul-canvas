@@ -59,7 +59,13 @@ export function ContextMenu({
   }
 
   const handleFlip = () => {
-    updateNode(menu.nodeId, { isFlipped: !node.isFlipped });
+    if (selectedCount > 1) {
+      selectedNodes.forEach((n: MindNode) => {
+        updateNode(n.id, { isFlipped: !n.isFlipped });
+      });
+    } else {
+      updateNode(menu.nodeId, { isFlipped: !node.isFlipped });
+    }
     onClose();
   };
 
@@ -144,13 +150,26 @@ export function ContextMenu({
   };
 
   return (
-    <menu
-      className="fixed z-[100] bg-gray-800 border border-gray-700 rounded shadow-xl py-1 w-48 backdrop-blur-md"
-      style={{ left: menu.x, top: menu.y }}
-      onMouseDown={e => e.stopPropagation()}
-      role="menu"
-      aria-label="Card actions"
+    <div
+      className="fixed inset-0 z-[100]"
+      onMouseDown={(e) => {
+        e.stopPropagation();
+        onClose();
+      }}
+      onContextMenu={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        onClose();
+      }}
     >
+      <menu
+        className="absolute bg-gray-800 border border-gray-700 rounded shadow-xl py-1 w-48 backdrop-blur-md"
+        style={{ left: menu.x, top: menu.y }}
+        onMouseDown={e => e.stopPropagation()}
+        onContextMenu={e => e.stopPropagation()}
+        role="menu"
+        aria-label="Card actions"
+      >
       <li role="none">
         <button
           onClick={handleFlip}
@@ -401,6 +420,7 @@ export function ContextMenu({
           Radera
         </button>
       </li>
-    </menu>
+      </menu>
+    </div>
   );
 }

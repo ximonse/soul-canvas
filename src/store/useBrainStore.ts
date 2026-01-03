@@ -6,7 +6,7 @@ import { createHistorySlice, historyInitialState, type HistoryState, type Histor
 import { createTrailSlice, initialTrailState, type TrailState, type TrailActions } from './slices/trailSlice';
 import { createNotificationSlice, type NotificationState, type NotificationActions } from './slices/notificationSlice';
 import { GRAVITY } from '../utils/constants';
-import { GEMINI_OCR_MODELS } from '../utils/gemini';
+import { DEFAULT_OCR_PROMPT, GEMINI_OCR_MODELS } from '../utils/gemini';
 
 // Core state interface
 interface CoreState {
@@ -19,6 +19,7 @@ interface CoreState {
   // AI Keys & Settings
   geminiKey?: string;
   geminiOcrModel?: string;
+  ocrPrompt: string;
   openaiKey?: string;
   claudeKey?: string;
   autoLinkThreshold?: number;
@@ -64,6 +65,7 @@ interface CoreActions {
   setFileHandle: (handle: FileSystemDirectoryHandle | null) => void;
   setApiKey: (provider: AIProvider, key: string) => void;
   setGeminiOcrModel: (model: string) => void;
+  setOcrPrompt: (prompt: string) => void;
   setAutoLinkThreshold: (threshold: number) => void;
   toggleAutoLink: () => void;
   toggleSynapseLines: () => void;
@@ -159,6 +161,7 @@ const getInitialApiKey = (provider: AIProvider) =>
   localStorage.getItem(PROVIDER_STORAGE_KEYS[provider]) || '';
 
 const GEMINI_OCR_MODEL_STORAGE_KEY = 'gemini_ocr_model';
+const OCR_PROMPT_STORAGE_KEY = 'ocr_prompt';
 
 const getInitialGeminiOcrModel = () => {
   const saved = localStorage.getItem(GEMINI_OCR_MODEL_STORAGE_KEY);
@@ -166,6 +169,14 @@ const getInitialGeminiOcrModel = () => {
     return saved;
   }
   return GEMINI_OCR_MODELS[0];
+};
+
+const getInitialOcrPrompt = () => {
+  const saved = localStorage.getItem(OCR_PROMPT_STORAGE_KEY);
+  if (saved && saved.trim()) {
+    return saved;
+  }
+  return DEFAULT_OCR_PROMPT.trim();
 };
 
 // Combined store type
@@ -208,6 +219,7 @@ export const useBrainStore = create<BrainStore>()((set, get, api) => ({
   // AI Keys & Settings
   geminiKey: getInitialApiKey('gemini'),
   geminiOcrModel: getInitialGeminiOcrModel(),
+  ocrPrompt: getInitialOcrPrompt(),
   openaiKey: getInitialApiKey('openai'),
   claudeKey: getInitialApiKey('claude'),
   autoLinkThreshold: 0.75,
@@ -229,6 +241,13 @@ export const useBrainStore = create<BrainStore>()((set, get, api) => ({
     const safeModel = GEMINI_OCR_MODELS.includes(model) ? model : GEMINI_OCR_MODELS[0];
     localStorage.setItem(GEMINI_OCR_MODEL_STORAGE_KEY, safeModel);
     return { geminiOcrModel: safeModel };
+  }),
+
+  setOcrPrompt: (prompt) => set(() => {
+    const trimmed = prompt.trim();
+    const nextPrompt = trimmed ? prompt : DEFAULT_OCR_PROMPT.trim();
+    localStorage.setItem(OCR_PROMPT_STORAGE_KEY, nextPrompt);
+    return { ocrPrompt: nextPrompt };
   }),
 
   setAutoLinkThreshold: (threshold) => set({ autoLinkThreshold: threshold }),
@@ -478,12 +497,15 @@ export const useBrainStore = create<BrainStore>()((set, get, api) => ({
     return { aiProcessingNodes: nextMap };
   }),
 
-  // Flip all image cards to text side (O+O)
+  // Flip image cards to text side (O+O). If selection exists, only flip those.
   flipAllImageCardsToText: () => set((state) => {
     const newNodes = new Map(state.nodes);
     let changed = false;
+    const hasSelection = state.selectedNodeIds.size > 0;
     newNodes.forEach((node, id) => {
-      if (node.type === 'image' && !node.isFlipped) {
+      if (node.type !== 'image') return;
+      if (hasSelection && !state.selectedNodeIds.has(id)) return;
+      if (!node.isFlipped) {
         newNodes.set(id, { ...node, isFlipped: true });
         changed = true;
       }
@@ -491,12 +513,15 @@ export const useBrainStore = create<BrainStore>()((set, get, api) => ({
     return changed ? { nodes: newNodes, pendingSave: true } : {};
   }),
 
-  // Flip all image cards to image side (O)
+  // Flip image cards to image side (O). If selection exists, only flip those.
   flipAllImageCardsToImage: () => set((state) => {
     const newNodes = new Map(state.nodes);
     let changed = false;
+    const hasSelection = state.selectedNodeIds.size > 0;
     newNodes.forEach((node, id) => {
-      if (node.type === 'image' && node.isFlipped) {
+      if (node.type !== 'image') return;
+      if (hasSelection && !state.selectedNodeIds.has(id)) return;
+      if (node.isFlipped) {
         newNodes.set(id, { ...node, isFlipped: false });
         changed = true;
       }

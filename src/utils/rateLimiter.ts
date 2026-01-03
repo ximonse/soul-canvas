@@ -169,7 +169,7 @@ export class RateLimiter {
 export const openaiLimiter = new RateLimiter({ requestsPerMinute: 50 });
 export const claudeLimiter = new RateLimiter({ requestsPerMinute: 40 });
 export const geminiLimiter = new RateLimiter({
-  requestsPerMinute: 2,  // Free tier för exp-modeller är extremt snål
+  requestsPerMinute: 5,  // OCR throttle (RPM)
   maxRetries: 5,
   initialRetryDelay: 10000  // Vänta 10 sek mellan retries
 });

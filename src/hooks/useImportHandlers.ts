@@ -6,9 +6,10 @@ import { useBrainStore } from '../store/useBrainStore';
 import { type CanvasAPI } from './useCanvas';
 import type { MindNode } from '../types/types';
 import { processImageFile } from '../utils/imageProcessor';
-import { parseZoteroHTML, isZoteroHTML } from '../utils/zoteroParser';
+import { parseZoteroHTML, parseZoteroPlainText, isZoteroHTML, type ZoteroNote } from '../utils/zoteroParser';
 import { processPdfFile } from '../utils/pdfProcessor';
 import { parseRis, type RisMetadata } from '../utils/risParser';
+import { parseCoinsHtml } from '../utils/coinsParser';
 
 interface ImportHandlersProps {
   canvas: CanvasAPI;
@@ -43,7 +44,7 @@ export function useImportHandlers({
   const updateNode = useBrainStore((state) => state.updateNode);
   const updateNodesBulk = useBrainStore((state) => state.updateNodesBulk);
   const MAX_IMAGE_WIDTH = 800;
-  const PDF_MAX_WIDTH = 1200;
+  const PDF_MAX_WIDTH = 1000;
   const PDF_QUALITY = 0.9;
 
   const toSafeName = (name: string) => name.replace(/\s+/g, '_');
@@ -67,11 +68,19 @@ export function useImportHandlers({
     return parseRis(trimmed);
   }, []);
 
-  const buildPdfMetadataUpdates = (
-    pdfId: string,
-    metadata?: RisMetadata
+  const buildSourceMetadataUpdates = (
+    metadata?: RisMetadata,
+    options?: {
+      pdfId?: string;
+      useCaption?: boolean;
+      zoteroItemKey?: string;
+      zoteroPdfPath?: string;
+    }
   ): Partial<MindNode> => {
-    const updates: Partial<MindNode> = { pdfId };
+    const updates: Partial<MindNode> = {};
+    if (options?.pdfId) updates.pdfId = options.pdfId;
+    if (options?.zoteroItemKey) updates.zoteroItemKey = options.zoteroItemKey;
+    if (options?.zoteroPdfPath) updates.zoteroPdfPath = options.zoteroPdfPath;
     if (!metadata) return updates;
 
     const tags = new Set<string>();
@@ -90,9 +99,14 @@ export function useImportHandlers({
     }
 
     if (metadata.title) {
-      updates.caption = metadata.year
+      const decorated = metadata.year
         ? `${metadata.title} (${metadata.year})`
         : metadata.title;
+      if (options?.useCaption) {
+        updates.caption = decorated;
+      } else {
+        updates.title = decorated;
+      }
     }
 
     const commentParts: string[] = [];
@@ -111,8 +125,116 @@ export function useImportHandlers({
       updates.link = `[Source](${linkUrl})`;
     }
 
+    if (metadata.doi) {
+      updates.sourceId = `doi:${metadata.doi}`;
+    } else if (metadata.url) {
+      updates.sourceId = `url:${metadata.url}`;
+    } else if (options?.zoteroItemKey) {
+      updates.sourceId = `zotero:${options.zoteroItemKey}`;
+    }
+
     return updates;
   };
+
+  const parseUriList = (raw: string) => (
+    raw
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter((line) => line && !line.startsWith('#'))
+  );
+
+  const extractZoteroInfo = (raw: string) => {
+    const entries = parseUriList(raw);
+    for (const entry of entries) {
+      if (!entry.startsWith('file://')) continue;
+      const decoded = decodeURIComponent(entry);
+      const match = decoded.match(/[/\\]Zotero[/\\]storage[/\\]([A-Z0-9]{8})[/\\]/i);
+      if (!match) continue;
+      return {
+        zoteroItemKey: match[1],
+        zoteroPdfPath: entry,
+      };
+    }
+    return null;
+  };
+
+  const parsePdfId = (pdfId: string) => {
+    const match = pdfId.match(/^(.*)_(\d+)_(\d+)$/);
+    if (!match) return null;
+    return {
+      group: match[1],
+      page: Number(match[2]),
+      total: Number(match[3]),
+    };
+  };
+
+  const findPdfGroupForZoteroKey = (key?: string) => {
+    if (!key) return null;
+    const matches = Array.from(useBrainStore.getState().nodes.values())
+      .filter((node) => node.zoteroItemKey === key && node.pdfId)
+      .map((node) => parsePdfId(node.pdfId || ''))
+      .filter((parsed): parsed is NonNullable<typeof parsed> => Boolean(parsed));
+    if (matches.length === 0) return null;
+    const group = matches[0].group;
+    const total = matches.reduce((max, item) => Math.max(max, item.total), 0);
+    return { group, total };
+  };
+
+  const extractPageFromPdfLink = (link?: string) => {
+    if (!link) return null;
+    const match = link.match(/[?&]page=(\d+)/);
+    return match ? Number(match[1]) : null;
+  };
+
+  const resolvePdfIdForNote = (note: ZoteroNote) => {
+    const group = findPdfGroupForZoteroKey(note.zoteroItemKey);
+    if (!group) return undefined;
+    const page = extractPageFromPdfLink(note.pdfLink);
+    if (page) {
+      return `${group.group}_${page}_${group.total}`;
+    }
+    return `${group.group}_0_${group.total}`;
+  };
+
+  const buildZoteroPdfLink = (zoteroItemKey?: string, page?: number) => {
+    if (!zoteroItemKey) return null;
+    const pageSuffix = page && page > 0 ? `?page=${page}` : '';
+    return `zotero://open-pdf/library/items/${zoteroItemKey}${pageSuffix}`;
+  };
+
+  const addZoteroNotes = useCallback((notes: ZoteroNote[], originX: number, originY: number) => {
+    if (notes.length === 0) return;
+    const spacing = 350;
+    const cols = Math.ceil(Math.sqrt(notes.length));
+    notes.forEach((note, index) => {
+      const row = Math.floor(index / cols);
+      const col = index % cols;
+      const nodeId = crypto.randomUUID();
+      addNodeWithId(nodeId, note.content, originX + col * spacing, originY + row * spacing, 'text');
+
+      const allTags = [...note.tags];
+      if (note.pdfName) {
+        allTags.push(note.pdfName);
+      }
+      if (note.zoteroItemKey) {
+        allTags.push(`zotero:${note.zoteroItemKey}`);
+      }
+
+      const linkName = note.tags.length >= 2
+        ? `${note.tags[0]} (${note.tags[1]})`
+        : note.pdfName || 'PDF';
+
+      updateNode(nodeId, {
+        caption: note.caption,
+        tags: allTags,
+        link: note.pdfLink ? `[${linkName}](${note.pdfLink})` : undefined,
+        zoteroItemKey: note.zoteroItemKey,
+        zoteroPdfPath: note.pdfLink,
+        pdfId: resolvePdfIdForNote(note),
+        accentColor: note.color,
+      });
+    });
+  }, [addNodeWithId, updateNode]);
 
   const saveOriginal = useCallback(async (file: File, filename: string) => {
     await saveAsset(file, filename, { subdir: 'originals', register: false });
@@ -213,6 +335,11 @@ export function useImportHandlers({
       e.dataTransfer.getData('application/x-research-info-systems')
         || e.dataTransfer.getData('text/plain')
     );
+    const htmlPayload = e.dataTransfer.getData('text/html');
+    const plainTextPayload = e.dataTransfer.getData('text/plain');
+    const coinsMetadata = parseCoinsHtml(htmlPayload);
+    const uriListRaw = e.dataTransfer.getData('text/uri-list');
+    const zoteroInfo = uriListRaw ? extractZoteroInfo(uriListRaw) : null;
 
     for (const file of files) {
       if (file.name.toLowerCase().endsWith('.ris')) {
@@ -233,6 +360,50 @@ export function useImportHandlers({
         const baseName = pdfFiles[0].name.replace(/\.pdf$/i, '');
         risMetadataByBaseName.set(normalizeKey(baseName), risFromText);
       }
+    }
+
+    const zoteroNotes = htmlPayload && isZoteroHTML(htmlPayload)
+      ? parseZoteroHTML(htmlPayload)
+      : [];
+    const plainTextNotes = zoteroNotes.length === 0
+      ? parseZoteroPlainText(plainTextPayload)
+      : [];
+    const notesToAdd = zoteroNotes.length > 0 ? zoteroNotes : plainTextNotes;
+
+    if (notesToAdd.length > 0) {
+      saveStateForUndo();
+      addZoteroNotes(notesToAdd, worldPos.x, worldPos.y);
+      if (files.length === 0) {
+        return;
+      }
+    }
+
+    if (files.length === 0 && (coinsMetadata || risFromText)) {
+      const metadata = coinsMetadata || risFromText || undefined;
+      const sourceId = metadata?.doi
+        ? `doi:${metadata.doi}`
+        : metadata?.url
+          ? `url:${metadata.url}`
+          : null;
+      if (sourceId) {
+        const alreadyExists = Array.from(useBrainStore.getState().nodes.values())
+          .some((node) => node.sourceId === sourceId);
+        if (alreadyExists) {
+          console.warn('Zotero item already imported:', sourceId);
+        }
+      }
+
+      const baseText = e.dataTransfer.getData('text/plain') || metadata?.title || '';
+      if (baseText.trim()) {
+        saveStateForUndo();
+        const nodeId = crypto.randomUUID();
+        addNodeWithId(nodeId, baseText.trim(), worldPos.x, worldPos.y, 'text');
+        updateNode(nodeId, buildSourceMetadataUpdates(metadata, {
+          zoteroItemKey: zoteroInfo?.zoteroItemKey,
+          zoteroPdfPath: zoteroInfo?.zoteroPdfPath,
+        }));
+      }
+      return;
     }
 
     for (const file of files) {
@@ -259,6 +430,21 @@ export function useImportHandlers({
             continue;
           }
           const safeBase = toSafeName(groupName.replace(/\.pdf$/i, '') || baseName);
+          const existingGroup = Array.from(useBrainStore.getState().nodes.values())
+            .some((node) => node.pdfId && node.pdfId.startsWith(`${safeBase}_`));
+          const existingZotero = zoteroInfo?.zoteroItemKey
+            ? Array.from(useBrainStore.getState().nodes.values())
+              .some((node) => node.zoteroItemKey === zoteroInfo.zoteroItemKey)
+            : false;
+          if (existingGroup || existingZotero) {
+            const warning = existingZotero
+              ? `Zotero-item ${zoteroInfo?.zoteroItemKey} finns redan. Importera igen?`
+              : `PDF-gruppen "${safeBase}" finns redan. Importera igen?`;
+            const proceed = window.confirm(warning);
+            if (!proceed) {
+              continue;
+            }
+          }
           const images = await processPdfFile(file, PDF_MAX_WIDTH, PDF_QUALITY);
           const risMetadata = risMetadataByBaseName.get(normalizeKey(baseName));
           await saveOriginal(file, `${safeBase}.pdf`);
@@ -269,10 +455,10 @@ export function useImportHandlers({
           for (let i = 0; i < images.length; i++) {
             const blob = images[i];
             const pageNum = i + 1;
-            const pdfId = `${safeBase}_${pageNum}_${totalPages}`;
-            const fileName = `${pdfId}.jpg`;
-            const processedFile = new File([blob], fileName, { type: 'image/jpeg' });
-            const relativePath = await saveAsset(processedFile, fileName);
+              const pdfId = `${safeBase}_${pageNum}_${totalPages}`;
+              const fileName = `${pdfId}.jpg`;
+              const processedFile = new File([blob], fileName, { type: 'image/jpeg' });
+              const relativePath = await saveAsset(processedFile, fileName);
 
             if (relativePath) {
               const row = Math.floor(i / cols);
@@ -286,7 +472,19 @@ export function useImportHandlers({
                 worldPos.y + row * spacing,
                 'image'
               );
-              updateNode(nodeId, buildPdfMetadataUpdates(pdfId, risMetadata));
+              const updates = buildSourceMetadataUpdates(risMetadata, {
+                pdfId,
+                useCaption: true,
+                zoteroItemKey: zoteroInfo?.zoteroItemKey,
+                zoteroPdfPath: zoteroInfo?.zoteroPdfPath,
+              });
+              updates.imageRef = relativePath;
+              updates.content = '';
+              const pdfLink = buildZoteroPdfLink(zoteroInfo?.zoteroItemKey, pageNum);
+              if (pdfLink) {
+                updates.link = `[PDF](${pdfLink})`;
+              }
+              updateNode(nodeId, updates);
             }
           }
         } catch (error) {
@@ -297,40 +495,7 @@ export function useImportHandlers({
         if (isZoteroHTML(text)) {
           const notes = parseZoteroHTML(text);
           if (notes.length > 0) {
-            const spacing = 350;
-            const cols = Math.ceil(Math.sqrt(notes.length));
-            notes.forEach((note, index) => {
-              const row = Math.floor(index / cols);
-              const col = index % cols;
-              const nodeId = crypto.randomUUID();
-              addNodeWithId(nodeId, note.content, worldPos.x + col * spacing, worldPos.y + row * spacing, 'text');
-
-              // Build tags: author/year + PDF name (if available)
-              const allTags = [...note.tags];
-              if (note.pdfName) {
-                allTags.push(note.pdfName);
-              }
-
-              // Build link name from tags (author + year)
-              const linkName = note.tags.length >= 2
-                ? `${note.tags[0]} (${note.tags[1]})`
-                : note.pdfName || 'PDF';
-
-              updateNode(nodeId, {
-                caption: note.caption,
-                tags: allTags,
-                link: note.pdfLink ? `[${linkName}](${note.pdfLink})` : undefined,
-                accentColor: note.color,
-                event: note.caption?.match(/Event:\s*([0-9]{6}_[0-9]{4})/i)?.[1]
-                  || note.content?.match(/Event:\s*([0-9]{6}_[0-9]{4})/i)?.[1]
-                  || undefined,
-                value: (() => {
-                  const match = note.caption?.match(/Value:\s*([1-6])/i)
-                    || note.content?.match(/Value:\s*([1-6])/i);
-                  return match ? Number(match[1]) : undefined;
-                })(),
-              });
-            });
+            addZoteroNotes(notes, worldPos.x, worldPos.y);
           } else {
             addNode(text, worldPos.x, worldPos.y, 'text');
           }
@@ -339,7 +504,7 @@ export function useImportHandlers({
         }
       }
     }
-  }, [hasFile, canvas, saveAsset, saveOriginal, handleJSONImport, addNode, addNodeWithId, updateNode, askPdfGroupName, extractRisFromText]);
+  }, [hasFile, canvas, saveAsset, saveOriginal, handleJSONImport, addNode, addNodeWithId, updateNode, askPdfGroupName, extractRisFromText, addZoteroNotes]);
 
   // Handle paste events (images)
   useEffect(() => {
