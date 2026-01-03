@@ -193,7 +193,7 @@ export const parseZoteroPlainText = (text: string): ZoteroNote[] => {
       content = cleaned;
     }
 
-    const citationMatch = block.match(/\[([^\]]+)\]\(zotero:\/\/select\/[^\)]+\)/);
+    const citationMatch = block.match(/\[([^\]]+)\]\(zotero:\/\/select\/[^)]+\)/);
     const citationText = citationMatch?.[1] || '';
     const tags = citationText ? extractTagsFromCitation(citationText) : [];
 
