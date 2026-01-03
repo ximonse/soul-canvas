@@ -63,15 +63,49 @@ interface AgeStop {
   text: string;
 }
 
-const isDarkHex = (hex: string): boolean => {
+const parseHexColor = (hex: string): { r: number; g: number; b: number } | null => {
   const cleaned = hex.trim().replace('#', '');
-  if (cleaned.length !== 6) return false;
+  if (cleaned.length !== 6) return null;
   const r = parseInt(cleaned.slice(0, 2), 16);
   const g = parseInt(cleaned.slice(2, 4), 16);
   const b = parseInt(cleaned.slice(4, 6), 16);
-  if (Number.isNaN(r) || Number.isNaN(g) || Number.isNaN(b)) return false;
-  const luminance = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
-  return luminance < 0.45;
+  if (Number.isNaN(r) || Number.isNaN(g) || Number.isNaN(b)) return null;
+  return { r, g, b };
+};
+
+const relativeLuminance = ({ r, g, b }: { r: number; g: number; b: number }): number => {
+  const toLinear = (value: number) => {
+    const srgb = value / 255;
+    return srgb <= 0.03928 ? srgb / 12.92 : Math.pow((srgb + 0.055) / 1.055, 2.4);
+  };
+  const rLin = toLinear(r);
+  const gLin = toLinear(g);
+  const bLin = toLinear(b);
+  return 0.2126 * rLin + 0.7152 * gLin + 0.0722 * bLin;
+};
+
+const contrastRatio = (a: { r: number; g: number; b: number }, b: { r: number; g: number; b: number }): number => {
+  const l1 = relativeLuminance(a);
+  const l2 = relativeLuminance(b);
+  const bright = Math.max(l1, l2);
+  const dark = Math.min(l1, l2);
+  return (bright + 0.05) / (dark + 0.05);
+};
+
+const ensureTextContrast = (bg: string, text: string): string => {
+  const bgRgb = parseHexColor(bg);
+  const textRgb = parseHexColor(text);
+  if (!bgRgb || !textRgb) return text;
+  if (contrastRatio(bgRgb, textRgb) >= 4.5) return text;
+  const white = { r: 255, g: 255, b: 255 };
+  const black = { r: 0, g: 0, b: 0 };
+  return contrastRatio(bgRgb, white) >= contrastRatio(bgRgb, black) ? '#ffffff' : '#000000';
+};
+
+const isDarkHex = (hex: string): boolean => {
+  const rgb = parseHexColor(hex);
+  if (!rgb) return false;
+  return relativeLuminance(rgb) < 0.45;
 };
 
 // Beräkna nodstil baserat på ålder och selection
@@ -125,10 +159,12 @@ export function getNodeStyles(
     currentText = theme.node.selectedText;
   }
 
+  const adjustedText = ensureTextContrast(currentBg, currentText);
+
   return {
     bg: currentBg,
     border: currentBorder,
-    text: currentText,
+    text: adjustedText,
     shadow: currentShadow,
   };
 }
