@@ -186,7 +186,7 @@ export function useAIChat({ initialProvider = 'claude', toolContext }: UseAIChat
     } finally {
       setIsSending(false);
     }
-  }, [provider, claudeKey, openaiKey, geminiKey, messages, context, memory, ensureConversation, openaiModel, geminiModel, addMessageToConversation, updateConversation]);
+  }, [provider, claudeKey, openaiKey, geminiKey, messages, context, memory, toolContext, ensureConversation, openaiModel, geminiModel, addMessageToConversation, updateConversation]);
 
   // Starta chatten med en reflektion
   const startWithReflection = useCallback((reflection: string) => {

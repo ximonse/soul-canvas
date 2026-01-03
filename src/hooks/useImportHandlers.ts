@@ -85,8 +85,13 @@ export function useImportHandlers({ canvas, hasFile, saveAsset }: ImportHandlers
           newNode.type || 'text'
         );
 
-        const { id: _ignoredId, x: _x, y: _y, content: _content, type: _type, tags: _tags, ...rest } =
-          (node as Record<string, unknown>);
+        const rest = { ...(node as Record<string, unknown>) };
+        delete rest.id;
+        delete rest.x;
+        delete rest.y;
+        delete rest.content;
+        delete rest.type;
+        delete rest.tags;
 
         const updates: Partial<MindNode> = {
           ...(rest as Partial<MindNode>),

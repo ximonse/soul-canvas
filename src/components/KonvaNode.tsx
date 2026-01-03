@@ -301,8 +301,8 @@ const KonvaNodeInner: React.FC<KonvaNodeInnerProps> = ({
 
   const isImage = node.type === 'image';
   const imageAssetUrl = useMemo(
-    () => (isImage ? resolveImageUrl(node, assets) : null),
-    [isImage, node.imageRef, node.content, assets]
+    () => (node.type === 'image' ? resolveImageUrl(node, assets) : null),
+    [node, assets]
   );
   const hasImage = isImage && Boolean(imageAssetUrl);
   const isFlipped = node.isFlipped;
@@ -370,7 +370,7 @@ const KonvaNodeInner: React.FC<KonvaNodeInnerProps> = ({
 
   const imageText = useMemo(
     () => getImageText(node),
-    [node.type, node.content, node.imageRef, node.ocrText, node.comment]
+    [node]
   );
   const backSideText = useMemo(
     () => node.ocrText || (node.type === 'zotero' ? node.content : ''),

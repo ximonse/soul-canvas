@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { useBrainStore } from '../store/useBrainStore';
 import type { Theme } from '../themes';
 // import { motion, AnimatePresence } from 'framer-motion'; // Assuming framer-motion is available, if not use CSS

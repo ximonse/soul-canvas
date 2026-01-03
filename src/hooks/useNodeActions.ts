@@ -28,7 +28,6 @@ export function useNodeActions({ stageRef, canvas, setShowSettings, setContextMe
   const updateNode = useBrainStore((state) => state.updateNode);
   const setNodeAIProcessing = useBrainStore((state) => state.setNodeAIProcessing);
   const saveStateForUndo = useBrainStore((state) => state.saveStateForUndo);
-  const removeNode = useBrainStore((state) => state.removeNode);
   const addTagToSelected = useBrainStore((state) => state.addTagToSelected);
 
   // Center camera on selected nodes (or all if none selected)

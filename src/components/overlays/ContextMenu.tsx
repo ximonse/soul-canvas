@@ -266,9 +266,6 @@ export function ContextMenu({
             <button
               key={val}
               onClick={() => {
-                const valueMap: Record<number, string> = {
-                  1: '1 (Högst)', 2: '2', 3: '3', 4: '4', 5: '5', 6: '6 (Lägst)'
-                };
                 if (selectedCount > 1) {
                   selectedNodes.forEach(n => updateNode(n.id, { value: val }));
                 } else {

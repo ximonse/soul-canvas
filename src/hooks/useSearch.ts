@@ -206,34 +206,6 @@ const normalizeDateSearchText = (raw?: string): string => {
   return variants.join(' ').toLowerCase();
 };
 
-const evaluate = (postfix: Token[], searchable: Record<SearchField, string>): boolean => {
-  const stack: boolean[] = [];
-  for (const token of postfix) {
-    if (token.type === 'TERM') {
-      const { field, value } = parseFieldTerm(token.value);
-      if (field) {
-        const needle = value.trim();
-        if (needle.length === 0) {
-          // Field without value: match if field has any content (e.g., "copyref:" finds all copies)
-          stack.push(searchable[field].length > 0);
-        } else {
-          stack.push(termMatches(needle, searchable[field]));
-        }
-      } else {
-        stack.push(termMatches(token.value, searchable.all));
-      }
-    } else if (token.type === 'NOT') {
-      const a = stack.pop() ?? false;
-      stack.push(!a);
-    } else if (token.type === 'AND' || token.type === 'OR') {
-      const b = stack.pop() ?? false;
-      const a = stack.pop() ?? false;
-      stack.push(token.type === 'AND' ? a && b : a || b);
-    }
-  }
-  return stack.pop() ?? false;
-};
-
 export function useSearch({ nodes }: UseSearchOptions): UseSearchResult {
   const [isOpen, setIsOpen] = useState(false);
   const [query, setQuery] = useState('');

@@ -132,7 +132,6 @@ export const ColumnView: React.FC<ColumnViewProps> = ({
                 border: `${isSoftBorderTheme ? '0.1px' : '1px'} solid ${cardStyles.border}`,
                 fontFamily: "'Noto Serif', Georgia, serif",
                 breakInside: 'avoid',
-                WebkitColumnBreakInside: 'avoid',
                 marginBottom: '12px',
                 lineBreak: 'anywhere',
                 overflowWrap: 'anywhere',

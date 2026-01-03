@@ -202,7 +202,7 @@ const KonvaCanvas: React.FC<KonvaCanvasProps> = ({
     };
 
     wheelRafRef.current = window.requestAnimationFrame(tick);
-  }, [scheduleViewCommit]);
+  }, [scheduleViewCommit, stageRef]);
 
   const scheduleCursorPos = useCallback((nextPos: { x: number; y: number }) => {
     if (!FEATURE_FLAGS.useCursorRaf) {
@@ -489,7 +489,7 @@ const KonvaCanvas: React.FC<KonvaCanvasProps> = ({
               offsetX={300} // Approximate half width
               fontSize={48}
               fontFamily="serif"
-              fill={theme.textColor}
+              fill={theme.node.text}
               opacity={0.3}
               align="center"
               width={600}
@@ -502,7 +502,7 @@ const KonvaCanvas: React.FC<KonvaCanvasProps> = ({
               offsetX={400}
               fontSize={18}
               fontFamily="sans-serif"
-              fill={theme.textColor}
+              fill={theme.node.text}
               opacity={0.5}
               align="center"
               width={800}

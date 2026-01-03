@@ -128,8 +128,8 @@ export const useIntelligence = () => {
         if (cancelBatchRef.current) {
           setBatch((prev) => {
             if (!prev) return prev;
-            const items = prev.items.map((item) => (
-              item.status === 'queued' ? { ...item, status: 'skipped' } : item
+            const items: AIBatchItem[] = prev.items.map((item) => (
+              item.status === 'queued' ? { ...item, status: 'skipped' as AIBatchItemStatus } : item
             ));
             return { ...prev, status: 'cancelled', isCancelling: false, items };
           });

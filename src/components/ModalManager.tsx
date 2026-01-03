@@ -125,8 +125,6 @@ interface ModalManagerProps {
   theme: Theme;
   
   // Extra commands for CommandPalette
-  onQuoteExtractor?: () => void;
-  onMassImport?: () => void;
   onFocusSearch?: () => void;
 }
 
@@ -214,9 +212,6 @@ export const ModalManager: React.FC<ModalManagerProps> = ({
   onToggleViewMode,
   onToggleScopePanel,
   theme,
-  onQuoteExtractor,
-  onMassImport,
-  onFocusSearch,
 }) => {
   return (
     <Suspense fallback={null}>
@@ -313,10 +308,10 @@ export const ModalManager: React.FC<ModalManagerProps> = ({
             };
             input.click();
           }}
-          onQuoteExtractor={onQuoteExtractor}
+          onQuoteExtractor={onOpenQuoteExtractor}
           onToggleViewMode={onToggleViewMode}
           onToggleWandering={onToggleWandering}
-          onMassImport={onMassImport}
+          onMassImport={onOpenMassImport}
           onFocusSearch={() => {
             const searchInput = document.querySelector('input[type="text"]') as HTMLInputElement;
             if (searchInput) {
@@ -328,12 +323,10 @@ export const ModalManager: React.FC<ModalManagerProps> = ({
           }}
           onFitAllNodes={fitAllNodes}
           onToggleSessionPanel={onToggleSessionPanel}
-          onToggleWandering={onToggleWandering}
           onDuplicate={duplicateSelectedNodes}
           onFlipToText={flipAllImageCardsToText}
           onFlipToImage={flipAllImageCardsToImage}
           onToggleSynapseLines={onToggleSynapseLines}
-          onToggleViewMode={onToggleViewMode}
           onToggleScopePanel={onToggleScopePanel}
           theme={theme}
         />

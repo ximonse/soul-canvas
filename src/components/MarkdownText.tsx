@@ -106,7 +106,7 @@ const MarkdownText: React.FC<MarkdownTextProps> = ({
     return layoutMarkdownText(text, { width, fontSize, fontFamily, lineHeight }).lines;
   }, [lines, text, width, fontSize, fontFamily, lineHeight]);
 
-  const renderedSegments = useMemo(() => {
+  const renderedSegments = useMemo<React.ReactElement[]>(() => {
     return renderedLines.flatMap((line, lineIndex) => {
       const segments = line.segments && line.segments.length > 0
         ? line.segments
@@ -136,7 +136,7 @@ const MarkdownText: React.FC<MarkdownTextProps> = ({
       const lineHeightPx = line.fontSize * lineHeight;
       let cursorX = 0;
       let cursorY = 0;
-      const nodes: React.ReactNode[] = [];
+      const nodes: React.ReactElement[] = [];
 
       segments.forEach((segment, segmentIndex) => {
         if (!segment.text) return;

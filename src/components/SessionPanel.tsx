@@ -8,8 +8,6 @@ import { getNodeDisplayTitle } from '../utils/nodeDisplay';
 interface SessionPanelProps {
   // Theme
   theme: Theme;
-  themeName: string;
-  onToggleTheme: () => void;
 
   // Sessions
   sessions: Session[];
@@ -54,8 +52,6 @@ interface SessionPanelProps {
 
 export const SessionPanel: React.FC<SessionPanelProps> = ({
   theme,
-  themeName,
-  onToggleTheme,
   sessions,
   activeSessionId,
   onCreateSession,

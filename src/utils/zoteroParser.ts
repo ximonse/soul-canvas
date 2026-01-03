@@ -51,7 +51,7 @@ const extractPdfName = (pdfLink: string | undefined): string | undefined => {
     filename = zoteroMatch[1];
   } else {
     // For file:// links, extract filename
-    const fileMatch = pdfLink.match(/\/([^\/]+)\.pdf/i);
+    const fileMatch = pdfLink.match(/\/([^/]+)\.pdf/i);
     if (fileMatch) {
       filename = fileMatch[1];
     }

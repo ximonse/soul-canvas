@@ -42,11 +42,11 @@ export async function processPdfFile(file: File, scale: number = 2.0): Promise<B
 
         // Render PDF page into canvas context
         const renderContext = {
-            canvasContext: context,
-            viewport: viewport,
+            canvas,
+            viewport,
         };
 
-        await page.render(renderContext as any).promise;
+        await page.render(renderContext).promise;
 
         // Convert canvas to Blob
         const blob = await new Promise<Blob | null>((resolve) => {

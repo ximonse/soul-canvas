@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import type { Theme } from '../../themes';
 import type { AIBatchItemStatus, AIBatchState } from '../../hooks/useIntelligence';
 
@@ -44,22 +44,14 @@ export const AIBatchStatus: React.FC<AIBatchStatusProps> = ({
   onCancel,
   onClear,
 }) => {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const hasError = batch ? batch.items.some((item) => item.status === 'error') : false;
+
   if (!batch) return null;
 
-  const [isExpanded, setIsExpanded] = useState(false);
-  const hasError = batch.items.some((item) => item.status === 'error');
-
-  useEffect(() => {
-    if (batch.status === 'running' && batch.current === 0) {
-      setIsExpanded(false);
-    }
-  }, [batch.current, batch.status, batch.total, batch.type]);
-
-  useEffect(() => {
-    if (batch.status === 'cancelled' || hasError) {
-      setIsExpanded(true);
-    }
-  }, [batch.status, hasError]);
+  const shouldCollapse = batch.status === 'running' && batch.current === 0;
+  const shouldForceExpand = batch.status === 'cancelled' || hasError;
+  const isExpandedNow = shouldForceExpand ? true : (shouldCollapse ? false : isExpanded);
 
   const progress = batch.total > 0 ? Math.round((batch.current / batch.total) * 100) : 0;
   const maxStart = Math.max(batch.items.length - MAX_VISIBLE_ITEMS, 0);
@@ -67,7 +59,7 @@ export const AIBatchStatus: React.FC<AIBatchStatusProps> = ({
   const visibleItems = batch.items.slice(startIndex, startIndex + MAX_VISIBLE_ITEMS);
   const showRange = batch.items.length > MAX_VISIBLE_ITEMS;
 
-  if (!isExpanded) {
+  if (!isExpandedNow) {
     return (
       <div
         className="absolute left-16 bottom-4 z-40 w-64 rounded-lg border shadow-lg backdrop-blur pointer-events-auto"

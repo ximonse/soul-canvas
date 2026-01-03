@@ -13,7 +13,7 @@ function loadViewFromStorage(): ViewState {
         return parsed;
       }
     }
-  } catch (e) {
+  } catch {
     // Ignore parse errors
   }
   return { x: 0, y: 0, k: 1 };

@@ -4,7 +4,7 @@ import type { AIProvider, MindNode, Synapse, Sequence, Conversation, Conversatio
 import { createSelectionSlice, type SelectionActions, type SelectionState } from './slices/selectionSlice';
 import { createHistorySlice, historyInitialState, type HistoryState, type HistoryActions } from './slices/historySlice';
 import { createTrailSlice, initialTrailState, type TrailState, type TrailActions } from './slices/trailSlice';
-import { createNotificationSlice, initialNotificationState, type NotificationState, type NotificationActions } from './slices/notificationSlice';
+import { createNotificationSlice, type NotificationState, type NotificationActions } from './slices/notificationSlice';
 import { GRAVITY } from '../utils/constants';
 import { GEMINI_OCR_MODELS } from '../utils/gemini';
 
@@ -99,6 +99,8 @@ interface CoreActions {
   startSequence: (nodeId: string) => void;
   addToSequence: (nodeId: string) => void;
   finishSequence: () => void;
+  cancelSequence: () => void;
+  removeFromSequence: (nodeId: string) => void;
   switchSession: (id: string | null) => void;
   createSession: (name: string) => string;
   deleteSession: (id: string) => void;
@@ -128,6 +130,9 @@ interface CoreActions {
   toggleColumnShowTags: () => void;
   toggleColumnShowMeta: () => void;
   toggleColumnShowCaptions: () => void;
+
+  // Migration helpers
+  migrateLinksFromCommentToLink: () => number;
 }
 
 const shouldTouchUpdatedAt = (updates: Partial<MindNode>): boolean => (
@@ -166,7 +171,7 @@ const getInitialGeminiOcrModel = () => {
 // Combined store type
 type BrainStore = CoreState & HistoryState & TrailState & SelectionState & NotificationState & CoreActions & SelectionActions & HistoryActions & TrailActions & NotificationActions;
 
-export const useBrainStore = create<BrainStore>()((set) => ({
+export const useBrainStore = create<BrainStore>()((set, get, api) => ({
   // Initial state
   nodes: new Map(),
   synapses: [],
@@ -771,8 +776,8 @@ export const useBrainStore = create<BrainStore>()((set) => ({
   ...createHistorySlice(set),
 
   // Trail slice
-  ...createTrailSlice(set, (): BrainStore => useBrainStore.getState()),
+  ...createTrailSlice(set, get),
 
   // Notification slice
-  ...createNotificationSlice(set, (): BrainStore => useBrainStore.getState()),
+  ...createNotificationSlice(set, get, api),
 }));

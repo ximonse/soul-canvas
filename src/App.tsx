@@ -420,7 +420,6 @@ function App() {
     showSettings,
     showAIPanel,
     showAIChat,
-    isChatMinimized,
     showMassImport,
     showQuoteExtractor,
     showTrailPanel,
@@ -589,12 +588,6 @@ function App() {
       {showChrome && (
         <SessionPanel
           theme={theme}
-          themeName={theme.name}
-          onToggleTheme={() => setThemeIndex((i) => {
-            const newIndex = (i + 1) % THEME_KEYS.length;
-            localStorage.setItem('soul-canvas-theme', THEME_KEYS[newIndex]);
-            return newIndex;
-          })}
           sessions={sessions}
           activeSessionId={activeSessionId}
           onCreateSession={createSession}
@@ -832,11 +825,9 @@ function App() {
           onToggleWandering={handleToggleWandering}
           onToggleSynapseLines={toggleSynapseLines}
           onToggleViewMode={toggleViewMode}
-          onToggleScopePanel={selectionScope.toggleVisibility}
-          theme={theme}
-          onQuoteExtractor={() => setShowQuoteExtractor(true)}
-          onMassImport={() => setShowMassImport(true)}
-          onFocusSearch={() => search.setIsOpen(true)}
+            onToggleScopePanel={selectionScope.toggleVisibility}
+            theme={theme}
+            onFocusSearch={() => search.openSearch()}
         />
       )}
     </div>

@@ -22,7 +22,6 @@ interface KeyboardHandlersProps {
   showSettings: boolean;
   showAIPanel: boolean;
   showAIChat: boolean;
-  isChatMinimized: boolean;
   showMassImport: boolean;
   showQuoteExtractor: boolean;
   showTrailPanel: boolean;
@@ -88,7 +87,6 @@ export function useKeyboardHandlers({
   showSettings,
   showAIPanel,
   showAIChat,
-  isChatMinimized,
   showMassImport,
   showQuoteExtractor,
   showTrailPanel,
@@ -138,7 +136,6 @@ export function useKeyboardHandlers({
   const selectedNodeIds = useBrainStore((state) => state.selectedNodeIds);
   const sequences = useBrainStore((state) => state.sequences);
   const removeFromSequence = useBrainStore((state) => state.removeFromSequence);
-  const toggleSelection = useBrainStore((state) => state.toggleSelection);
   const selectNodes = useBrainStore((state) => state.selectNodes);
   const clearSelection = useBrainStore((state) => state.clearSelection);
   const unpinSelected = useBrainStore((state) => state.unpinSelected);

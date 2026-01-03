@@ -381,7 +381,7 @@ export const arrangeCentrality = (
     const positions = new Map<string, Position>();
 
     // Calculate column dimensions
-    let maxNodeWidth = CARD.WIDTH;
+    let maxNodeWidth: number = CARD.WIDTH;
     sortedNodes.forEach(node => {
         const size = nodeDims.get(node.id)!;
         maxNodeWidth = Math.max(maxNodeWidth, size.width);
