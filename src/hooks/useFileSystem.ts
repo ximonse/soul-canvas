@@ -226,15 +226,67 @@ export function useFileSystem() {
     }
   }, [fileHandle]);
 
+  const ensureNestedDirectory = useCallback(
+    async (baseDir: FileSystemDirectoryHandle, subdir: string) => {
+      const parts = subdir.split('/').map((p) => p.trim()).filter(Boolean);
+      let current = baseDir;
+      for (const part of parts) {
+        current = await current.getDirectoryHandle(part, { create: true });
+      }
+      return current;
+    },
+    []
+  );
+
+  const ensureOriginalsReadme = useCallback(async (assetsDir: FileSystemDirectoryHandle) => {
+    try {
+      const originalsDir = await assetsDir.getDirectoryHandle('originals', { create: true });
+      const readmeHandle = await originalsDir.getFileHandle('README.txt', { create: true });
+      const existing = await readmeHandle.getFile();
+      if (existing.size > 0) return;
+
+      const writable = await readmeHandle.createWritable();
+      await writable.write(
+        [
+          'Soul Canvas originals backup',
+          '----------------------------',
+          'Files in this folder are original imports kept as backup.',
+          'It is safe to delete assets/originals if you need space.',
+          '',
+          'Do NOT delete:',
+          '- data.json',
+          '- assets/ (except assets/originals)',
+          '',
+        ].join('\n')
+      );
+      await writable.close();
+    } catch {
+      // Ignore README failures
+    }
+  }, []);
+
   // --- SPARA BILD (Ny funktion!) ---
-  const saveAsset = useCallback(async (file: File, filename: string) => {
+  const saveAsset = useCallback(async (
+    file: File,
+    filename: string,
+    options?: { subdir?: string; register?: boolean }
+  ) => {
     if (!fileHandle) return null;
     try {
       // 1. Hämta/Skapa 'assets'-mappen
       const assetsDir = await fileHandle.getDirectoryHandle('assets', { create: true });
 
+      const subdir = options?.subdir?.replace(/\\/g, '/').replace(/^\/|\/$/g, '') || '';
+      const targetDir = subdir
+        ? await ensureNestedDirectory(assetsDir, subdir)
+        : assetsDir;
+
+      if (subdir.startsWith('originals')) {
+        await ensureOriginalsReadme(assetsDir);
+      }
+
       // 2. Skapa filen där inne
-      const fileRef = await assetsDir.getFileHandle(filename, { create: true });
+      const fileRef = await targetDir.getFileHandle(filename, { create: true });
       const writable = await fileRef.createWritable();
 
       // 3. Skriv bild-datan
@@ -242,8 +294,13 @@ export function useFileSystem() {
       await writable.close();
 
       // 4. Skapa en visnings-URL för sessionen
+      const assetKey = subdir ? `assets/${subdir}/${filename}` : `assets/${filename}`;
+      const register = options?.register ?? !subdir;
+      if (!register) {
+        return assetKey;
+      }
+
       const objectUrl = URL.createObjectURL(file);
-      const assetKey = `assets/${filename}`;
 
       // 5. Revoke old URL if replacing existing asset
       const oldUrl = useBrainStore.getState().assets[assetKey];

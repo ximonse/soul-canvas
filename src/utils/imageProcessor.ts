@@ -1,10 +1,14 @@
-// src/utils/imageProcessor.ts
+﻿// src/utils/imageProcessor.ts
 
 /**
- * Tar en bildfil, förminskar den så att längsta sidan är maxDimension (t.ex. 900px),
- * och returnerar den som en Base64-sträng (JPEG, 80% kvalitet).
+ * Resize an image so its width is maxWidth (default 800px), keep aspect ratio,
+ * and return a JPEG data URL.
  */
-export const processImageFile = (file: File, maxDimension = 900): Promise<string> => {
+export const processImageFile = (
+  file: File,
+  maxWidth: number = 800,
+  quality: number = 0.85
+): Promise<string> => {
   return new Promise((resolve, reject) => {
     // 1. Kontrollera att det är en bild
     if (!file.type.startsWith('image/')) {
@@ -24,16 +28,10 @@ export const processImageFile = (file: File, maxDimension = 900): Promise<string
         let width = img.width;
         let height = img.height;
 
-        if (width > height) {
-          if (width > maxDimension) {
-            height *= maxDimension / width;
-            width = maxDimension;
-          }
-        } else {
-          if (height > maxDimension) {
-            width *= maxDimension / height;
-            height = maxDimension;
-          }
+        if (width > maxWidth) {
+          const scale = maxWidth / width;
+          width = maxWidth;
+          height = Math.round(height * scale);
         }
 
         // 5. Rita den nya, mindre bilden på en canvas
@@ -52,7 +50,7 @@ export const processImageFile = (file: File, maxDimension = 900): Promise<string
 
         // 6. Exportera resultatet som en JPEG-sträng (0.8 = 80% kvalitet, bra balans)
         // Detta sparar mycket plats jämfört med PNG för foton.
-        const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+        const dataUrl = canvas.toDataURL('image/jpeg', quality);
         resolve(dataUrl);
       };
 
@@ -66,3 +64,5 @@ export const processImageFile = (file: File, maxDimension = 900): Promise<string
     reader.readAsDataURL(file);
   });
 };
+
+

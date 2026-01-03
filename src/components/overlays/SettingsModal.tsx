@@ -5,6 +5,7 @@ import { useState } from 'react';
 import { useBrainStore } from '../../store/useBrainStore';
 import type { Theme } from '../../themes';
 import { GEMINI_OCR_MODELS } from '../../utils/gemini';
+import { FEATURE_FLAGS, setFeatureFlag } from '../../utils/featureFlags';
 
 interface SettingsModalProps {
   onClose: () => void;
@@ -19,6 +20,8 @@ export function SettingsModal({ onClose, theme }: SettingsModalProps) {
   const setApiKey = useBrainStore((state) => state.setApiKey);
   const setGeminiOcrModel = useBrainStore((state) => state.setGeminiOcrModel);
   const [showKeys, setShowKeys] = useState(false);
+  const [logChatTokens, setLogChatTokens] = useState(FEATURE_FLAGS.logChatTokens);
+  const [logChatPayload, setLogChatPayload] = useState(FEATURE_FLAGS.logChatPayload);
 
   return (
     <div
@@ -109,6 +112,43 @@ export function SettingsModal({ onClose, theme }: SettingsModalProps) {
               </div>
             </div>
           )}
+
+          <div className="space-y-3 p-4 rounded bg-black/5">
+            <div className="text-sm font-semibold">Debug</div>
+            <label className="flex items-center justify-between text-sm">
+              <span>Token-loggning (AI)</span>
+              <input
+                type="checkbox"
+                checked={logChatTokens}
+                onChange={(e) => {
+                  const next = e.target.checked;
+                  setLogChatTokens(next);
+                  setFeatureFlag('logChatTokens', next);
+                }}
+              />
+            </label>
+            <label className="flex items-center justify-between text-sm">
+              <span>Logga payload (meddelanden)</span>
+              <input
+                type="checkbox"
+                checked={logChatPayload}
+                onChange={(e) => {
+                  const next = e.target.checked;
+                  setLogChatPayload(next);
+                  setFeatureFlag('logChatPayload', next);
+                }}
+              />
+            </label>
+            <div className="flex items-center justify-between text-xs opacity-70">
+              <span>Status</span>
+              <span>
+                Tokens: {logChatTokens ? 'On' : 'Off'} · Payload: {logChatPayload ? 'On' : 'Off'}
+              </span>
+            </div>
+            <div className="text-xs opacity-70">
+              Visar uppskattning + ev. usage i DevTools Console.
+            </div>
+          </div>
         </div>
 
         <button

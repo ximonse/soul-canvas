@@ -18,6 +18,7 @@ const ReflectionChatOverlay = lazy(() => import('./overlays/ReflectionChatOverla
 const CardEditor = lazy(() => import('./overlays/CardEditor').then(m => ({ default: m.CardEditor })));
 const AIPanel = lazy(() => import('./AIPanel').then(m => ({ default: m.AIPanel })));
 const CommandPalette = lazy(() => import('./CommandPalette').then(m => ({ default: m.CommandPalette })));
+const PdfImportPrompt = lazy(() => import('./overlays/PdfImportPrompt').then(m => ({ default: m.PdfImportPrompt })));
 
 
 interface ModalManagerProps {
@@ -123,6 +124,13 @@ interface ModalManagerProps {
 
   // Theme
   theme: Theme;
+
+  // PDF import prompt
+  pdfImportPrompt?: {
+    suggestedName: string;
+    onConfirm: (name: string) => void;
+    onCancel: () => void;
+  } | null;
   
   // Extra commands for CommandPalette
   onFocusSearch?: () => void;
@@ -212,9 +220,19 @@ export const ModalManager: React.FC<ModalManagerProps> = ({
   onToggleViewMode,
   onToggleScopePanel,
   theme,
+  pdfImportPrompt,
 }) => {
   return (
     <Suspense fallback={null}>
+      {pdfImportPrompt && (
+        <PdfImportPrompt
+          suggestedName={pdfImportPrompt.suggestedName}
+          onConfirm={pdfImportPrompt.onConfirm}
+          onCancel={pdfImportPrompt.onCancel}
+          theme={theme}
+        />
+      )}
+
       {showSettings && <SettingsModal onClose={() => setShowSettings(false)} theme={theme} />}
 
       {contextMenu && (
@@ -292,7 +310,7 @@ export const ModalManager: React.FC<ModalManagerProps> = ({
             if (!hasFile) return;
             const input = document.createElement('input');
             input.type = 'file';
-            input.accept = 'image/*,.json,.html';
+            input.accept = 'image/*,.json,.html,.pdf,.ris';
             input.multiple = true;
             input.onchange = async (e) => {
               const files = (e.target as HTMLInputElement).files;

@@ -1,4 +1,4 @@
-// src/types/types.ts
+﻿// src/types/types.ts
 /// <reference types="wicg-file-system-access" />
 // View mode för canvas vs kolumn-vy
 export type ViewMode = 'canvas' | 'column';
@@ -19,7 +19,8 @@ export interface MindNode {
   copyRef?: string;        // Original card id if this is a copy
   copiedAt?: string;       // When this copy was created
   originalCreatedAt?: string; // When the original card was created
-  imageRef?: string;       // Bildens filreferens/URL (för bildkort)
+  imageRef?: string;
+  pdfId?: string;          // Grupp + sidinfo for importerade PDF-bilder
 
   // NYA FÄLT
   type: 'text' | 'image' | 'zotero'; // För att veta hur vi ska rendera
@@ -181,3 +182,4 @@ export interface NodeCentrality {
   connectionCount: number;
   normalizedCentrality: number;   // 0-1 skala
 }
+

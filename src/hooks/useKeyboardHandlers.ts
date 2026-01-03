@@ -416,7 +416,7 @@ export function useKeyboardHandlers({
       if (!hasFile) return;
       const input = document.createElement('input');
       input.type = 'file';
-      input.accept = 'image/*,.json,.html';
+      input.accept = 'image/*,.json,.html,.pdf,.ris';
       input.multiple = true;
       input.onchange = async (e) => {
         const files = (e.target as HTMLInputElement).files;

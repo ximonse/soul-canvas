@@ -3,6 +3,7 @@ import OpenAI from 'openai';
 import type { MindNode } from '../types/types';
 import { getImageText } from './imageRefs';
 import { openaiLimiter } from './rateLimiter';
+import { logTokenEstimate, logUsage } from './tokenLogging';
 
 /**
  * Generate embedding vector for a node's content
@@ -19,12 +20,14 @@ export const generateEmbedding = async (
     return await openaiLimiter.enqueue(async () => {
       const openai = new OpenAI({ apiKey, dangerouslyAllowBrowser: true });
       
+      logTokenEstimate('openai embeddings', [{ label: 'input', text: content }]);
       const response = await openai.embeddings.create({
         model: 'text-embedding-3-small',
         input: content,
         encoding_format: 'float',
       });
       
+      logUsage('openai embeddings', (response as { usage?: unknown }).usage);
       return response.data[0].embedding;
     });
   } catch (error) {
@@ -47,12 +50,18 @@ export const generateEmbeddingsBatch = async (
     return await openaiLimiter.enqueue(async () => {
       const openai = new OpenAI({ apiKey, dangerouslyAllowBrowser: true });
 
+      logTokenEstimate(
+        'openai embeddings batch',
+        contents.map((text, index) => ({ label: `item ${index + 1}`, text })),
+        { logDetails: false }
+      );
       const response = await openai.embeddings.create({
         model: 'text-embedding-3-small',
         input: contents,
         encoding_format: 'float',
       });
 
+      logUsage('openai embeddings batch', (response as { usage?: unknown }).usage);
       return response.data.map(item => item.embedding);
     });
   } catch (error) {

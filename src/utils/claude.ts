@@ -3,6 +3,7 @@ import type { MindNode, AIReflection } from '../types/types';
 import { getImageText } from './imageRefs';
 import type { ChatMessage } from './chatProviders';
 import { claudeLimiter } from './rateLimiter';
+import { logTokenEstimate, logUsage } from './tokenLogging';
 
 /**
  * Generate a reflective question based on a set of nodes
@@ -53,6 +54,7 @@ Baserat på dessa tankar:
 
 Svara ENDAST med frågan.`;
 
+  logTokenEstimate('claude reflection', [{ label: 'prompt', text: prompt }]);
   const message = await claudeLimiter.enqueue(() =>
     anthropic.messages.create({
       model: 'claude-sonnet-4-5-20250929',
@@ -65,6 +67,7 @@ Svara ENDAST med frågan.`;
       ],
     })
   );
+  logUsage('claude reflection', (message as { usage?: unknown }).usage);
 
   const question =
     message.content[0].type === 'text'
@@ -163,6 +166,7 @@ Instructions:
 - Hidden tags (2-4): thematic insights, emotions, abstract patterns.
 Respond ONLY with JSON.`;
 
+  logTokenEstimate('claude tags', [{ label: 'prompt', text: prompt }]);
   const message = await claudeLimiter.enqueue(() =>
     anthropic.messages.create({
       model: 'claude-sonnet-4-5-20250929',
@@ -175,6 +179,7 @@ Respond ONLY with JSON.`;
       ],
     })
   );
+  logUsage('claude tags', (message as { usage?: unknown }).usage);
 
   const responseText = message.content[0].type === 'text' ? message.content[0].text : '';
   try {
@@ -227,6 +232,7 @@ TEXT:
 ${baseText.substring(0, 1200)}
 `;
 
+  logTokenEstimate('claude summary comment', [{ label: 'prompt', text: prompt }]);
   const message = await claudeLimiter.enqueue(() =>
     anthropic.messages.create({
       model: 'claude-sonnet-4-5-20250929',
@@ -234,6 +240,7 @@ ${baseText.substring(0, 1200)}
       messages: [{ role: 'user', content: prompt }],
     })
   );
+  logUsage('claude summary comment', (message as { usage?: unknown }).usage);
 
   const text = message.content[0].type === 'text' ? message.content[0].text : '';
   return text.trim();
@@ -268,6 +275,7 @@ TEXT:
 ${baseText.substring(0, 800)}
 `;
 
+  logTokenEstimate('claude node title', [{ label: 'prompt', text: prompt }]);
   const message = await claudeLimiter.enqueue(() =>
     anthropic.messages.create({
       model: 'claude-sonnet-4-5-20250929',
@@ -275,6 +283,7 @@ ${baseText.substring(0, 800)}
       messages: [{ role: 'user', content: prompt }],
     })
   );
+  logUsage('claude node title', (message as { usage?: unknown }).usage);
 
   const text = message.content[0].type === 'text' ? message.content[0].text : '';
   return text.trim().replace(/^["'\s-]+|["'\s]+$/g, '');
@@ -323,6 +332,7 @@ Ge en kort (2-3 meningar) insikt om:
 
 Svara på svenska.`;
 
+  logTokenEstimate('claude cluster', [{ label: 'prompt', text: prompt }]);
   const message = await claudeLimiter.enqueue(() =>
     anthropic.messages.create({
       model: 'claude-sonnet-4-5-20250929',
@@ -335,6 +345,7 @@ Svara på svenska.`;
       ],
     })
   );
+  logUsage('claude cluster', (message as { usage?: unknown }).usage);
 
   return message.content[0].type === 'text'
     ? message.content[0].text
@@ -380,6 +391,7 @@ Instruktioner:
 - Skriv på svenska
 - Svara ENDAST med JSON`;
 
+  logTokenEstimate('claude conversation summary', [{ label: 'prompt', text: prompt }]);
   const message = await claudeLimiter.enqueue(() =>
     anthropic.messages.create({
       model: 'claude-sonnet-4-5-20250929',
@@ -387,6 +399,7 @@ Instruktioner:
       messages: [{ role: 'user', content: prompt }],
     })
   );
+  logUsage('claude conversation summary', (message as { usage?: unknown }).usage);
 
   const responseText = message.content[0].type === 'text' ? message.content[0].text : '';
 
@@ -431,6 +444,7 @@ export const generateConversationTitle = async (
 SAMTAL:
 ${relevantMessages}`;
 
+  logTokenEstimate('claude conversation title', [{ label: 'prompt', text: prompt }]);
   const message = await claudeLimiter.enqueue(() =>
     anthropic.messages.create({
       model: 'claude-sonnet-4-5-20250929',
@@ -438,6 +452,7 @@ ${relevantMessages}`;
       messages: [{ role: 'user', content: prompt }],
     })
   );
+  logUsage('claude conversation title', (message as { usage?: unknown }).usage);
 
   const text = message.content[0].type === 'text' ? message.content[0].text : '';
   return text.trim().replace(/^["'\-\s]+|["'\s]+$/g, '') || 'Nytt samtal';
@@ -502,6 +517,7 @@ Instructions:
 - Write the summary in Swedish
 Respond ONLY with JSON`;
 
+  logTokenEstimate('claude chat summary', [{ label: 'prompt', text: prompt }]);
   const message = await claudeLimiter.enqueue(() =>
     anthropic.messages.create({
       model: 'claude-sonnet-4-5-20250929',
@@ -509,6 +525,7 @@ Respond ONLY with JSON`;
       messages: [{ role: 'user', content: prompt }],
     })
   );
+  logUsage('claude chat summary', (message as { usage?: unknown }).usage);
 
   const responseText = message.content[0].type === 'text' ? message.content[0].text : '';
   try {

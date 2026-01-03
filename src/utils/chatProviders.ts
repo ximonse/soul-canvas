@@ -5,6 +5,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import OpenAI from 'openai';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import type { AIProvider } from '../types/types';
+import { FEATURE_FLAGS } from './featureFlags';
 
 export type ChatProvider = AIProvider;
 
@@ -44,6 +45,42 @@ export async function chatWithProvider(
   model?: string
 ): Promise<string> {
   const modelToUse = model || DEFAULT_CHAT_MODELS[provider];
+  const debugEnabled = FEATURE_FLAGS.logChatTokens || FEATURE_FLAGS.logChatPayload;
+
+  const estimateTokens = (text: string) => {
+    const trimmed = text.trim();
+    if (!trimmed) return 0;
+    return Math.max(1, Math.round(trimmed.length / 4));
+  };
+
+  const estimateTokensForMessages = (input: ChatMessage[]) => {
+    const details = input.map((message) => ({
+      role: message.role,
+      chars: message.content.length,
+      tokens: estimateTokens(message.content),
+    }));
+    const base = details.reduce((sum, item) => sum + item.tokens, 0);
+    const overhead = input.length * 4;
+    return {
+      details,
+      total: base + overhead,
+    };
+  };
+
+  const logUsage = (label: string, usage: unknown) => {
+    if (!FEATURE_FLAGS.logChatTokens || !usage) return;
+    console.info(`[AI][usage] ${label}`, usage);
+  };
+
+  if (debugEnabled) {
+    const estimate = estimateTokensForMessages(messages);
+    console.groupCollapsed(`[AI][request] ${provider} ${modelToUse} | est tokens ${estimate.total}`);
+    console.table(estimate.details);
+    if (FEATURE_FLAGS.logChatPayload) {
+      console.log('messages', messages);
+    }
+    console.groupEnd();
+  }
 
   switch (provider) {
     case 'claude': {
@@ -68,6 +105,7 @@ export async function chatWithProvider(
         messages: claudeMessages,
       });
 
+      logUsage('claude', (resp as { usage?: unknown }).usage);
       const textPart = resp.content[0];
       return textPart && textPart.type === 'text' ? textPart.text : '';
     }
@@ -87,6 +125,7 @@ export async function chatWithProvider(
         input: inputMessages,
         ...(instructions && { instructions }),
       });
+      logUsage('openai', (resp as { usage?: unknown }).usage);
       return resp.output_text || '';
     }
 
@@ -95,6 +134,8 @@ export async function chatWithProvider(
       const genModel = client.getGenerativeModel({ model: modelToUse });
       const promptParts = messages.map(m => `${m.role.toUpperCase()}: ${m.content}`).join('\n\n');
       const result = await genModel.generateContent(promptParts);
+      const usage = (result as { response?: { usageMetadata?: unknown } }).response?.usageMetadata;
+      logUsage('gemini', usage);
       return result.response.text() || '';
     }
 

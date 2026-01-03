@@ -48,6 +48,15 @@ const WHEEL_DELTA_CLAMP = 120;
 const WHEEL_ZOOM_SENSITIVITY = 0.0015;
 const WHEEL_ZOOM_DAMPING = 0.42;
 const WHEEL_PAN_DAMPING = 0.55;
+const DEVICE_PIXEL_RATIO = typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1;
+
+const snapToDevicePixel = (value: number) =>
+  Math.round(value * DEVICE_PIXEL_RATIO) / DEVICE_PIXEL_RATIO;
+
+const snapPosition = (pos: { x: number; y: number }) => ({
+  x: snapToDevicePixel(pos.x),
+  y: snapToDevicePixel(pos.y),
+});
 
 const KonvaCanvas: React.FC<KonvaCanvasProps> = ({
   currentThemeKey,
@@ -127,7 +136,8 @@ const KonvaCanvas: React.FC<KonvaCanvasProps> = ({
 
   const scheduleViewCommit = useCallback((nextView: { x: number; y: number; k: number }) => {
     if (VIEW_COMMIT_DELAY_MS <= 0) {
-      canvas.setView(nextView);
+      const snappedView = snapPosition({ x: nextView.x, y: nextView.y });
+      canvas.setView({ ...nextView, ...snappedView });
       if (nextView.k !== lastZoomRef.current) {
         lastZoomRef.current = nextView.k;
         onZoomChange?.(nextView.k);
@@ -143,10 +153,12 @@ const KonvaCanvas: React.FC<KonvaCanvasProps> = ({
       const view = pendingViewRef.current;
       if (!view) return;
       pendingViewRef.current = null;
-      canvas.setView(view);
-      if (view.k !== lastZoomRef.current) {
-        lastZoomRef.current = view.k;
-        onZoomChange?.(view.k);
+      const snappedView = snapPosition({ x: view.x, y: view.y });
+      const nextView = { ...view, ...snappedView };
+      canvas.setView(nextView);
+      if (nextView.k !== lastZoomRef.current) {
+        lastZoomRef.current = nextView.k;
+        onZoomChange?.(nextView.k);
       }
     }, VIEW_COMMIT_DELAY_MS);
   }, [canvas, onZoomChange]);
@@ -192,6 +204,10 @@ const KonvaCanvas: React.FC<KonvaCanvasProps> = ({
       }
 
       if (didUpdate) {
+        const snappedPos = snapPosition({ x: stage.x(), y: stage.y() });
+        if (snappedPos.x !== stage.x() || snappedPos.y !== stage.y()) {
+          stage.position(snappedPos);
+        }
         stage.batchDraw();
         scheduleViewCommit({ x: stage.x(), y: stage.y(), k: stage.scaleX() });
         wheelRafRef.current = window.requestAnimationFrame(tick);
@@ -287,7 +303,8 @@ const KonvaCanvas: React.FC<KonvaCanvasProps> = ({
     ) {
       return;
     }
-    stage.position({ x: canvas.view.x, y: canvas.view.y });
+    const snappedPos = snapPosition({ x: canvas.view.x, y: canvas.view.y });
+    stage.position(snappedPos);
     stage.scale({ x: canvas.view.k, y: canvas.view.k });
   }, [canvas.view.x, canvas.view.y, canvas.view.k, stageRef]);
 
@@ -353,6 +370,10 @@ const KonvaCanvas: React.FC<KonvaCanvasProps> = ({
     const stage = stageRef.current;
     if (!stage) return;
 
+    const snappedPos = snapPosition({ x: stage.x(), y: stage.y() });
+    if (snappedPos.x !== stage.x() || snappedPos.y !== stage.y()) {
+      stage.position(snappedPos);
+    }
     canvas.setView({
       x: stage.x(),
       y: stage.y(),

@@ -227,6 +227,10 @@ function App() {
   const [isSavingChat, setIsSavingChat] = useState(false);
   const [showGuidance, setShowGuidance] = useState(false);
   const [hoveredLink, setHoveredLink] = useState<{ name: string; url: string; x: number; y: number } | null>(null);
+  const [pdfImportPrompt, setPdfImportPrompt] = useState<{
+    suggestedName: string;
+    resolve: (value: string | null) => void;
+  } | null>(null);
   const showChrome = !zenMode;
 
   useEffect(() => {
@@ -247,8 +251,42 @@ function App() {
     return first.done ? null : first.value;
   }, [selectedNodeIds]);
 
+  const requestPdfGroupName = useCallback((suggestedName: string) => (
+    new Promise<string | null>((resolve) => {
+      setPdfImportPrompt({ suggestedName, resolve });
+    })
+  ), []);
+
+  const handlePdfPromptConfirm = useCallback((name: string) => {
+    setPdfImportPrompt((current) => {
+      if (current) current.resolve(name);
+      return null;
+    });
+  }, []);
+
+  const handlePdfPromptCancel = useCallback(() => {
+    setPdfImportPrompt((current) => {
+      if (current) current.resolve(null);
+      return null;
+    });
+  }, []);
+
+  const pdfImportPromptProps = useMemo(() => {
+    if (!pdfImportPrompt) return null;
+    return {
+      suggestedName: pdfImportPrompt.suggestedName,
+      onConfirm: handlePdfPromptConfirm,
+      onCancel: handlePdfPromptCancel,
+    };
+  }, [pdfImportPrompt, handlePdfPromptConfirm, handlePdfPromptCancel]);
+
   // Import handlers
-  const { handleDrop } = useImportHandlers({ canvas, hasFile, saveAsset });
+  const { handleDrop } = useImportHandlers({
+    canvas,
+    hasFile,
+    saveAsset,
+    requestPdfGroupName,
+  });
 
   // Node actions
   const { centerCamera, fitAllNodes, resetZoom, runOCR, runOCROnSelected, deleteSelected } = useNodeActions({
@@ -742,7 +780,7 @@ function App() {
         )}
       </Suspense>
 
-      {showChrome && (
+      {(showChrome || pdfImportPromptProps) && (
         <ModalManager
           showSettings={showSettings}
           showAIPanel={showAIPanel}
@@ -825,9 +863,10 @@ function App() {
           onToggleWandering={handleToggleWandering}
           onToggleSynapseLines={toggleSynapseLines}
           onToggleViewMode={toggleViewMode}
-            onToggleScopePanel={selectionScope.toggleVisibility}
-            theme={theme}
-            onFocusSearch={() => search.openSearch()}
+          onToggleScopePanel={selectionScope.toggleVisibility}
+          theme={theme}
+          onFocusSearch={() => search.openSearch()}
+          pdfImportPrompt={pdfImportPromptProps}
         />
       )}
     </div>

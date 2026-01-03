@@ -648,6 +648,8 @@ const KonvaNodeInner: React.FC<KonvaNodeInnerProps> = ({
     getNodeStyles(theme, node.updatedAt || node.createdAt, isSelected, node.backgroundColor),
     [theme, node.updatedAt, node.createdAt, isSelected, node.backgroundColor]
   );
+  // Force black canvas text for now (per UX request).
+  const textColor = '#000000';
 
   // Är detta en gravitating node?
   const isGravitating = gravitatingSimilarity !== undefined;
@@ -742,7 +744,7 @@ const KonvaNodeInner: React.FC<KonvaNodeInnerProps> = ({
             contentLineHeight={contentLineHeight}
             titleLineHeight={titleLineHeight}
             captionLineHeight={captionLineHeight}
-            textColor={styles.text}
+            textColor={textColor}
             caption={node.caption}
           />
         </Group>
@@ -867,7 +869,7 @@ const KonvaNodeInner: React.FC<KonvaNodeInnerProps> = ({
       {hasImage && imageObj && node.caption?.trim() && (
         <Text text={node.caption} x={CARD.PADDING}
           y={CARD.WIDTH * (imageObj?.height || 0) / (imageObj?.width || 1) + CARD.PADDING / 2}
-          width={CARD.WIDTH - CARD.PADDING * 2} fill={styles.text} fontSize={CARD.FONT_SIZE_SMALL}
+          width={CARD.WIDTH - CARD.PADDING * 2} fill={textColor} fontSize={CARD.FONT_SIZE_SMALL}
           fontFamily={captionFontFamily} fontStyle="italic" align="center" wrap="word"
           lineHeight={captionLineHeight}
         />

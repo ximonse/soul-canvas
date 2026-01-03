@@ -3,6 +3,7 @@
 
 import Anthropic from '@anthropic-ai/sdk';
 import { claudeLimiter } from './rateLimiter';
+import { logTokenEstimate, logUsage } from './tokenLogging';
 
 export interface ExtractedQuote {
   quote: string;      // Själva citatet
@@ -60,6 +61,7 @@ Svara ENDAST med JSON i detta format:
 TEXT ATT ANALYSERA:
 ${text.substring(0, 15000)}`;
 
+  logTokenEstimate('claude quote extract', [{ label: 'prompt', text: prompt }]);
   const message = await claudeLimiter.enqueue(() =>
     anthropic.messages.create({
       model: 'claude-sonnet-4-20250514',
@@ -67,6 +69,7 @@ ${text.substring(0, 15000)}`;
       messages: [{ role: 'user', content: prompt }],
     })
   );
+  logUsage('claude quote extract', (message as { usage?: unknown }).usage);
 
   const content = message.content[0];
   if (content.type !== 'text') {
@@ -120,6 +123,7 @@ Svara ENDAST med JSON:
   "tags": ["tagg1", "tagg2", "tagg3"]
 }`;
 
+  logTokenEstimate('claude quote analyze', [{ label: 'prompt', text: prompt }]);
   const message = await claudeLimiter.enqueue(() =>
     anthropic.messages.create({
       model: 'claude-sonnet-4-20250514',
@@ -127,6 +131,7 @@ Svara ENDAST med JSON:
       messages: [{ role: 'user', content: prompt }],
     })
   );
+  logUsage('claude quote analyze', (message as { usage?: unknown }).usage);
 
   const content = message.content[0];
   if (content.type !== 'text') {

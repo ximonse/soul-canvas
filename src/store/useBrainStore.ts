@@ -713,11 +713,19 @@ export const useBrainStore = create<BrainStore>()((set, get, api) => ({
     viewMode: mode,
     canvasWeekView: mode === 'canvas' ? state.canvasWeekView : false,
     canvasEternalView: mode === 'canvas' ? state.canvasEternalView : false,
+    columnShowOnlySelected:
+      mode === 'column' && state.selectedNodeIds.size > 0
+        ? true
+        : state.columnShowOnlySelected,
   })),
   toggleViewMode: () => set((state) => ({
     viewMode: state.viewMode === 'canvas' ? 'column' : 'canvas',
     canvasWeekView: state.viewMode === 'canvas' ? false : state.canvasWeekView,
     canvasEternalView: state.viewMode === 'canvas' ? false : state.canvasEternalView,
+    columnShowOnlySelected:
+      state.viewMode === 'canvas' && state.selectedNodeIds.size > 0
+        ? true
+        : state.columnShowOnlySelected,
   })),
   setColumnSort: (sort) => set({ columnSort: sort }),
   setColumnCount: (count) => set({ columnCount: Math.max(1, Math.min(6, count)) }),

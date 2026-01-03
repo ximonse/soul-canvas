@@ -12,7 +12,11 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorker;
  * Converts a PDF file into an array of images (one per page).
  * Returns an array of Blob objects (image/jpeg).
  */
-export async function processPdfFile(file: File, scale: number = 2.0): Promise<Blob[]> {
+export async function processPdfFile(
+  file: File,
+  maxWidth: number = 800,
+  quality: number = 0.85
+): Promise<Blob[]> {
     const arrayBuffer = await file.arrayBuffer();
 
     // Load the PDF document
@@ -25,7 +29,9 @@ export async function processPdfFile(file: File, scale: number = 2.0): Promise<B
     for (let i = 1; i <= pdf.numPages; i++) {
         const page = await pdf.getPage(i);
 
-        // Calculate viewport
+        // Calculate viewport (limit width, keep height proportional)
+        const baseViewport = page.getViewport({ scale: 1 });
+        const scale = baseViewport.width > maxWidth ? maxWidth / baseViewport.width : 1;
         const viewport = page.getViewport({ scale });
 
         // Create a canvas to render the page
@@ -50,7 +56,7 @@ export async function processPdfFile(file: File, scale: number = 2.0): Promise<B
 
         // Convert canvas to Blob
         const blob = await new Promise<Blob | null>((resolve) => {
-            canvas.toBlob((b) => resolve(b), 'image/jpeg', 0.95);
+            canvas.toBlob((b) => resolve(b), 'image/jpeg', quality);
         });
 
         if (blob) {

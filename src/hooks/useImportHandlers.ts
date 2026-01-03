@@ -8,11 +8,17 @@ import type { MindNode } from '../types/types';
 import { processImageFile } from '../utils/imageProcessor';
 import { parseZoteroHTML, isZoteroHTML } from '../utils/zoteroParser';
 import { processPdfFile } from '../utils/pdfProcessor';
+import { parseRis, type RisMetadata } from '../utils/risParser';
 
 interface ImportHandlersProps {
   canvas: CanvasAPI;
   hasFile: boolean;
-  saveAsset: (file: File, name: string) => Promise<string | null>;
+  saveAsset: (
+    file: File,
+    name: string,
+    options?: { subdir?: string; register?: boolean }
+  ) => Promise<string | null>;
+  requestPdfGroupName?: (suggestedName: string) => Promise<string | null>;
 }
 
 // Helper: Convert data URL to Blob
@@ -25,12 +31,92 @@ const dataURLtoBlob = (dataurl: string) => {
   return new Blob([u8arr], { type: mime });
 };
 
-export function useImportHandlers({ canvas, hasFile, saveAsset }: ImportHandlersProps) {
+export function useImportHandlers({
+  canvas,
+  hasFile,
+  saveAsset,
+  requestPdfGroupName,
+}: ImportHandlersProps) {
   const saveStateForUndo = useBrainStore((state) => state.saveStateForUndo);
   const addNode = useBrainStore((state) => state.addNode);
   const addNodeWithId = useBrainStore((state) => state.addNodeWithId);
   const updateNode = useBrainStore((state) => state.updateNode);
   const updateNodesBulk = useBrainStore((state) => state.updateNodesBulk);
+  const MAX_IMAGE_WIDTH = 800;
+  const PDF_MAX_WIDTH = 1200;
+  const PDF_QUALITY = 0.9;
+
+  const toSafeName = (name: string) => name.replace(/\s+/g, '_');
+  const normalizeKey = (name: string) => name.trim().toLowerCase();
+
+  const askPdfGroupName = useCallback(async (suggestedName: string) => {
+    if (requestPdfGroupName) {
+      return requestPdfGroupName(suggestedName);
+    }
+    const input = window.prompt('Gruppnamn för PDF:', suggestedName);
+    if (input === null) return null;
+    const trimmed = input.trim();
+    return trimmed || suggestedName;
+  }, [requestPdfGroupName]);
+
+  const extractRisFromText = useCallback((text: string | null | undefined): RisMetadata | null => {
+    if (!text) return null;
+    const trimmed = text.trim();
+    if (!trimmed) return null;
+    if (!trimmed.includes('TY  -')) return null;
+    return parseRis(trimmed);
+  }, []);
+
+  const buildPdfMetadataUpdates = (
+    pdfId: string,
+    metadata?: RisMetadata
+  ): Partial<MindNode> => {
+    const updates: Partial<MindNode> = { pdfId };
+    if (!metadata) return updates;
+
+    const tags = new Set<string>();
+    metadata.keywords.forEach((tag) => {
+      const clean = tag.trim();
+      if (clean) tags.add(clean);
+    });
+    metadata.authors.forEach((author) => {
+      const clean = author.trim();
+      if (clean) tags.add(clean);
+    });
+    if (metadata.year) tags.add(metadata.year);
+
+    if (tags.size > 0) {
+      updates.tags = Array.from(tags);
+    }
+
+    if (metadata.title) {
+      updates.caption = metadata.year
+        ? `${metadata.title} (${metadata.year})`
+        : metadata.title;
+    }
+
+    const commentParts: string[] = [];
+    if (metadata.authors.length > 0) {
+      commentParts.push(`Authors: ${metadata.authors.join(', ')}`);
+    }
+    if (metadata.year) commentParts.push(`Year: ${metadata.year}`);
+    if (metadata.doi) commentParts.push(`DOI: ${metadata.doi}`);
+    if (metadata.url) commentParts.push(`URL: ${metadata.url}`);
+    if (commentParts.length > 0) {
+      updates.comment = commentParts.join('\n');
+    }
+
+    const linkUrl = metadata.url || (metadata.doi ? `https://doi.org/${metadata.doi}` : '');
+    if (linkUrl) {
+      updates.link = `[Source](${linkUrl})`;
+    }
+
+    return updates;
+  };
+
+  const saveOriginal = useCallback(async (file: File, filename: string) => {
+    await saveAsset(file, filename, { subdir: 'originals', register: false });
+  }, [saveAsset]);
 
   // Import JSON files
   const handleJSONImport = useCallback(async (file: File) => {
@@ -122,40 +208,85 @@ export function useImportHandlers({ canvas, hasFile, saveAsset }: ImportHandlers
 
     const worldPos = canvas.screenToWorld(e.clientX, e.clientY);
     const files = Array.from(e.dataTransfer.files);
+    const risMetadataByBaseName = new Map<string, RisMetadata>();
+    const risFromText = extractRisFromText(
+      e.dataTransfer.getData('application/x-research-info-systems')
+        || e.dataTransfer.getData('text/plain')
+    );
 
     for (const file of files) {
+      if (file.name.toLowerCase().endsWith('.ris')) {
+        try {
+          const text = await file.text();
+          const metadata = parseRis(text);
+          const baseName = file.name.replace(/\.ris$/i, '');
+          risMetadataByBaseName.set(normalizeKey(baseName), metadata);
+        } catch (error) {
+          console.warn('RIS import error:', error);
+        }
+      }
+    }
+
+    if (risFromText) {
+      const pdfFiles = files.filter((file) => file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf'));
+      if (pdfFiles.length === 1) {
+        const baseName = pdfFiles[0].name.replace(/\.pdf$/i, '');
+        risMetadataByBaseName.set(normalizeKey(baseName), risFromText);
+      }
+    }
+
+    for (const file of files) {
+      if (file.name.toLowerCase().endsWith('.ris')) {
+        continue;
+      }
       if (file.type.startsWith('image/')) {
-        const resizedBase64 = await processImageFile(file, 900);
+        const stamp = Date.now();
+        const safeName = toSafeName(file.name);
+        await saveOriginal(file, `${stamp}_${safeName}`);
+        const resizedBase64 = await processImageFile(file, MAX_IMAGE_WIDTH);
         const blob = dataURLtoBlob(resizedBase64);
         const processedFile = new File([blob], file.name, { type: 'image/jpeg' });
-        const uniqueName = `${Date.now()}_${file.name.replace(/\s+/g, '_')}`;
+        const uniqueName = `${stamp}_${safeName}`;
         const relativePath = await saveAsset(processedFile, uniqueName);
         if (relativePath) addNode(relativePath, worldPos.x, worldPos.y, 'image');
       } else if (file.type === 'application/json' || file.name.endsWith('.json')) {
         await handleJSONImport(file);
       } else if (file.type === 'application/pdf' || file.name.endsWith('.pdf')) {
         try {
-          const images = await processPdfFile(file);
+          const baseName = file.name.replace(/\.pdf$/i, '') || 'pdf';
+          const groupName = await askPdfGroupName(baseName);
+          if (!groupName) {
+            continue;
+          }
+          const safeBase = toSafeName(groupName.replace(/\.pdf$/i, '') || baseName);
+          const images = await processPdfFile(file, PDF_MAX_WIDTH, PDF_QUALITY);
+          const risMetadata = risMetadataByBaseName.get(normalizeKey(baseName));
+          await saveOriginal(file, `${safeBase}.pdf`);
           const spacing = 320; // Slightly larger than standard card width
           const cols = Math.ceil(Math.sqrt(images.length));
+          const totalPages = images.length;
 
           for (let i = 0; i < images.length; i++) {
             const blob = images[i];
             const pageNum = i + 1;
-            const processedFile = new File([blob], `${file.name}_page_${pageNum}.jpg`, { type: 'image/jpeg' });
-            const uniqueName = `${Date.now()}_${file.name.replace(/\s+/g, '_')}_p${pageNum}`;
-            const relativePath = await saveAsset(processedFile, uniqueName);
+            const pdfId = `${safeBase}_${pageNum}_${totalPages}`;
+            const fileName = `${pdfId}.jpg`;
+            const processedFile = new File([blob], fileName, { type: 'image/jpeg' });
+            const relativePath = await saveAsset(processedFile, fileName);
 
             if (relativePath) {
               const row = Math.floor(i / cols);
               const col = i % cols;
+              const nodeId = crypto.randomUUID();
               // Add simple offset to avoid perfect overlap if dropped at same spot, but mainly grid
-              addNode(
+              addNodeWithId(
+                nodeId,
                 relativePath,
                 worldPos.x + col * spacing,
                 worldPos.y + row * spacing,
                 'image'
               );
+              updateNode(nodeId, buildPdfMetadataUpdates(pdfId, risMetadata));
             }
           }
         } catch (error) {
@@ -208,7 +339,7 @@ export function useImportHandlers({ canvas, hasFile, saveAsset }: ImportHandlers
         }
       }
     }
-  }, [hasFile, canvas, saveAsset, handleJSONImport, addNode, addNodeWithId, updateNode]);
+  }, [hasFile, canvas, saveAsset, saveOriginal, handleJSONImport, addNode, addNodeWithId, updateNode, askPdfGroupName, extractRisFromText]);
 
   // Handle paste events (images)
   useEffect(() => {
@@ -224,10 +355,13 @@ export function useImportHandlers({ canvas, hasFile, saveAsset }: ImportHandlers
           e.preventDefault();
           const file = item.getAsFile();
           if (file) {
-            const resizedBase64 = await processImageFile(file, 900);
+            const stamp = Date.now();
+            const safeName = toSafeName(file.name || `pasted_${stamp}.png`);
+            await saveOriginal(file, `${stamp}_${safeName}`);
+            const resizedBase64 = await processImageFile(file, MAX_IMAGE_WIDTH);
             const blob = dataURLtoBlob(resizedBase64);
             const processedFile = new File([blob], 'pasted_image.jpg', { type: 'image/jpeg' });
-            const uniqueName = `pasted_${Date.now()}.jpg`;
+            const uniqueName = `pasted_${stamp}.jpg`;
             const relativePath = await saveAsset(processedFile, uniqueName);
             const centerPos = canvas.screenToWorld(window.innerWidth / 2, window.innerHeight / 2);
             if (relativePath) addNode(relativePath, centerPos.x, centerPos.y, 'image');
@@ -237,7 +371,7 @@ export function useImportHandlers({ canvas, hasFile, saveAsset }: ImportHandlers
     };
     window.addEventListener('paste', handlePaste);
     return () => window.removeEventListener('paste', handlePaste);
-  }, [hasFile, canvas, saveAsset, addNode]);
+  }, [hasFile, canvas, saveAsset, saveOriginal, addNode]);
 
   return {
     handleDrop,

@@ -235,11 +235,14 @@ export function useKeyboard(
       return;
     }
 
-    // Ctrl+V = paste nodes
+    // Ctrl+V = paste nodes (only if app clipboard has cards)
     if ((e.ctrlKey || e.metaKey) && e.key === 'v' && !typing) {
-      e.preventDefault();
-      actions.onPaste();
-      return;
+      const hasClipboardCards = useBrainStore.getState().clipboard.length > 0;
+      if (hasClipboardCards) {
+        e.preventDefault();
+        actions.onPaste();
+        return;
+      }
     }
 
     // Ctrl+Z = undo
