@@ -28,6 +28,7 @@ dist-ssr
 nul
 
 # Personal data and local config
+Egna tempfiler/
 my_eternal_mind/
 .claude/
 backend/.env
