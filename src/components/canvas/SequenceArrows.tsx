@@ -8,6 +8,7 @@ interface SequenceArrowsProps {
     nodes: Map<string, MindNode>;
     scale: number;
     activeSessionId: string | null;
+    onArrowClick?: (data: { x: number; y: number; seqId: string; segmentIndex: number }) => void;
 }
 
 // Beräkna pilpunkter från kant till kant mellan två kort
@@ -59,6 +60,7 @@ export const SequenceArrows: React.FC<SequenceArrowsProps> = ({
     nodes,
     scale,
     activeSessionId,
+    onArrowClick,
 }) => {
     // Filtrera sekvenser baserat på session
     const visibleSequences = React.useMemo(() => {
@@ -72,14 +74,12 @@ export const SequenceArrows: React.FC<SequenceArrowsProps> = ({
 
     return (
         <>
-            {/* Active sequence (medan man drar) - visas alltid oavsett session om man skapar den nu */}
+            {/* Active sequence (medan man drar) */}
             {activeSequence && activeSequence.nodeIds.map((nodeId, i) => {
                 if (i === 0) return null;
                 const fromNode = nodes.get(activeSequence.nodeIds[i - 1]);
                 const toNode = nodes.get(nodeId);
-                if (!fromNode || !toNode) {
-                    return null;
-                }
+                if (!fromNode || !toNode) return null;
 
                 const { fromX, fromY, toX, toY } = getEdgeToEdgePoints(fromNode, toNode);
 
@@ -103,10 +103,28 @@ export const SequenceArrows: React.FC<SequenceArrowsProps> = ({
                     if (i === 0) return null;
                     const fromNode = nodes.get(sequence.nodeIds[i - 1]);
                     const toNode = nodes.get(nodeId);
-                    // Rita inte om någon nod saknas (t.ex. filtrerad bort)
                     if (!fromNode || !toNode) return null;
 
                     const { fromX, fromY, toX, toY } = getEdgeToEdgePoints(fromNode, toNode);
+
+                    const handleArrowClickInternal = (e: any) => {
+                        e.cancelBubble = true;
+                        const event = e.evt;
+
+                        // Hindra webbläsarens kontextmeny om det är ett högerklick
+                        if (event && event.type === 'contextmenu') {
+                            event.preventDefault();
+                        }
+
+                        if (event && onArrowClick) {
+                            onArrowClick({
+                                x: event.clientX,
+                                y: event.clientY,
+                                seqId: sequence.id,
+                                segmentIndex: i - 1
+                            });
+                        }
+                    };
 
                     return (
                         <Arrow
@@ -117,7 +135,19 @@ export const SequenceArrows: React.FC<SequenceArrowsProps> = ({
                             pointerLength={10 / scale}
                             pointerWidth={10 / scale}
                             opacity={0.9}
-                            listening={false}
+                            listening={true}
+                            hitStrokeWidth={20}
+                            onClick={handleArrowClickInternal}
+                            onTap={handleArrowClickInternal}
+                            onContextMenu={handleArrowClickInternal}
+                            onMouseEnter={(e) => {
+                                const container = e.target.getStage()?.container();
+                                if (container) container.style.cursor = 'pointer';
+                            }}
+                            onMouseLeave={(e) => {
+                                const container = e.target.getStage()?.container();
+                                if (container) container.style.cursor = 'default';
+                            }}
                         />
                     );
                 })

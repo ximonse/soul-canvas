@@ -112,6 +112,8 @@ interface CoreActions {
   loadSessions: (sessions: Session[]) => void;
   loadSequences: (sequences: Sequence[]) => void;
   validateCoordinates: () => number;
+  deleteSequence: (id: string) => void;
+  splitSequence: (id: string, segmentIndex: number) => void;
   addCardsToSession: (sessionId: string, cardIds: string[]) => void;
   removeCardsFromSession: (sessionId: string, cardIds: string[]) => void;
   saveSessionViewState: (sessionId: string, viewState: { x: number; y: number; zoom: number }) => void;
@@ -623,6 +625,55 @@ export const useBrainStore = create<BrainStore>()((set, get, api) => ({
     }
     return fixedCount;
   },
+
+  deleteSequence: (id) => set((state) => {
+    const beforeCount = state.sequences.length;
+    const newSequences = state.sequences.filter(s => s.id !== id);
+    const afterCount = newSequences.length;
+    console.log(`[Store] deleteSequence: ${id}. Count: ${beforeCount} -> ${afterCount}`);
+    return {
+      sequences: newSequences,
+      pendingSave: true
+    };
+  }),
+
+  splitSequence: (id, segmentIndex) => set((state) => {
+    const seq = state.sequences.find(s => s.id === id);
+    if (!seq) {
+      console.warn('[Store] splitSequence: Could not find sequence', id);
+      return {};
+    }
+
+    console.log('[Store] splitSequence: Splitting sequence', id, 'at segment', segmentIndex);
+
+    const leftNodeIds = seq.nodeIds.slice(0, segmentIndex + 1);
+    const rightNodeIds = seq.nodeIds.slice(segmentIndex + 1);
+
+    const newSequences = state.sequences.filter(s => s.id !== id);
+
+    if (leftNodeIds.length >= 2) {
+      newSequences.push({
+        ...seq,
+        id: crypto.randomUUID(),
+        nodeIds: [...leftNodeIds] // New array ref
+      });
+    }
+
+    if (rightNodeIds.length >= 2) {
+      newSequences.push({
+        ...seq,
+        id: crypto.randomUUID(),
+        nodeIds: [...rightNodeIds] // New array ref
+      });
+    }
+
+    console.log('[Store] splitSequence result count:', newSequences.length);
+
+    return {
+      sequences: [...newSequences], // New array ref
+      pendingSave: true
+    };
+  }),
 
   // Conversation actions (AI-chattar med minne)
   loadConversations: (conversations) => set({ conversations }),

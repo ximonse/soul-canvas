@@ -75,6 +75,23 @@ const KonvaCanvas: React.FC<KonvaCanvasProps> = ({
   const sequences = useBrainStore((state) => state.sequences);
   const activeSequence = useBrainStore((state) => state.activeSequence);
   const activeSessionId = useBrainStore((state) => state.activeSessionId); // NY: session awareness
+  const deleteSequence = useBrainStore((state) => state.deleteSequence);
+  const splitSequence = useBrainStore((state) => state.splitSequence);
+
+  const [arrowMenu, setArrowMenu] = useState<{
+    x: number;
+    y: number;
+    seqId: string;
+    segmentIndex: number;
+  } | null>(null);
+
+  // Stäng menyn om man klickar utanför
+  useEffect(() => {
+    if (!arrowMenu) return;
+    const handleClose = () => setArrowMenu(null);
+    window.addEventListener('click', handleClose);
+    return () => window.removeEventListener('click', handleClose);
+  }, [arrowMenu]);
   const internalStageRef = useRef<Konva.Stage>(null);
   const stageRef = externalStageRef || internalStageRef;
   const [stageDimensions, setStageDimensions] = useState({
@@ -419,212 +436,247 @@ const KonvaCanvas: React.FC<KonvaCanvasProps> = ({
   };
 
   return (
-    <Stage
-      ref={stageRef}
-      width={stageDimensions.width}
-      height={stageDimensions.height}
-      draggable={!isDraggingNode && !selectionRect?.visible}
-      onDragEnd={handleStageDragEnd}
-      onWheel={handleStageWheel}
-      onDblClick={handleStageDblClick}
-      onMouseDown={handleStageMouseDown}
-      onMouseMove={handleStageMouseMove}
-      onMouseUp={handleStageMouseUp}
-      style={{ backgroundColor: theme.canvasColor }}
-    >
-      <Layer>
-        {nodes.length === 0 && (
-          <Group>
-            <Text
-              text="🌌 Soul Canvas"
-              x={window.innerWidth / 2}
-              y={window.innerHeight / 2 - 100}
-              offsetX={300} // Approximate half width
-              fontSize={48}
-              fontFamily="serif"
-              fill={theme.node.text}
-              opacity={0.3}
-              align="center"
-              width={600}
-              listening={false}
-            />
-            <Text
-              text="Från 'Second Brain' till 'Zen Master'. En oändlig duk för kontemplation."
-              x={window.innerWidth / 2}
-              y={window.innerHeight / 2 - 30}
-              offsetX={400}
-              fontSize={18}
-              fontFamily="sans-serif"
-              fill={theme.node.text}
-              opacity={0.5}
-              align="center"
-              width={800}
-              listening={false}
-            />
-            <Text
-              text={`Kom igång:\n• Tryck 'Space' för kommandon\n• Dubbelklicka för nytt kort\n• Dra & Släpp filer här`}
-              x={window.innerWidth / 2}
-              y={window.innerHeight / 2 + 40}
-              offsetX={300}
-              fontSize={16}
-              fontFamily="monospace"
-              fill={theme.node.border}
-              opacity={0.6}
-              align="center"
-              width={600}
-              lineHeight={1.6}
-              listening={false}
-            />
-          </Group>
-        )}
-      </Layer>
-      {/* Synapse lines */}
-      {showSynapseLines && (
-        <FastLayer listening={false}>
-          <SynapseLines
-            synapses={synapses}
-            nodes={filteredNodesMap}
-            visibleNodeIds={visibleNodeIdSet}
-            visibilityThreshold={synapseVisibilityThreshold}
-            scale={canvas.view.k}
-          />
-        </FastLayer>
-      )}
-
-      <Layer>
-        {/* Gravitating lines - från current wandering node till gravitating nodes */}
-        {wanderingCurrentNodeId && gravitatingNodes.length > 0 && (() => {
-          const currentNode = filteredNodesMap.get(wanderingCurrentNodeId);
-          if (!currentNode) return null;
-
-          const currentX = currentNode.x + (currentNode.width || 200) / 2;
-          const currentY = currentNode.y + (currentNode.height || 100) / 2;
-
-          return gravitatingNodes.map((gn) => {
-            const targetNode = filteredNodesMap.get(gn.nodeId);
-            if (!targetNode) return null;
-
-            const targetX = targetNode.x + (targetNode.width || 200) / 2;
-            const targetY = targetNode.y + (targetNode.height || 100) / 2;
-
-            const lineColor = gravitatingColorMode === 'semantic'
-              ? getSemanticThemeColor(gn.semanticTheme)
-              : getGravitatingColor(gn.similarity);
-
-            return (
-              <Line
-                key={`grav-${gn.nodeId}`}
-                points={[currentX, currentY, targetX, targetY]}
-                stroke={lineColor}
-                strokeWidth={4 / canvas.view.k}
-                opacity={0.7 + gn.similarity * 0.3}
-                lineCap="round"
-                shadowColor={lineColor}
-                shadowBlur={8}
-                shadowOpacity={0.5}
+    <>
+      <Stage
+        ref={stageRef}
+        width={stageDimensions.width}
+        height={stageDimensions.height}
+        draggable={!isDraggingNode && !selectionRect?.visible}
+        onDragEnd={handleStageDragEnd}
+        onWheel={handleStageWheel}
+        onDblClick={handleStageDblClick}
+        onMouseDown={handleStageMouseDown}
+        onMouseMove={handleStageMouseMove}
+        onMouseUp={handleStageMouseUp}
+        style={{ backgroundColor: theme.canvasColor }}
+      >
+        <Layer>
+          {nodes.length === 0 && (
+            <Group>
+              <Text
+                text="🌌 Soul Canvas"
+                x={window.innerWidth / 2}
+                y={window.innerHeight / 2 - 100}
+                offsetX={300} // Approximate half width
+                fontSize={48}
+                fontFamily="serif"
+                fill={theme.node.text}
+                opacity={0.3}
+                align="center"
+                width={600}
+                listening={false}
               />
-            );
-          });
-        })()}
+              <Text
+                text="Från 'Second Brain' till 'Zen Master'. En oändlig duk för kontemplation."
+                x={window.innerWidth / 2}
+                y={window.innerHeight / 2 - 30}
+                offsetX={400}
+                fontSize={18}
+                fontFamily="sans-serif"
+                fill={theme.node.text}
+                opacity={0.5}
+                align="center"
+                width={800}
+                listening={false}
+              />
+              <Text
+                text={`Kom igång:\n• Tryck 'Space' för kommandon\n• Dubbelklicka för nytt kort\n• Dra & Släpp filer här`}
+                x={window.innerWidth / 2}
+                y={window.innerHeight / 2 + 40}
+                offsetX={300}
+                fontSize={16}
+                fontFamily="monospace"
+                fill={theme.node.border}
+                opacity={0.6}
+                align="center"
+                width={600}
+                lineHeight={1.6}
+                listening={false}
+              />
+            </Group>
+          )}
+        </Layer>
+        {/* Synapse lines */}
+        {showSynapseLines && (
+          <FastLayer listening={false}>
+            <SynapseLines
+              synapses={synapses}
+              nodes={filteredNodesMap}
+              visibleNodeIds={visibleNodeIdSet}
+              visibilityThreshold={synapseVisibilityThreshold}
+              scale={canvas.view.k}
+            />
+          </FastLayer>
+        )}
 
-        {/* Trail lines - stig genom besökta kort */}
-        {(() => {
-          // Samla alla trails att rita (aktiv + valda)
-          const trailsToDraw: { trail: Trail; color: string; isActive: boolean }[] = [];
+        <Layer>
+          {/* Gravitating lines - från current wandering node till gravitating nodes */}
+          {wanderingCurrentNodeId && gravitatingNodes.length > 0 && (() => {
+            const currentNode = filteredNodesMap.get(wanderingCurrentNodeId);
+            if (!currentNode) return null;
 
-          if (showActiveTrailLine && activeTrail && activeTrail.waypoints.length > 1) {
-            trailsToDraw.push({ trail: activeTrail, color: '#f59e0b', isActive: true }); // Orange för aktiv
-          }
+            const currentX = currentNode.x + (currentNode.width || 200) / 2;
+            const currentY = currentNode.y + (currentNode.height || 100) / 2;
 
-          // Valda trails (olika färger)
-          const trailColors = ['#8b5cf6', '#ec4899', '#06b6d4', '#10b981', '#f97316'];
-          selectedTrails.forEach((trail, idx) => {
-            if (trail.waypoints.length > 1 && trail.id !== activeTrail?.id) {
-              trailsToDraw.push({ trail, color: trailColors[idx % trailColors.length], isActive: false });
-            }
-          });
+            return gravitatingNodes.map((gn) => {
+              const targetNode = filteredNodesMap.get(gn.nodeId);
+              if (!targetNode) return null;
 
-          return trailsToDraw.flatMap(({ trail, color, isActive }) => {
-            const lines: React.ReactNode[] = [];
+              const targetX = targetNode.x + (targetNode.width || 200) / 2;
+              const targetY = targetNode.y + (targetNode.height || 100) / 2;
 
-            for (let i = 0; i < trail.waypoints.length - 1; i++) {
-              const fromNode = filteredNodesMap.get(trail.waypoints[i].nodeId);
-              const toNode = filteredNodesMap.get(trail.waypoints[i + 1].nodeId);
-              if (!fromNode || !toNode) continue;
+              const lineColor = gravitatingColorMode === 'semantic'
+                ? getSemanticThemeColor(gn.semanticTheme)
+                : getGravitatingColor(gn.similarity);
 
-              const fromX = fromNode.x + (fromNode.width || 200) / 2;
-              const fromY = fromNode.y + (fromNode.height || 100) / 2;
-              const toX = toNode.x + (toNode.width || 200) / 2;
-              const toY = toNode.y + (toNode.height || 100) / 2;
-
-              lines.push(
+              return (
                 <Line
-                  key={`trail-${trail.id}-${i}`}
-                  points={[fromX, fromY, toX, toY]}
-                  stroke={color}
-                  strokeWidth={(isActive ? 8 : 6) / canvas.view.k}
-                  opacity={isActive ? 0.95 : 0.85}
+                  key={`grav-${gn.nodeId}`}
+                  points={[currentX, currentY, targetX, targetY]}
+                  stroke={lineColor}
+                  strokeWidth={4 / canvas.view.k}
+                  opacity={0.7 + gn.similarity * 0.3}
                   lineCap="round"
-                  lineJoin="round"
-                  shadowColor={color}
-                  shadowBlur={isActive ? 14 : 10}
-                  shadowOpacity={0.6}
+                  shadowColor={lineColor}
+                  shadowBlur={8}
+                  shadowOpacity={0.5}
                 />
               );
+            });
+          })()}
+
+          {/* Trail lines - stig genom besökta kort */}
+          {(() => {
+            // Samla alla trails att rita (aktiv + valda)
+            const trailsToDraw: { trail: Trail; color: string; isActive: boolean }[] = [];
+
+            if (showActiveTrailLine && activeTrail && activeTrail.waypoints.length > 1) {
+              trailsToDraw.push({ trail: activeTrail, color: '#f59e0b', isActive: true }); // Orange för aktiv
             }
-            return lines;
-          });
-        })()}
+
+            // Valda trails (olika färger)
+            const trailColors = ['#8b5cf6', '#ec4899', '#06b6d4', '#10b981', '#f97316'];
+            selectedTrails.forEach((trail, idx) => {
+              if (trail.waypoints.length > 1 && trail.id !== activeTrail?.id) {
+                trailsToDraw.push({ trail, color: trailColors[idx % trailColors.length], isActive: false });
+              }
+            });
+
+            return trailsToDraw.flatMap(({ trail, color, isActive }) => {
+              const lines: React.ReactNode[] = [];
+
+              for (let i = 0; i < trail.waypoints.length - 1; i++) {
+                const fromNode = filteredNodesMap.get(trail.waypoints[i].nodeId);
+                const toNode = filteredNodesMap.get(trail.waypoints[i + 1].nodeId);
+                if (!fromNode || !toNode) continue;
+
+                const fromX = fromNode.x + (fromNode.width || 200) / 2;
+                const fromY = fromNode.y + (fromNode.height || 100) / 2;
+                const toX = toNode.x + (toNode.width || 200) / 2;
+                const toY = toNode.y + (toNode.height || 100) / 2;
+
+                lines.push(
+                  <Line
+                    key={`trail-${trail.id}-${i}`}
+                    points={[fromX, fromY, toX, toY]}
+                    stroke={color}
+                    strokeWidth={(isActive ? 8 : 6) / canvas.view.k}
+                    opacity={isActive ? 0.95 : 0.85}
+                    lineCap="round"
+                    lineJoin="round"
+                    shadowColor={color}
+                    shadowBlur={isActive ? 14 : 10}
+                    shadowOpacity={0.6}
+                  />
+                );
+              }
+              return lines;
+            });
+          })()}
 
 
-        {/* Sequence arrows (behind nodes) */}
-        <SequenceArrows
-          sequences={sequences}
-          activeSequence={activeSequence}
-          nodes={filteredNodesMap}
-          scale={canvas.view.k}
-          activeSessionId={activeSessionId}
-        />
-
-        {visibleNodeIds.map((nodeId: string) => {
-          const gravitatingInfo = gravitatingMap.get(nodeId);
-          return (
-            <KonvaNode
-              key={nodeId}
-              nodeId={nodeId}
-              theme={theme}
-              isWandering={isWandering}
-              onWanderStep={onWanderStep}
-              gravitatingSimilarity={gravitatingInfo?.similarity}
-              gravitatingSemanticTheme={gravitatingInfo?.semanticTheme}
-              gravitatingColorMode={gravitatingColorMode}
-              onEditCard={onEditCard}
-              onDragStart={handleNodeDragStart}
-              onDragEnd={handleNodeDragEnd}
-              onContextMenu={onContextMenu}
-              onLinkHover={onLinkHover}
-              onHover={onCommentHover}
-            />
-          );
-        })}
-
-        {/* Selection rectangle */}
-        {selectionRect && selectionRect.visible && (
-          <Rect
-            x={Math.min(selectionRect.x1, selectionRect.x2)}
-            y={Math.min(selectionRect.y1, selectionRect.y2)}
-            width={Math.abs(selectionRect.x2 - selectionRect.x1)}
-            height={Math.abs(selectionRect.y2 - selectionRect.y1)}
-            fill="rgba(99, 102, 241, 0.1)"
-            stroke="rgba(99, 102, 241, 0.5)"
-            strokeWidth={2 / canvas.view.k}
-            dash={[10 / canvas.view.k, 5 / canvas.view.k]}
+          {/* Sequence arrows (behind nodes) */}
+          <SequenceArrows
+            sequences={sequences}
+            activeSequence={activeSequence}
+            nodes={filteredNodesMap}
+            scale={canvas.view.k}
+            activeSessionId={activeSessionId}
+            onArrowClick={setArrowMenu}
           />
-        )}
+
+          {visibleNodeIds.map((nodeId: string) => {
+            const gravitatingInfo = gravitatingMap.get(nodeId);
+            return (
+              <KonvaNode
+                key={nodeId}
+                nodeId={nodeId}
+                theme={theme}
+                isWandering={isWandering}
+                onWanderStep={onWanderStep}
+                gravitatingSimilarity={gravitatingInfo?.similarity}
+                gravitatingSemanticTheme={gravitatingInfo?.semanticTheme}
+                gravitatingColorMode={gravitatingColorMode}
+                onEditCard={onEditCard}
+                onDragStart={handleNodeDragStart}
+                onDragEnd={handleNodeDragEnd}
+                onContextMenu={onContextMenu}
+                onLinkHover={onLinkHover}
+                onHover={onCommentHover}
+              />
+            );
+          })}
+
+          {/* Selection rectangle */}
+          {selectionRect && selectionRect.visible && (
+            <Rect
+              x={Math.min(selectionRect.x1, selectionRect.x2)}
+              y={Math.min(selectionRect.y1, selectionRect.y2)}
+              width={Math.abs(selectionRect.x2 - selectionRect.x1)}
+              height={Math.abs(selectionRect.y2 - selectionRect.y1)}
+              fill="rgba(99, 102, 241, 0.1)"
+              stroke="rgba(99, 102, 241, 0.5)"
+              strokeWidth={2 / canvas.view.k}
+              dash={[10 / canvas.view.k, 5 / canvas.view.k]}
+            />
+          )}
 
 
-      </Layer>
-    </Stage>
+        </Layer>
+      </Stage>
+
+      {
+        arrowMenu && (
+          <div
+            className="arrow-action-menu"
+            style={{ left: arrowMenu.x, top: arrowMenu.y }}
+            onClick={(e) => e.stopPropagation()}
+            onContextMenu={(e) => e.preventDefault()}
+          >
+            <button
+              className="arrow-action-item"
+              onClick={() => {
+                splitSequence(arrowMenu.seqId, arrowMenu.segmentIndex);
+                setArrowMenu(null);
+              }}
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M7 7l10 10M17 7L7 17" /></svg>
+              Ta bort pil (Dela)
+            </button>
+            <button
+              className="arrow-action-item delete-chain"
+              onClick={() => {
+                deleteSequence(arrowMenu.seqId);
+                setArrowMenu(null);
+              }}
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2M10 11v6M14 11v6" /></svg>
+              Ta bort hela kedjan
+            </button>
+          </div>
+        )
+      }
+    </>
   );
 };
 
