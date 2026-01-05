@@ -1,3 +1,6 @@
+LEGACY / HISTORICAL DOCUMENT
+This file is kept for historical context. For current guidance see README.md and CLAUDE.md.
+
 🌌 Soul Canvas – Visionärt & Tekniskt Manifest
 1. Visionen: Från "Second Brain" till "Zen Master"
 Detta är inte en produktivitetsapp. Det är en digital förlängning av medvetandet. Vi bygger inte en att-göra-lista, utan en oändlig duk för kontemplation och mönsterigenkänning.

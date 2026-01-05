@@ -346,7 +346,7 @@ export const CardEditor = ({ cardId, onClose, theme }: CardEditorProps) => {
           </div>
           <div className="mt-2">
             <div className="flex items-center gap-3">
-              <span style={{ color: theme.node.text, fontSize: '0.875rem' }}>{'P\u00e5minn:'}</span>
+              <span style={{ color: theme.node.text, fontSize: '0.875rem' }}>Påminn:</span>
               <input
                 type="range"
                 min="0"
@@ -369,9 +369,9 @@ export const CardEditor = ({ cardId, onClose, theme }: CardEditorProps) => {
                     border: `1px solid ${theme.node.border}`,
                     minWidth: '160px',
                   }}
-                  title={'P\u00e5minnelser'}
+                  title="Påminnelser"
                 >
-                  P\u00e5minnelser
+                  Påminnelser
                 </button>
                 {reminderMenuOpen && (
                   <div

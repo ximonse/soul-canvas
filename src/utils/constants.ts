@@ -7,7 +7,7 @@ export const CARD = {
   MIN_HEIGHT: 120, // Minimum height for a card
   MAX_HEIGHT: 800, // Maximum height for a card (increased for content-heavy cards)
   PADDING: 15, // Padding inside cards
-  CORNER_RADIUS: 10, // Border radius for cards
+  CORNER_RADIUS: 5, // Border radius for cards
   IMAGE_WIDTH: 280, // Keep existing image related
   IMAGE_HEIGHT: 200, // Keep existing image related
   // Font sizes
@@ -24,8 +24,8 @@ export const CARD = {
 
 // Avstånd och spacing
 export const SPACING = {
-  GRID_GAP: 20, // Gap between cards in grid arrangements
-  GRID_COLUMNS: 5,
+  GRID_GAP: 0, // Gap between cards in grid arrangements
+  GRID_COLUMNS: 6,
   ARRANGEMENT_GAP: 40,
   VIEWPORT_MARGIN: 200, // Extra marginal för viewport culling
 } as const;
@@ -38,7 +38,7 @@ export const VIEWPORT = {
 // Zoom-gränser
 export const ZOOM = {
   MIN: 0.02,
-  MAX: 4,
+  MAX: 5,
   DEFAULT: 1,
 } as const;
 

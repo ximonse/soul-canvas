@@ -59,28 +59,29 @@ const parseInlineMarkdown = (text: string): { segments: MarkdownSegment[]; plain
 };
 
 function parseLine(line: string): ParsedLine {
+  const normalized = line.replace(/^[\uFEFF\u200B\u200E\u200F]+/, '');
   // H3: ### text
-  const h3Match = line.match(/^###\s*(.+)$/);
+  const h3Match = normalized.match(/^\s*###\s*(.+)$/);
   if (h3Match) {
     const inline = parseInlineMarkdown(h3Match[1]);
     return { text: inline.plainText, isHeading: 3, segments: inline.segments };
   }
 
   // H2: ## text
-  const h2Match = line.match(/^##\s*(.+)$/);
+  const h2Match = normalized.match(/^\s*##\s*(.+)$/);
   if (h2Match) {
     const inline = parseInlineMarkdown(h2Match[1]);
     return { text: inline.plainText, isHeading: 2, segments: inline.segments };
   }
 
   // H1: # text
-  const h1Match = line.match(/^#\s*(.+)$/);
+  const h1Match = normalized.match(/^\s*#\s*(.+)$/);
   if (h1Match) {
     const inline = parseInlineMarkdown(h1Match[1]);
     return { text: inline.plainText, isHeading: 1, segments: inline.segments };
   }
 
-  const trimmed = line.trim();
+  const trimmed = normalized.trim();
 
   const emphasisMatch = trimmed.match(/^\*\*\*.+\*\*\*$/)
     || trimmed.match(/^___.+___$/)
@@ -94,7 +95,7 @@ function parseLine(line: string): ParsedLine {
   }
 
   // Bullet list: - item or * item (with or without space)
-  const bulletMatch = line.match(/^\s*[-*]\s*(.+)$/);
+  const bulletMatch = normalized.match(/^\s*[-*]\s*(.+)$/);
   if (bulletMatch) {
     const inline = parseInlineMarkdown(bulletMatch[1]);
     const prefix = '\u2022 ';
@@ -104,13 +105,13 @@ function parseLine(line: string): ParsedLine {
     };
   }
 
-  const inline = parseInlineMarkdown(line);
+  const inline = parseInlineMarkdown(normalized);
   if (inline.hasFormatting) {
     return { text: inline.plainText, segments: inline.segments };
   }
 
   // Vanlig text
-  return { text: line };
+  return { text: normalized };
 }
 
 /**

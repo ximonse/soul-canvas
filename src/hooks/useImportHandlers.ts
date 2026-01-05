@@ -7,7 +7,7 @@ import { type CanvasAPI } from './useCanvas';
 import type { MindNode } from '../types/types';
 import { processImageFile } from '../utils/imageProcessor';
 import { parseZoteroHTML, parseZoteroPlainText, isZoteroHTML, type ZoteroNote } from '../utils/zoteroParser';
-import { processPdfFile } from '../utils/pdfProcessor';
+import { processPdfFile, processPdfPreview } from '../utils/pdfProcessor';
 import { parseRis, type RisMetadata } from '../utils/risParser';
 import { parseCoinsHtml } from '../utils/coinsParser';
 
@@ -32,6 +32,39 @@ const dataURLtoBlob = (dataurl: string) => {
   return new Blob([u8arr], { type: mime });
 };
 
+const normalizeZoteroContent = (text?: string) => (
+  (text || '')
+    .replace(/[“”„”«»"'/]+/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+);
+
+const mergePlainTextLinks = (htmlNotes: ZoteroNote[], plainNotes: ZoteroNote[]) => {
+  if (!plainNotes.length) return htmlNotes;
+  const lookup = new Map<string, ZoteroNote>();
+  plainNotes.forEach((note, index) => {
+    const key = normalizeZoteroContent(note.content);
+    if (key && !lookup.has(key)) {
+      lookup.set(key, note);
+    }
+    lookup.set(`idx:${index}`, note);
+  });
+
+  return htmlNotes.map((note, index) => {
+    if (note.pdfLink) return note;
+    const key = normalizeZoteroContent(note.content);
+    const fallback = key ? lookup.get(key) : lookup.get(`idx:${index}`);
+    if (!fallback) return note;
+    return {
+      ...note,
+      pdfLink: fallback.pdfLink,
+      zoteroItemKey: note.zoteroItemKey || fallback.zoteroItemKey,
+      pdfName: note.pdfName || fallback.pdfName,
+      tags: note.tags.length ? note.tags : fallback.tags,
+    };
+  });
+};
+
 export function useImportHandlers({
   canvas,
   hasFile,
@@ -44,8 +77,8 @@ export function useImportHandlers({
   const updateNode = useBrainStore((state) => state.updateNode);
   const updateNodesBulk = useBrainStore((state) => state.updateNodesBulk);
   const MAX_IMAGE_WIDTH = 800;
-  const PDF_MAX_WIDTH = 1000;
-  const PDF_QUALITY = 0.9;
+  const PDF_MAX_WIDTH = 1600;
+  const PDF_QUALITY = 0.95;
 
   const toSafeName = (name: string) => name.replace(/\s+/g, '_');
   const normalizeKey = (name: string) => name.trim().toLowerCase();
@@ -313,8 +346,20 @@ export function useImportHandlers({
         .map((line) => line.trim())
         .filter((line) => line && !line.startsWith('#'))
     );
-    const extractZoteroInfo = (raw: string) => {
-      const entries = parseUriList(raw);
+    const extractZoteroInfo = (rawList: string, rawText?: string, rawHtml?: string) => {
+      const payloads = [rawList, rawText, rawHtml].filter(Boolean) as string[];
+      for (const payload of payloads) {
+        const openPdfMatch = payload.match(/zotero:\/\/open-pdf\/library\/items\/([A-Z0-9]{8})(?:[^\s)]*page=(\d+))?/i);
+        if (openPdfMatch) {
+          return {
+            zoteroItemKey: openPdfMatch[1],
+            zoteroPdfPath: undefined,
+            zoteroPage: openPdfMatch[2] ? Number(openPdfMatch[2]) : undefined,
+          };
+        }
+      }
+
+      const entries = parseUriList(rawList || '');
       for (const entry of entries) {
         if (!entry.startsWith('file://')) continue;
         const decoded = decodeURIComponent(entry);
@@ -323,6 +368,7 @@ export function useImportHandlers({
         return {
           zoteroItemKey: match[1],
           zoteroPdfPath: entry,
+          zoteroPage: undefined,
         };
       }
       return null;
@@ -336,7 +382,7 @@ export function useImportHandlers({
     const plainTextPayload = e.dataTransfer.getData('text/plain');
     const coinsMetadata = parseCoinsHtml(htmlPayload);
     const uriListRaw = e.dataTransfer.getData('text/uri-list');
-    const zoteroInfo = uriListRaw ? extractZoteroInfo(uriListRaw) : null;
+    const zoteroInfo = extractZoteroInfo(uriListRaw, plainTextPayload, htmlPayload);
 
     for (const file of files) {
       if (file.name.toLowerCase().endsWith('.ris')) {
@@ -362,10 +408,10 @@ export function useImportHandlers({
     const zoteroNotes = htmlPayload && isZoteroHTML(htmlPayload)
       ? parseZoteroHTML(htmlPayload)
       : [];
-    const plainTextNotes = zoteroNotes.length === 0
-      ? parseZoteroPlainText(plainTextPayload)
-      : [];
-    const notesToAdd = zoteroNotes.length > 0 ? zoteroNotes : plainTextNotes;
+    const plainTextNotes = parseZoteroPlainText(plainTextPayload);
+    const notesToAdd = zoteroNotes.length > 0
+      ? mergePlainTextLinks(zoteroNotes, plainTextNotes)
+      : plainTextNotes;
 
     if (notesToAdd.length > 0) {
       saveStateForUndo();
@@ -442,9 +488,44 @@ export function useImportHandlers({
               continue;
             }
           }
-          const images = await processPdfFile(file, PDF_MAX_WIDTH, PDF_QUALITY);
           const risMetadata = risMetadataByBaseName.get(normalizeKey(baseName));
           await saveOriginal(file, `${safeBase}.pdf`);
+
+          if (zoteroInfo?.zoteroItemKey) {
+            const preview = await processPdfPreview(file, PDF_MAX_WIDTH, PDF_QUALITY);
+            if (!preview.blob) {
+              console.error('PDF preview failed: no blob created');
+              continue;
+            }
+            const totalPages = preview.totalPages || 1;
+            const pdfId = `${safeBase}_1_${totalPages}`;
+            const fileName = `${pdfId}.jpg`;
+            const processedFile = new File([preview.blob], fileName, { type: 'image/jpeg' });
+            const relativePath = await saveAsset(processedFile, fileName);
+            if (relativePath) {
+              const nodeId = crypto.randomUUID();
+              addNodeWithId(nodeId, relativePath, worldPos.x, worldPos.y, 'image');
+              const updates = buildSourceMetadataUpdates(risMetadata, {
+                pdfId,
+                useCaption: true,
+                zoteroItemKey: zoteroInfo?.zoteroItemKey,
+                zoteroPdfPath: zoteroInfo?.zoteroPdfPath,
+              });
+              updates.imageRef = relativePath;
+              updates.content = '';
+            const pdfLink = buildZoteroPdfLink(
+              zoteroInfo?.zoteroItemKey,
+              zoteroInfo?.zoteroPage || 1
+            );
+              if (pdfLink) {
+                updates.link = `[PDF](${pdfLink})`;
+              }
+              updateNode(nodeId, updates);
+            }
+            continue;
+          }
+
+          const images = await processPdfFile(file, PDF_MAX_WIDTH, PDF_QUALITY);
           const spacing = 320; // Slightly larger than standard card width
           const cols = Math.ceil(Math.sqrt(images.length));
           const totalPages = images.length;

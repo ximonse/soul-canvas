@@ -38,6 +38,7 @@ interface CoreState {
   // Sequences (D+klick kedjor)
   sequences: Sequence[];
   activeSequence: Sequence | null;  // Pågående kedja under D-hållning
+  isSequenceInputActive: boolean;   // Om D-tangenten hålls nere
 
   // Conversations (AI-chattar med minne)
   conversations: Conversation[];
@@ -103,11 +104,14 @@ interface CoreActions {
   finishSequence: () => void;
   cancelSequence: () => void;
   removeFromSequence: (nodeId: string) => void;
+  setSequenceInputActive: (active: boolean) => void;
   switchSession: (id: string | null) => void;
   createSession: (name: string) => string;
   deleteSession: (id: string) => void;
   renameSession: (id: string, name: string) => void;
   loadSessions: (sessions: Session[]) => void;
+  loadSequences: (sequences: Sequence[]) => void;
+  validateCoordinates: () => number;
   addCardsToSession: (sessionId: string, cardIds: string[]) => void;
   removeCardsFromSession: (sessionId: string, cardIds: string[]) => void;
   saveSessionViewState: (sessionId: string, viewState: { x: number; y: number; zoom: number }) => void;
@@ -196,6 +200,7 @@ export const useBrainStore = create<BrainStore>()((set, get, api) => ({
   graphGravity: 1.0,
   sequences: [],
   activeSequence: null,
+  isSequenceInputActive: false,
   synapseVisibilityThreshold: 0,  // Default: visa alla kopplingar
   conversations: [],
   activeConversationId: null,
@@ -381,10 +386,19 @@ export const useBrainStore = create<BrainStore>()((set, get, api) => ({
       !idsSet.has(s.sourceId) && !idsSet.has(s.targetId)
     );
 
+    // HEALING SEQUENCES
+    // För varje borttagen nod, "sy ihop" sekvenser
+    let newSequences = state.sequences.map(seq => {
+      // Filtrera bort deleted nodes från nodeIds
+      const healedNodeIds = seq.nodeIds.filter(nodeId => !idsSet.has(nodeId));
+      return { ...seq, nodeIds: healedNodeIds };
+    }).filter(seq => seq.nodeIds.length >= 2); // Ta bort om < 2 noder kvar
+
     return {
       nodes: newNodes,
       sessions: newSessions,
       synapses: newSynapses,
+      sequences: newSequences,
       selectedNodeIds: nextSelected,
       pendingSave: true
     };
@@ -530,11 +544,12 @@ export const useBrainStore = create<BrainStore>()((set, get, api) => ({
   }),
 
   // Sequence actions (D+klick kedjor)
-  startSequence: (nodeId) => set(() => ({
+  startSequence: (nodeId) => set((state) => ({
     activeSequence: {
       id: crypto.randomUUID(),
       nodeIds: [nodeId],
       createdAt: new Date().toISOString(),
+      sessionId: state.activeSessionId, // Spara vilken session vi är i
     }
   })),
 
@@ -566,27 +581,48 @@ export const useBrainStore = create<BrainStore>()((set, get, api) => ({
     activeSequence: null,
   })),
 
+  setSequenceInputActive: (active) => set({ isSequenceInputActive: active }),
+
   removeFromSequence: (nodeId) => set((state) => {
-    // Hitta sekvensen som innehåller nodeId
-    const sequenceIndex = state.sequences.findIndex(s => s.nodeIds.includes(nodeId));
-    if (sequenceIndex === -1) return {};
+    // Return empty object if no sequences or nodeId
+    if (state.sequences.length === 0) return {};
 
-    const sequence = state.sequences[sequenceIndex];
-    const newNodeIds = sequence.nodeIds.filter(id => id !== nodeId);
+    const newSequences = state.sequences.map(sequence => {
+      // Om noden inte finns i denna sekvens, rör den inte
+      if (!sequence.nodeIds.includes(nodeId)) return sequence;
 
-    // Om färre än 2 kort kvar, ta bort hela sekvensen
-    if (newNodeIds.length < 2) {
-      return {
-        sequences: state.sequences.filter((_, i) => i !== sequenceIndex),
-      };
-    }
+      // Ta bort noden ("Healing": A -> B -> C blir A -> C om B tas bort)
+      const newNodeIds = sequence.nodeIds.filter(id => id !== nodeId);
+      return { ...sequence, nodeIds: newNodeIds };
+    }).filter(sequence => sequence.nodeIds.length >= 2); // Ta bort sekvenser som blev för korta
 
-    // Annars uppdatera sekvensen (sys ihop)
-    const updatedSequence = { ...sequence, nodeIds: newNodeIds };
-    const newSequences = [...state.sequences];
-    newSequences[sequenceIndex] = updatedSequence;
+    // Jämför längd/innehåll för att se om vi faktiskt ändrade något (React render optimization)
+    // Enkel check: om antalet sekvenser ändrades eller om vi hittar en ändrad sekvens
+    // Här kör vi bara replace för enkelhetens skull, Zustand sköter shallow compare oftast
     return { sequences: newSequences };
   }),
+
+  loadSequences: (sequences) => set({ sequences }),
+
+  validateCoordinates: () => {
+    const state = get();
+    let fixedCount = 0;
+    const LIMIT = 1000000; // 1 miljon pixlar
+    const newNodes = new Map(state.nodes);
+
+    newNodes.forEach((node, id) => {
+      if (Math.abs(node.x) > LIMIT || Math.abs(node.y) > LIMIT || isNaN(node.x) || isNaN(node.y)) {
+        newNodes.set(id, { ...node, x: 0, y: 0 });
+        fixedCount++;
+      }
+    });
+
+    if (fixedCount > 0) {
+      set({ nodes: newNodes, pendingSave: true });
+      console.log(`[Rescue] Fixed ${fixedCount} nodes in outer space 🚀 -> 🏠`);
+    }
+    return fixedCount;
+  },
 
   // Conversation actions (AI-chattar med minne)
   loadConversations: (conversations) => set({ conversations }),

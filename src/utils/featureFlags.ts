@@ -12,7 +12,7 @@ const STORAGE_KEY = 'soul-canvas-feature-flags';
 
 const DEFAULT_FEATURE_FLAGS: FeatureFlags = {
   // Set to 0 to disable delayed view commits (useful if zoom/pan feels wobbly).
-  viewCommitDelayMs: 250,
+  viewCommitDelayMs: 0,
   // Set to false to update cursor position on every mousemove (no RAF batching).
   useCursorRaf: true,
   // Log AI token estimates and payloads in the browser console.

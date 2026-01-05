@@ -113,11 +113,19 @@ export const parseZoteroHTML = (html: string): ZoteroNote[] => {
     // Extract PDF link - stöd både zotero:// och file:// länkar
     let pdfLink: string | undefined;
     const allLinks = p.querySelectorAll('a');
-    allLinks.forEach(link => {
-      if (link.textContent?.trim().toLowerCase() === 'pdf') {
-        pdfLink = link.getAttribute('href') || undefined;
+    const pdfLinkFromText = Array.from(allLinks).find((link) =>
+      link.textContent?.trim().toLowerCase() === 'pdf'
+    );
+    if (pdfLinkFromText) {
+      pdfLink = pdfLinkFromText.getAttribute('href') || undefined;
+    } else {
+      const pdfLinkFromHref = Array.from(allLinks).find((link) =>
+        link.getAttribute('href')?.includes('/open-pdf/')
+      );
+      if (pdfLinkFromHref) {
+        pdfLink = pdfLinkFromHref.getAttribute('href') || undefined;
       }
-    });
+    }
 
     // Extract Zotero library link from citation
     const citationEl = p.querySelector('.citation');

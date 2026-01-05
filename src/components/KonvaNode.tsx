@@ -167,6 +167,7 @@ interface FlippedContentProps {
   backFontFamily: string;
   backContentLineHeight: number;
   imageText: string;
+  backImageLines: MarkdownLineLayout[];
   backSideText: string;
   cardFontFamily: string;
 }
@@ -184,6 +185,7 @@ const FlippedContent: React.FC<FlippedContentProps> = React.memo(({
   backFontFamily,
   backContentLineHeight,
   imageText,
+  backImageLines,
   backSideText,
   cardFontFamily,
 }) => (
@@ -213,8 +215,9 @@ const FlippedContent: React.FC<FlippedContentProps> = React.memo(({
             wrap="word"
           />
         )}
-        <Text
+        <MarkdownText
           text={imageText}
+          lines={backImageLines}
           x={CARD.PADDING}
           y={CARD.PADDING + (hasTitle ? backTitleHeight + CARD.PADDING / 2 : 0)}
           width={backTextWidth}
@@ -222,8 +225,6 @@ const FlippedContent: React.FC<FlippedContentProps> = React.memo(({
           fontSize={18}
           fontFamily={backFontFamily}
           align="left"
-          verticalAlign="top"
-          wrap="word"
           lineHeight={backContentLineHeight}
         />
       </>
@@ -377,15 +378,20 @@ const KonvaNodeInner: React.FC<KonvaNodeInnerProps> = ({
     [node.ocrText, node.type, node.content]
   );
 
-  const backContentHeight = useMemo(() => {
-    if (!hasImage) return 0;
-    return measureTextHeight(imageText, {
+  const backImageLayout = useMemo(() => {
+    if (!hasImage) return { lines: [], height: 0 };
+    return layoutMarkdownText(imageText, {
       width: backTextWidth,
       fontSize: 18, // Sync with JSX
       fontFamily: backFontFamily,
       lineHeight: backContentLineHeight,
     });
   }, [hasImage, imageText, backTextWidth, backFontFamily, backContentLineHeight]);
+
+  const backContentHeight = useMemo(
+    () => (hasImage ? backImageLayout.height : 0),
+    [hasImage, backImageLayout.height]
+  );
 
   // Image loading & Height calculation
   /* eslint-disable react-hooks/set-state-in-effect */
@@ -571,8 +577,9 @@ const KonvaNodeInner: React.FC<KonvaNodeInnerProps> = ({
   const handleClick = useCallback((e: Konva.KonvaEventObject<MouseEvent>) => {
     if (e.evt.button === 0) {
       e.cancelBubble = true;
-      if (dKeyState.pressed) {
-        const store = useBrainStore.getState();
+
+      const store = useBrainStore.getState();
+      if (store.isSequenceInputActive) {
         if (store.activeSequence) {
           store.addToSequence(node.id);
         } else {
@@ -580,6 +587,7 @@ const KonvaNodeInner: React.FC<KonvaNodeInnerProps> = ({
         }
         return;
       }
+
       const hasModifier = e.evt.shiftKey || e.evt.ctrlKey || e.evt.metaKey || e.evt.altKey;
       toggleSelection(node.id, hasModifier);
       if (isWandering && !hasModifier) {
@@ -764,6 +772,7 @@ const KonvaNodeInner: React.FC<KonvaNodeInnerProps> = ({
           backFontFamily={backFontFamily}
           backContentLineHeight={backContentLineHeight}
           imageText={imageText}
+          backImageLines={backImageLayout.lines}
           backSideText={backSideText}
           cardFontFamily={cardFontFamily}
         />

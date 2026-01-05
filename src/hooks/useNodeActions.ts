@@ -27,9 +27,11 @@ export function useNodeActions({ stageRef, canvas, setShowSettings, setContextMe
   const ocrPrompt = useBrainStore((state) => state.ocrPrompt);
   const assets = useBrainStore((state) => state.assets);
   const updateNode = useBrainStore((state) => state.updateNode);
+  const updateNodesBulk = useBrainStore((state) => state.updateNodesBulk);
   const setNodeAIProcessing = useBrainStore((state) => state.setNodeAIProcessing);
   const saveStateForUndo = useBrainStore((state) => state.saveStateForUndo);
   const addTagToSelected = useBrainStore((state) => state.addTagToSelected);
+  const addNotification = useBrainStore((state) => state.addNotification);
 
   // Center camera on selected nodes (or all if none selected)
   const centerCamera = useCallback(() => {
@@ -211,22 +213,29 @@ export function useNodeActions({ stageRef, canvas, setShowSettings, setContextMe
 
     setContextMenu(null);
 
-    // Process all selected images
-
-    if (selectedImages.length === 0) return;
-
-    if (!geminiKey) {
-      setShowSettings(true);
-      return;
+    const queuedImages = selectedImages.slice(1);
+    if (queuedImages.length > 0) {
+      updateNodesBulk(queuedImages.map((node) => ({
+        id: node.id,
+        updates: { ocrText: 'I kö...' }
+      })));
+      addNotification(`OCR köad: ${selectedImages.length} bilder (max 5/min).`, 'info', 6000);
     }
-
-    setContextMenu(null);
 
     // Process all selected images
     for (const node of selectedImages) {
       await runOCR(node.id);
     }
-  }, [selectedNodeIds, nodes, geminiKey, runOCR, setShowSettings, setContextMenu]);
+  }, [
+    selectedNodeIds,
+    nodes,
+    geminiKey,
+    runOCR,
+    setShowSettings,
+    setContextMenu,
+    updateNodesBulk,
+    addNotification
+  ]);
 
   // Delete selected nodes (session-aware)
   const deleteSelected = useCallback((permanent: boolean = false) => {

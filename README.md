@@ -1,91 +1,92 @@
 # Soul Canvas
 
-En lokal, canvas-baserad kunskapsyta för tusentals kort med AI-driven förståelse och organisation.
+En lokal, canvas-baserad kunskapsyta för tusentals kort. Fånga idéer, se mönster och låt AI hjälpa dig att läsa, ordna och reflektera - utan molnberoenden.
 
-## Quick Start
+## Varför Soul Canvas?
+- Local-first: din data ligger i en mapp på disk.
+- Skalar: Konva-canvas + viewport-culling för tusentals kort.
+- Snabbt flöde: genvägar, arrangemang, minimap, zen mode.
+- AI som medskapare: OCR, taggar, reflektioner, chat och semantisk sök.
 
+## Snabbstart
 ```bash
 npm install
 npm run dev
 ```
 
-Krav: Node 20+, Chrome/Edge (File System Access API).
+Öppna i Chrome/Edge och välj en mapp.
 
-## Tech Stack
+## Krav
+- Node 20+
+- Chrome/Edge (File System Access API)
 
-- **React + TypeScript + Vite**
-- **Konva** (canvas-rendering, skalar till tusentals kort)
-- **Zustand** (state management)
-- **AI**: Claude, OpenAI, Gemini (taggar, embeddings, reflektion, chat)
+## Hur det används (kort)
+1. Öppna en mapp; appen skapar `data.json` och `assets/`.
+2. Byt huvudsessions i menyn uppe till vänster (separata mappar = separata `data.json`).
+3. Skapa/importera kort (N, drag/drop, JSON, PDF, Zotero, massimport).
+4. Organisera med sessions, taggar, arrangemang och sök.
+5. Använd AI-panelen och chatten för OCR, taggar, sammanfattningar och reflektioner.
+6. AI-exporter sparas automatiskt i `ai-exports/`.
 
-## Filstruktur
+## Funktioner i praktiken
+- Canvas- och kolumnvy, zoom/pan, minimap, zen mode.
+- Sessions/arbetsytor med taggfilter och sök utanför session.
+- Arrangemang: vertikalt, horisontellt, grid, kanban, cirkel, centralitet.
+- Import: bilder, JSON, PDF -> bildkort, Zotero HTML/notes, RIS/COinS metadata.
+- AI: OCR (Gemini), taggning/reflektion/quotes (Claude), embeddings + semantisk sök (OpenAI), chat med Claude/OpenAI/Gemini.
+- Wandering/trails och Selection Scope Panel för relationer.
 
+## Snabba genvägar (urval)
+| Tangent | Funktion |
+|---------|----------|
+| `Space` | Command Palette |
+| `/` | Sök |
+| `a` | AI Chat |
+| `b` | AI Panel |
+| `S` | Session-panel |
+| `-` | Fit all |
+
+Full lista: `docs/SHORTCUTS.md`.
+
+## AI-nycklar
+Lägg in nycklar via Settings i appen (lagras i webbläsaren).
+- Gemini: OCR på bildkort.
+- OpenAI: embeddings och semantisk sök.
+- Claude: taggar, reflektioner, sammanfattningar och quote extractor.
+- Chatten kan använda Claude/OpenAI/Gemini beroende på vald provider.
+- OCR-modell väljs i Settings (Gemini).
+- Chatmodeller väljs i chatten (default i `src/utils/chatProviders.ts`).
+
+## Data och filstruktur
 ```
-src/
-  components/     # React/Konva-komponenter
-  hooks/          # Custom hooks (logik)
-  store/          # Zustand store
-  utils/          # Hjälpfunktioner
-  types/          # TypeScript-typer
+<din-mapp>/
+  data.json
+  assets/
+    originals/
+  ai-exports/
 ```
 
-Data sparas lokalt: `data.json` + `assets/`-mapp.
+`assets/originals/` är backup för importer. `ai-exports/` innehåller textfiler per session.
+`data.json` innehåller noder, synapser, sessioner, trails och konversationer.
 
 ## Data tools
-
-`clean_json.py` cleans/compresses `data.json` by removing `embedding`, de-duping nodes
-by content or position, and resetting `updatedAt`. It writes `<input>_clean.json`
-unless you pass an output path. Windows helper: `clean_json.bat` (drag/drop or run
-`clean_json.bat file.json`).
+`clean_json.py` rensar `data.json` genom att ta bort embeddings, de-dupa noder och nollställa `updatedAt`.
+Windows-hjälpare: `clean_json.bat`.
 
 ```bash
 python clean_json.py data.json
 python clean_json.py data.json output.json
 ```
 
----
+## Utveckling
+- `npm run dev` startar Vite.
+- `npm run test` kör vitest.
+- `npm run lint` kör ESLint.
+- `npm run build` bygger projektet.
+- `npm run sanity` kör test + lint + build och skriver ut QA-checklistan.
 
 ## För AI-assistenter
+Läs `CLAUDE.md` innan ändringar.
 
-**LÄS FÖRST:** [`CLAUDE.md`](./CLAUDE.md)
-
-Denna fil innehåller:
-- Projektets kärnprinciper och slutvision
-- Tekniska riktlinjer (skalbarhet, canvas-first, etc.)
-- Komplett lista över kortkommandon
-- Sessionsloggar med implementationsdetaljer
-- Utvärderingskriterier för nya features
-
-### Regler
-
-1. **Max 300 rader per fil** - dela upp innan du lägger till kod
-2. **Canvas-first** - inga DOM-element per kort (skalar inte)
-3. **Fråga innan nya kortkommandon** - kolla vilka som är upptagna
-4. **Pusha aldrig utan att fråga**
-
-### Workflow
-
-```
-1. Läs CLAUDE.md
-2. Kolla wc -l på filer du ska ändra
-3. Om fil > 200 rader: fråga om refaktorering först
-4. Koda när du fått OK
-5. Fråga innan git push
-```
-
----
-
-## Kortkommandon (urval)
-
-| Tangent | Funktion |
-|---------|----------|
-| `Space` | Command Palette |
-| `a` | AI Chat |
-| `b` | AI Panel |
-| `/` | Sök |
-| `v` / `h` | Arrangera vertikalt/horisontellt |
-| `g+v` / `g+h` | Grid layout |
-| `-` / `0` | Fit all / Reset zoom |
-| `N` / `I` | Nytt kort / Import |
-
-Se `CLAUDE.md` för komplett lista.
+## Legacy
+Historiskt manifest: `Vision and guidelines.md`.

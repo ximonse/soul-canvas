@@ -71,6 +71,7 @@ export interface Sequence {
   id: string;
   nodeIds: string[];       // Ordnad lista av nod-IDs
   createdAt: string;
+  sessionId?: string | null; // Vilken session skapades den i? (null = global/alla)
 }
 
 // Session - arbetsyta/projekt med urval av kort

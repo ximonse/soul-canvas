@@ -510,6 +510,16 @@ export function useKeyboard(
         gComboState.pressed = false;
       }
 
+
+
+      // Handle D key for sequence mode (before calling handleKeyDown)
+      if (!typing && key === 'd' && !e.ctrlKey && !e.altKey && !e.metaKey) {
+        const store = useBrainStore.getState();
+        if (!store.isSequenceInputActive) {
+          store.setSequenceInputActive(true);
+        }
+      }
+
       // Call the main keydown handler
       handleKeyDown(e);
     };
@@ -539,32 +549,27 @@ export function useKeyboard(
       }
 
       // D släpps = avsluta sekvens
-      if (key === 'd' && dKeyState.pressed) {
-        dKeyState.pressed = false;
-        // Finish sequence via store (hanteras i App/KonvaCanvas)
-        useBrainStore.getState().finishSequence();
-      }
-    };
-
-    // D keydown = starta sekvens-mode
-    const handleDKeyDown = (e: KeyboardEvent) => {
-      if (e.key.toLowerCase() === 'd' && !e.ctrlKey && !isTyping()) {
-        if (!dKeyState.pressed) {
-          dKeyState.pressed = true;
+      if (key === 'd') { // Remove local check, trust store or just reset
+        const store = useBrainStore.getState();
+        if (store.isSequenceInputActive) {
+          store.setSequenceInputActive(false);
+          // Finish sequence via store (hanteras i App/KonvaCanvas)
+          store.finishSequence();
         }
       }
+
+
     };
 
     window.addEventListener('keyup', handleKeyUp);
-    window.addEventListener('keydown', handleDKeyDown);
 
     return () => {
       window.removeEventListener('keydown', handleAllKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
-      window.removeEventListener('keydown', handleDKeyDown);
       // Cleanup timers
       if (gComboState.timeout) clearTimeout(gComboState.timeout);
       if (oComboState.timeout) clearTimeout(oComboState.timeout);
     };
   }, [handleKeyDown]);
 }
+// test comment

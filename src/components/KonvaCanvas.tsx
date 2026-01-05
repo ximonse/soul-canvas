@@ -46,17 +46,6 @@ const GRAVITY_SCROLL_MAX_STEP = 0.6;
 const VIEW_COMMIT_DELAY_MS = FEATURE_FLAGS.viewCommitDelayMs;
 const WHEEL_DELTA_CLAMP = 120;
 const WHEEL_ZOOM_SENSITIVITY = 0.0015;
-const WHEEL_ZOOM_DAMPING = 0.42;
-const WHEEL_PAN_DAMPING = 0.55;
-const DEVICE_PIXEL_RATIO = typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1;
-
-const snapToDevicePixel = (value: number) =>
-  Math.round(value * DEVICE_PIXEL_RATIO) / DEVICE_PIXEL_RATIO;
-
-const snapPosition = (pos: { x: number; y: number }) => ({
-  x: snapToDevicePixel(pos.x),
-  y: snapToDevicePixel(pos.y),
-});
 
 const KonvaCanvas: React.FC<KonvaCanvasProps> = ({
   currentThemeKey,
@@ -85,6 +74,7 @@ const KonvaCanvas: React.FC<KonvaCanvasProps> = ({
   const synapseVisibilityThreshold = useBrainStore((state) => state.synapseVisibilityThreshold);
   const sequences = useBrainStore((state) => state.sequences);
   const activeSequence = useBrainStore((state) => state.activeSequence);
+  const activeSessionId = useBrainStore((state) => state.activeSessionId); // NY: session awareness
   const internalStageRef = useRef<Konva.Stage>(null);
   const stageRef = externalStageRef || internalStageRef;
   const [stageDimensions, setStageDimensions] = useState({
@@ -108,10 +98,6 @@ const KonvaCanvas: React.FC<KonvaCanvasProps> = ({
   const cursorRafRef = useRef<number | null>(null);
   const pendingCursorRef = useRef<{ x: number; y: number } | null>(null);
   const lastZoomRef = useRef(canvas.view.k);
-  const wheelRafRef = useRef<number | null>(null);
-  const wheelZoomDeltaRef = useRef(0);
-  const wheelPanDeltaRef = useRef(0);
-  const wheelPointerRef = useRef<{ x: number; y: number } | null>(null);
 
   useEffect(() => {
     lastZoomRef.current = canvas.view.k;
@@ -127,17 +113,12 @@ const KonvaCanvas: React.FC<KonvaCanvasProps> = ({
         window.cancelAnimationFrame(cursorRafRef.current);
         cursorRafRef.current = null;
       }
-      if (wheelRafRef.current) {
-        window.cancelAnimationFrame(wheelRafRef.current);
-        wheelRafRef.current = null;
-      }
     };
   }, []);
 
   const scheduleViewCommit = useCallback((nextView: { x: number; y: number; k: number }) => {
     if (VIEW_COMMIT_DELAY_MS <= 0) {
-      const snappedView = snapPosition({ x: nextView.x, y: nextView.y });
-      canvas.setView({ ...nextView, ...snappedView });
+      canvas.setView(nextView);
       if (nextView.k !== lastZoomRef.current) {
         lastZoomRef.current = nextView.k;
         onZoomChange?.(nextView.k);
@@ -153,72 +134,13 @@ const KonvaCanvas: React.FC<KonvaCanvasProps> = ({
       const view = pendingViewRef.current;
       if (!view) return;
       pendingViewRef.current = null;
-      const snappedView = snapPosition({ x: view.x, y: view.y });
-      const nextView = { ...view, ...snappedView };
-      canvas.setView(nextView);
-      if (nextView.k !== lastZoomRef.current) {
-        lastZoomRef.current = nextView.k;
-        onZoomChange?.(nextView.k);
+      canvas.setView(view);
+      if (view.k !== lastZoomRef.current) {
+        lastZoomRef.current = view.k;
+        onZoomChange?.(view.k);
       }
     }, VIEW_COMMIT_DELAY_MS);
   }, [canvas, onZoomChange]);
-
-  const startWheelLoop = useCallback(() => {
-    if (wheelRafRef.current !== null) return;
-    const tick = () => {
-      const stage = stageRef.current;
-      if (!stage) {
-        wheelRafRef.current = null;
-        return;
-      }
-
-      let didUpdate = false;
-
-      if (Math.abs(wheelPanDeltaRef.current) > 0.1) {
-        const delta = Math.max(-WHEEL_DELTA_CLAMP, Math.min(WHEEL_DELTA_CLAMP, wheelPanDeltaRef.current));
-        const apply = delta * WHEEL_PAN_DAMPING;
-        wheelPanDeltaRef.current -= apply;
-        stage.position({ x: stage.x(), y: stage.y() - apply });
-        didUpdate = true;
-      }
-
-      if (Math.abs(wheelZoomDeltaRef.current) > 0.1 && wheelPointerRef.current) {
-        const delta = Math.max(-WHEEL_DELTA_CLAMP, Math.min(WHEEL_DELTA_CLAMP, wheelZoomDeltaRef.current));
-        const apply = delta * WHEEL_ZOOM_DAMPING;
-        wheelZoomDeltaRef.current -= apply;
-
-        const pointer = wheelPointerRef.current;
-        const mousePointTo = toWorldPosition(stage, pointer);
-        const scaleBy = Math.exp(-apply * WHEEL_ZOOM_SENSITIVITY);
-        const newScale = stage.scaleX() * scaleBy;
-        const clampedScale = Math.max(ZOOM.MIN, Math.min(ZOOM.MAX, newScale));
-
-        const newPos = {
-          x: pointer.x - mousePointTo.x * clampedScale,
-          y: pointer.y - mousePointTo.y * clampedScale,
-        };
-
-        stage.scale({ x: clampedScale, y: clampedScale });
-        stage.position(newPos);
-        didUpdate = true;
-      }
-
-      if (didUpdate) {
-        const snappedPos = snapPosition({ x: stage.x(), y: stage.y() });
-        if (snappedPos.x !== stage.x() || snappedPos.y !== stage.y()) {
-          stage.position(snappedPos);
-        }
-        stage.batchDraw();
-        scheduleViewCommit({ x: stage.x(), y: stage.y(), k: stage.scaleX() });
-        wheelRafRef.current = window.requestAnimationFrame(tick);
-        return;
-      }
-
-      wheelRafRef.current = null;
-    };
-
-    wheelRafRef.current = window.requestAnimationFrame(tick);
-  }, [scheduleViewCommit, stageRef]);
 
   const scheduleCursorPos = useCallback((nextPos: { x: number; y: number }) => {
     if (!FEATURE_FLAGS.useCursorRaf) {
@@ -303,8 +225,7 @@ const KonvaCanvas: React.FC<KonvaCanvasProps> = ({
     ) {
       return;
     }
-    const snappedPos = snapPosition({ x: canvas.view.x, y: canvas.view.y });
-    stage.position(snappedPos);
+    stage.position({ x: canvas.view.x, y: canvas.view.y });
     stage.scale({ x: canvas.view.k, y: canvas.view.k });
   }, [canvas.view.x, canvas.view.y, canvas.view.k, stageRef]);
 
@@ -370,10 +291,6 @@ const KonvaCanvas: React.FC<KonvaCanvasProps> = ({
     const stage = stageRef.current;
     if (!stage) return;
 
-    const snappedPos = snapPosition({ x: stage.x(), y: stage.y() });
-    if (snappedPos.x !== stage.x() || snappedPos.y !== stage.y()) {
-      stage.position(snappedPos);
-    }
     canvas.setView({
       x: stage.x(),
       y: stage.y(),
@@ -390,21 +307,36 @@ const KonvaCanvas: React.FC<KonvaCanvasProps> = ({
       adjustGraphGravity(delta);
       return;
     }
-    if (e.evt.altKey || e.evt.metaKey) {
-      wheelPanDeltaRef.current += e.evt.deltaY;
-      startWheelLoop();
-      return;
-    }
 
     const stage = stageRef.current;
     if (!stage) return;
 
+    const delta = Math.max(-WHEEL_DELTA_CLAMP, Math.min(WHEEL_DELTA_CLAMP, e.evt.deltaY));
+
+    if (e.evt.altKey || e.evt.metaKey) {
+      stage.position({ x: stage.x(), y: stage.y() - delta });
+      stage.batchDraw();
+      scheduleViewCommit({ x: stage.x(), y: stage.y(), k: stage.scaleX() });
+      return;
+    }
+
     const pointer = stage.getPointerPosition();
     if (!pointer) return;
 
-    wheelPointerRef.current = pointer;
-    wheelZoomDeltaRef.current += e.evt.deltaY;
-    startWheelLoop();
+    const mousePointTo = toWorldPosition(stage, pointer);
+    const scaleBy = Math.exp(-delta * WHEEL_ZOOM_SENSITIVITY);
+    const newScale = stage.scaleX() * scaleBy;
+    const clampedScale = Math.max(ZOOM.MIN, Math.min(ZOOM.MAX, newScale));
+
+    const newPos = {
+      x: pointer.x - mousePointTo.x * clampedScale,
+      y: pointer.y - mousePointTo.y * clampedScale,
+    };
+
+    stage.scale({ x: clampedScale, y: clampedScale });
+    stage.position(newPos);
+    stage.batchDraw();
+    scheduleViewCommit({ x: stage.x(), y: stage.y(), k: stage.scaleX() });
   };
 
   const handleStageDblClick = (e: KonvaEventObject<MouseEvent>) => {
@@ -644,7 +576,16 @@ const KonvaCanvas: React.FC<KonvaCanvasProps> = ({
           });
         })()}
 
-        {/* Visible nodes sorted by Y position */}
+
+        {/* Sequence arrows (behind nodes) */}
+        <SequenceArrows
+          sequences={sequences}
+          activeSequence={activeSequence}
+          nodes={filteredNodesMap}
+          scale={canvas.view.k}
+          activeSessionId={activeSessionId}
+        />
+
         {visibleNodeIds.map((nodeId: string) => {
           const gravitatingInfo = gravitatingMap.get(nodeId);
           return (
@@ -681,13 +622,7 @@ const KonvaCanvas: React.FC<KonvaCanvasProps> = ({
           />
         )}
 
-        {/* Sequence arrows */}
-        <SequenceArrows
-          sequences={sequences}
-          activeSequence={activeSequence}
-          nodes={filteredNodesMap}
-          scale={canvas.view.k}
-        />
+
       </Layer>
     </Stage>
   );

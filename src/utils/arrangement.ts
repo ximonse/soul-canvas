@@ -387,8 +387,9 @@ export const arrangeCentrality = (
         maxNodeWidth = Math.max(maxNodeWidth, size.width);
     });
 
-    const colWidth = maxNodeWidth + SPACING.GRID_GAP + 40; // Wider gap as requested
-    const verticalGap = SPACING.GRID_GAP + 40; // Match horizontal gap
+    const horizontalGap = 0;
+    const verticalGap = 20;
+    const colWidth = maxNodeWidth + horizontalGap;
 
     // Calculate X offsets to center the whole grid around 0
     const layoutWidth = cols * colWidth;

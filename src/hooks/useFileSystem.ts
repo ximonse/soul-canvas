@@ -20,6 +20,7 @@ export function useFileSystem() {
   const loadConversations = useBrainStore((state) => state.loadConversations);
   const loadSessions = useBrainStore((state) => state.loadSessions);
   const loadTrails = useBrainStore((state) => state.loadTrails);
+  const loadSequences = useBrainStore((state) => state.loadSequences);
   const setSelectedTrailIds = useBrainStore((state) => state.setSelectedTrailIds);
   const setShowActiveTrailLine = useBrainStore((state) => state.setShowActiveTrailLine);
   const fileHandle = useBrainStore((state) => state.fileHandle);
@@ -46,6 +47,7 @@ export function useFileSystem() {
         conversations: [],
         sessions: [],
         trails: [],
+        sequences: [], // Ny
         activeSessionId: null as string | null,
         trailUi: { selectedTrailIds: [] as string[], showActiveTrailLine: true },
       };
@@ -79,6 +81,7 @@ export function useFileSystem() {
           conversations: parsed.conversations || [],
           sessions: parsed.sessions || [],
           trails: parsed.trails || [],
+          sequences: parsed.sequences || [], // Läs in
           activeSessionId: parsed.activeSessionId || null,
           trailUi: {
             selectedTrailIds: rawSelectedTrailIds,
@@ -114,6 +117,7 @@ export function useFileSystem() {
       loadConversations(data.conversations || []);
       loadSessions(data.sessions || []);
       loadTrails(data.trails || []);
+      loadSequences(data.sequences || []); // Ladda in
       if (data.trails && data.trails.length > 0) {
         const trailIds = new Set(data.trails.map((t: { id: string }) => t.id));
         const selectedTrailIds = data.trailUi?.selectedTrailIds?.filter((id: string) => trailIds.has(id)) || [];
@@ -136,6 +140,7 @@ export function useFileSystem() {
     loadConversations,
     loadSessions,
     loadTrails,
+    loadSequences,
     setSelectedTrailIds,
     setShowActiveTrailLine,
   ]);
@@ -185,6 +190,7 @@ export function useFileSystem() {
         conversations: state.conversations,
         sessions: state.sessions,
         trails: state.trails,
+        sequences: state.sequences, // Spara
         activeSessionId: state.activeSessionId,
         trailUi: {
           selectedTrailIds: state.selectedTrailIds,

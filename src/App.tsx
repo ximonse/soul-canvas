@@ -318,6 +318,15 @@ function App() {
     }
   }, [addTagToSelected, saveStateForUndo]);
 
+  // Coordinate Rescue Mission (Fix corrupted coordinates on load)
+  useEffect(() => {
+    // Ge det en liten fördröjning så att allt hinner laddas
+    const timer = setTimeout(() => {
+      useBrainStore.getState().validateCoordinates();
+    }, 1000);
+    return () => clearTimeout(timer);
+  }, []);
+
   const centerOnWorldPoint = useCallback((x: number, y: number) => {
     const stage = stageRef.current;
     if (!stage) return;
