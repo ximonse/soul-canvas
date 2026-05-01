@@ -11,6 +11,7 @@ export const CARD = {
   IMAGE_WIDTH: 280, // Keep existing image related
   IMAGE_HEIGHT: 200, // Keep existing image related
   // Font sizes
+  FONT_SIZE_TITLE: 22, // Larger title font size
   FONT_SIZE: 16, // Main content text
   FONT_SIZE_SMALL: 14, // Flipped header
   FONT_SIZE_TINY: 12, // Flipped content, comments
@@ -24,9 +25,9 @@ export const CARD = {
 
 // Avstånd och spacing
 export const SPACING = {
-  GRID_GAP: 0, // Gap between cards in grid arrangements
+  GRID_GAP: 30, // Gap between cards in grid arrangements
   GRID_COLUMNS: 6,
-  ARRANGEMENT_GAP: 40,
+  ARRANGEMENT_GAP: 30,
   VIEWPORT_MARGIN: 200, // Extra marginal för viewport culling
 } as const;
 

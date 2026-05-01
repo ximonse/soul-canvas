@@ -27,7 +27,7 @@ const getNodeSize = (node: MindNode) => {
     const titleHeight = node.title?.trim()
         ? measureTextHeight(node.title, {
             width: contentWidth,
-            fontSize: CARD.FONT_SIZE,
+            fontSize: CARD.FONT_SIZE_TITLE,
             fontFamily: cardFontFamily,
             fontStyle: 'bold',
             lineHeight: titleLineHeight,
@@ -227,7 +227,7 @@ export const arrangeGridVertical = (
         });
 
         // Next card in this column starts after this card + 20px gap (as requested)
-        columnY[col] += height + 20;
+        columnY[col] += height + 30;
     }
 
     return centerArrangement(positions, center);
@@ -387,8 +387,8 @@ export const arrangeCentrality = (
         maxNodeWidth = Math.max(maxNodeWidth, size.width);
     });
 
-    const horizontalGap = 0;
-    const verticalGap = 20;
+    const horizontalGap = 30;
+    const verticalGap = 30;
     const colWidth = maxNodeWidth + horizontalGap;
 
     // Calculate X offsets to center the whole grid around 0

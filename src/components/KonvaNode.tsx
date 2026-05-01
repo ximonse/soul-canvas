@@ -3,7 +3,6 @@ import React, { useRef, useEffect, useLayoutEffect, useState, useMemo, useCallba
 import { Group, Rect, Text, Image as KonvaImage, Circle } from 'react-konva';
 import Konva from 'konva';
 import { useBrainStore } from '../store/useBrainStore';
-import { dKeyState } from '../hooks/useKeyboard';
 import type { AIProvider, MindNode } from '../types/types';
 import { type Theme } from '../themes';
 import { CARD } from '../utils/constants';
@@ -115,7 +114,7 @@ const FrontTextContent: React.FC<FrontTextContentProps> = React.memo(({
         y={CARD.PADDING}
         width={contentWidth}
         fill={textColor}
-        fontSize={CARD.FONT_SIZE}
+        fontSize={CARD.FONT_SIZE_TITLE}
         fontFamily={contentFontFamily}
         fontStyle="bold"
         wrap="word"
@@ -328,7 +327,7 @@ const KonvaNodeInner: React.FC<KonvaNodeInnerProps> = ({
     if (!node.title?.trim()) return 0;
     return measureTextHeight(node.title, {
       width: contentWidth,
-      fontSize: CARD.FONT_SIZE,
+      fontSize: CARD.FONT_SIZE_TITLE,
       fontFamily: contentFontFamily,
       fontStyle: 'bold',
       lineHeight: titleLineHeight,

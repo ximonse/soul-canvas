@@ -1,8 +1,7 @@
-// src/components/overlays/ContextMenu.tsx
-// Högerklicksmeny för kort
-
+import { useLayoutEffect, useRef } from 'react';
 import { useBrainStore } from '../../store/useBrainStore';
 import type { MindNode } from '../../types/types';
+import { clampMenuPosition } from './contextMenuPosition';
 
 export interface ContextMenuState {
   x: number;
@@ -43,6 +42,9 @@ export function ContextMenu({
   const removeNode = useBrainStore((state) => state.removeNode);
   const activeSessionId = useBrainStore((state) => state.activeSessionId);
   const removeCardsFromSession = useBrainStore((state) => state.removeCardsFromSession);
+
+  const menuRef = useRef<HTMLMenuElement>(null);
+
   const node = nodes.get(menu.nodeId);
   const selectedNodes = Array.from(selectedNodeIds)
     .map(id => nodes.get(id))
@@ -52,7 +54,25 @@ export function ContextMenu({
   const useSelectedImages = selectedImageCount > 0 && Boolean(onRunOCROnSelected);
   const accentColors = ['#ffd400', '#ff6666', '#5fb236', '#2ea8e5', '#a28ae5', '#e56eee', '#f19837', '#aaaaaa'];
 
-  // Early return if node was deleted while menu was open
+  // Justera position för att stanna inom viewport
+  useLayoutEffect(() => {
+    const menuElement = menuRef.current;
+    if (!menuElement) return;
+
+    const rect = menuElement.getBoundingClientRect();
+    const adjustedPos = clampMenuPosition({
+      x: menu.x,
+      y: menu.y,
+      width: rect.width,
+      height: rect.height,
+      viewportWidth: window.innerWidth,
+      viewportHeight: window.innerHeight,
+    });
+
+    menuElement.style.left = `${adjustedPos.x}px`;
+    menuElement.style.top = `${adjustedPos.y}px`;
+  }, [menu.x, menu.y]);
+
   if (!node) {
     onClose();
     return null;
@@ -70,7 +90,6 @@ export function ContextMenu({
   };
 
   const handleFlipSelected = () => {
-    // Flippa alla markerade bildkort
     selectedNodes.forEach((n: MindNode) => {
       if (n.type === 'image') {
         updateNode(n.id, { isFlipped: !n.isFlipped });
@@ -120,7 +139,6 @@ export function ContextMenu({
   };
 
   const handleAddToChat = () => {
-    // Lägg till markerade kort om flera är markerade, annars bara aktuellt kort
     if (selectedCount > 1) {
       selectedNodes.forEach((n: MindNode) => onAddToChat?.(n.id));
     } else {
@@ -134,10 +152,7 @@ export function ContextMenu({
     onClose();
   };
 
-  // Check if current node or any selected node has embedding
   const hasEmbedding = node.embedding || selectedNodes.some((n: MindNode) => n.embedding);
-
-  // Session-relaterat
   const isInSession = activeSessionId !== null;
 
   const handleRemoveFromSession = () => {
@@ -151,49 +166,32 @@ export function ContextMenu({
 
   return (
     <div
-      className="fixed inset-0 z-[100]"
-      onMouseDown={(e) => {
-        e.stopPropagation();
-        onClose();
-      }}
+      className="fixed inset-0 z-[10000]"
+      onMouseDown={onClose}
       onContextMenu={(e) => {
         e.preventDefault();
-        e.stopPropagation();
         onClose();
       }}
     >
       <menu
-        className="absolute bg-gray-800 border border-gray-700 rounded shadow-xl py-1 w-48 backdrop-blur-md"
+        ref={menuRef}
+        className="arrow-action-menu"
         style={{ left: menu.x, top: menu.y }}
         onMouseDown={e => e.stopPropagation()}
         onContextMenu={e => e.stopPropagation()}
         role="menu"
-        aria-label="Card actions"
       >
-      <li role="none">
-        <button
-          onClick={handleFlip}
-          className="w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-blue-600"
-          role="menuitem"
-        >
+        <button onClick={handleFlip} className="arrow-action-item">
           Vänd kort
         </button>
-      </li>
 
-      {selectedImageCount > 1 && (
-        <li role="none">
-          <button
-            onClick={handleFlipSelected}
-            className="w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-blue-600"
-            role="menuitem"
-          >
+        {selectedImageCount > 1 && (
+          <button onClick={handleFlipSelected} className="arrow-action-item">
             🔄 Vänd alla markerade ({selectedImageCount})
           </button>
-        </li>
-      )}
+        )}
 
-      {(node.type === 'image' || selectedImageCount > 0) && (
-        <li role="none">
+        {(node.type === 'image' || selectedImageCount > 0) && (
           <button
             onClick={() => {
               if (useSelectedImages && onRunOCROnSelected) {
@@ -201,225 +199,152 @@ export function ContextMenu({
               } else {
                 handleOCR();
               }
-              onClose();
             }}
-            className="w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-blue-600"
-            role="menuitem"
+            className="arrow-action-item"
           >
             🔍 Läs & beskriv bild{selectedImageCount > 1 ? `er (${selectedImageCount})` : ''}
           </button>
-        </li>
-      )}
+        )}
 
-      <li role="none">
-        <button
-          onClick={handlePin}
-          className="w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-blue-600"
-          role="menuitem"
-        >
+        <button onClick={handlePin} className="arrow-action-item">
           {node.pinned ? 'Avpinna' : 'Pinna'}
         </button>
-      </li>
 
-      {onAutoTag && (
-        <li role="none">
-          <button
-            onClick={handleAutoTag}
-            className="w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-purple-600"
-            role="menuitem"
-          >
+        {onAutoTag && (
+          <button onClick={handleAutoTag} className="arrow-action-item">
             🧠 Auto-tagga{selectedCount > 1 ? ` (${selectedCount})` : ''}
           </button>
-        </li>
-      )}
+        )}
 
-      {onTagSelected && selectedCount > 0 && (
-        <li role="none">
-          <button
-            onClick={handleTagSelected}
-            className="w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-amber-600"
-            role="menuitem"
-          >
+        {onTagSelected && selectedCount > 0 && (
+          <button onClick={handleTagSelected} className="arrow-action-item">
             🏷️ Tagga markerade ({selectedCount})
           </button>
-        </li>
-      )}
+        )}
 
-      {onSummarize && (
-        <li role="none">
-          <button
-            onClick={handleSummarize}
-            className="w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-indigo-600"
-            role="menuitem"
-          >
+        {onSummarize && (
+          <button onClick={handleSummarize} className="arrow-action-item">
             AI: Summera → kommentar{selectedCount > 1 ? ` (${selectedCount})` : ''}
           </button>
-        </li>
-      )}
+        )}
 
-      {onSuggestTitle && (
-        <li role="none">
-          <button
-            onClick={handleSuggestTitle}
-            className="w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-indigo-600"
-            role="menuitem"
-          >
+        {onSuggestTitle && (
+          <button onClick={handleSuggestTitle} className="arrow-action-item">
             AI: Föreslå rubrik{selectedCount > 1 ? ` (${selectedCount})` : ''}
           </button>
-        </li>
-      )}
+        )}
 
-      {/* Value Submenu */}
-      <li className="relative group" role="none">
-        <button
-          className="w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-gray-700 flex justify-between items-center"
-          role="menuitem"
-        >
-          <span>Värde (1-6)</span>
-          <span>▶</span>
-        </button>
-        {/* Submenu */}
-        <div className="absolute left-full top-0 w-48 bg-gray-800 border border-gray-700 rounded shadow-xl py-1 hidden group-hover:block"
-          style={{ marginLeft: '-4px' }}>
-          {[1, 2, 3, 4, 5, 6].map((val) => (
-            <button
-              key={val}
-              onClick={() => {
-                if (selectedCount > 1) {
-                  selectedNodes.forEach(n => updateNode(n.id, { value: val }));
-                } else {
-                  updateNode(menu.nodeId, { value: val });
-                }
-                onClose();
-              }}
-              className="w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-blue-600"
-            >
-              {val === node.value ? '✅ ' : ''}{val}
-            </button>
-          ))}
-          <div className="h-px bg-gray-700 my-1"></div>
-          <button
-            onClick={() => {
-              if (selectedCount > 1) {
-                selectedNodes.forEach(n => updateNode(n.id, { value: undefined }));
-              } else {
-                updateNode(menu.nodeId, { value: undefined });
-              }
-              onClose();
-            }}
-            className="w-full text-left px-4 py-2 text-sm text-red-300 hover:bg-red-900/50"
-          >
-            Rensa värde
+        {/* Value Submenu */}
+        <div className="relative group">
+          <button className="arrow-action-item flex justify-between items-center w-full">
+            <span>Värde (1-6)</span>
+            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 18l6-6-6-6" /></svg>
           </button>
-        </div>
-      </li>
+          <div className="absolute left-[90%] top-0 pl-6 hidden group-hover:block z-[10001]">
+            <div className="arrow-action-menu relative">
+              {/* Invisible bridge item to catch hover between parent and child */}
+              <div className="absolute -left-10 top-0 bottom-0 w-12 bg-transparent cursor-default" />
 
-      {/* Accent Color Submenu */}
-      <li className="relative group" role="none">
-        <button
-          className="w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-gray-700 flex justify-between items-center"
-          role="menuitem"
-        >
-          <span>Accentfarg</span>
-          <span>?-?</span>
-        </button>
-        <div className="absolute left-full top-0 w-48 bg-gray-800 border border-gray-700 rounded shadow-xl py-1 hidden group-hover:block"
-          style={{ marginLeft: '-4px' }}>
-          <div className="px-3 py-2 flex flex-wrap gap-2">
-            {accentColors.map((color) => (
+              {[1, 2, 3, 4, 5, 6].map((val) => (
+                <button
+                  key={val}
+                  onClick={() => {
+                    if (selectedCount > 1) {
+                      selectedNodes.forEach(n => updateNode(n.id, { value: val }));
+                    } else {
+                      updateNode(menu.nodeId, { value: val });
+                    }
+                    onClose();
+                  }}
+                  className="arrow-action-item"
+                >
+                  {val === node.value ? '✅ ' : ''}{val}
+                </button>
+              ))}
+              <div className="h-px bg-white/10 my-1 mx-2"></div>
               <button
-                key={color}
                 onClick={() => {
-                  if (selectedCount > 1) {
-                    selectedNodes.forEach(n => updateNode(n.id, { accentColor: color }));
-                  } else {
-                    updateNode(menu.nodeId, { accentColor: color });
-                  }
+                  const targets = selectedCount > 1 ? selectedNodes : [node];
+                  targets.forEach(n => updateNode(n.id, { value: undefined }));
                   onClose();
                 }}
-                className="w-4 h-4 rounded-full border border-gray-600"
-                style={{ backgroundColor: color }}
-                title={color}
-                aria-label={`Accent color ${color}`}
-              />
-            ))}
+                className="arrow-action-item text-red-400"
+              >
+                Rensa värde
+              </button>
+            </div>
           </div>
-          <div className="h-px bg-gray-700 my-1"></div>
-          <button
-            onClick={() => {
-              if (selectedCount > 1) {
-                selectedNodes.forEach(n => updateNode(n.id, { accentColor: undefined }));
-              } else {
-                updateNode(menu.nodeId, { accentColor: undefined });
-              }
-              onClose();
-            }}
-            className="w-full text-left px-4 py-2 text-sm text-red-300 hover:bg-red-900/50"
-          >
-            Rensa accent
-          </button>
         </div>
-      </li>
 
-      {onAttractSimilar && hasEmbedding && (
-        <li role="none">
-          <button
-            onClick={handleAttractSimilar}
-            className="w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-indigo-600"
-            role="menuitem"
-          >
-            🧲 Dra till sig liknande{selectedCount > 1 ? ` (${selectedCount})` : ''}
+        {/* Accent Color Submenu */}
+        <div className="relative group">
+          <button className="arrow-action-item flex justify-between items-center w-full">
+            <span>Accentfärg</span>
+            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 18l6-6-6-6" /></svg>
           </button>
-        </li>
-      )}
+          <div className="absolute left-[90%] top-0 pl-6 hidden group-hover:block z-[10001]">
+            <div className="arrow-action-menu relative">
+              {/* Invisible bridge item to catch hover between parent and child */}
+              <div className="absolute -left-10 top-0 bottom-0 w-12 bg-transparent cursor-default" />
 
-      {onOpenAIChat && (
-        <li role="none">
-          <button
-            onClick={handleChat}
-            className="w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-green-600"
-            role="menuitem"
-          >
+              <div className="p-2 flex flex-wrap gap-2 max-w-[140px]">
+                {accentColors.map((color) => (
+                  <button
+                    key={color}
+                    onClick={() => {
+                      const targets = selectedCount > 1 ? selectedNodes : [node];
+                      targets.forEach(n => updateNode(n.id, { accentColor: color }));
+                      onClose();
+                    }}
+                    className="w-5 h-5 rounded-full border border-white/20 hover:scale-110 transition-transform"
+                    style={{ backgroundColor: color }}
+                  />
+                ))}
+              </div>
+              <div className="h-px bg-white/10 my-1 mx-2"></div>
+              <button
+                onClick={() => {
+                  const targets = selectedCount > 1 ? selectedNodes : [node];
+                  targets.forEach(n => updateNode(n.id, { accentColor: undefined }));
+                  onClose();
+                }}
+                className="arrow-action-item text-red-400"
+              >
+                Rensa accent
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {onAttractSimilar && hasEmbedding && (
+          <button onClick={handleAttractSimilar} className="arrow-action-item">
+            🧲 Liknande{selectedCount > 1 ? ` (${selectedCount})` : ''}
+          </button>
+        )}
+
+        {onOpenAIChat && (
+          <button onClick={handleChat} className="arrow-action-item">
             💬 Chatta om valda
           </button>
-        </li>
-      )}
+        )}
 
-      {onAddToChat && (
-        <li role="none">
-          <button
-            onClick={handleAddToChat}
-            className="w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-teal-600"
-            role="menuitem"
-          >
+        {onAddToChat && (
+          <button onClick={handleAddToChat} className="arrow-action-item">
             📌 Lägg till i chat{selectedCount > 1 ? ` (${selectedCount})` : ''}
           </button>
-        </li>
-      )}
+        )}
 
-      {isInSession && (
-        <li role="none">
-          <button
-            onClick={handleRemoveFromSession}
-            className="w-full text-left px-4 py-2 text-sm text-orange-400 hover:bg-orange-900/50"
-            role="menuitem"
-          >
-            📤 Ta bort från session{selectedCount > 1 ? ` (${selectedCount})` : ''}
+        {isInSession && (
+          <button onClick={handleRemoveFromSession} className="arrow-action-item text-orange-400">
+            📤 Ta bort från session
           </button>
-        </li>
-      )}
+        )}
 
-      <li role="separator" className="h-px bg-gray-700 my-1" aria-hidden="true" />
+        <div className="h-px bg-white/10 my-1 mx-2" />
 
-      <li role="none">
-        <button
-          onClick={handleDelete}
-          className="w-full text-left px-4 py-2 text-sm text-red-400 hover:bg-red-900/50"
-          role="menuitem"
-        >
+        <button onClick={handleDelete} className="arrow-action-item delete-chain">
           Radera
         </button>
-      </li>
       </menu>
     </div>
   );

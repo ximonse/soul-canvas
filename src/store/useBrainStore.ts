@@ -390,7 +390,7 @@ export const useBrainStore = create<BrainStore>()((set, get, api) => ({
 
     // HEALING SEQUENCES
     // För varje borttagen nod, "sy ihop" sekvenser
-    let newSequences = state.sequences.map(seq => {
+    const newSequences = state.sequences.map(seq => {
       // Filtrera bort deleted nodes från nodeIds
       const healedNodeIds = seq.nodeIds.filter(nodeId => !idsSet.has(nodeId));
       return { ...seq, nodeIds: healedNodeIds };
