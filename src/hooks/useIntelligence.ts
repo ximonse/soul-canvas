@@ -8,7 +8,6 @@ import {
   generateEmbedding,
   findNodesSimilarToGroup,
 } from '../utils/embeddings';
-import { calculateConnectedNodesLayout } from '../utils/forceLayout';
 import { 
   generateReflection, 
   generateSemanticTags, 
@@ -539,7 +538,7 @@ export const useIntelligence = () => {
   /**
    * Arrange nodes as a force-directed graph based on their connections
    */
-  const arrangeAsGraph = useCallback((centerX?: number, centerY?: number, gravity?: number): number => {
+  const arrangeAsGraph = useCallback(async (centerX?: number, centerY?: number, gravity?: number): Promise<number> => {
     const currentState = useBrainStore.getState();
     const allNodes = (Array.from(currentState.nodes.values()) as MindNode[])
       .filter((n: MindNode) => !isCopyNode(n));
@@ -562,6 +561,7 @@ export const useIntelligence = () => {
     });
     if (visibleSynapses.length === 0) return 0;
 
+    const { calculateConnectedNodesLayout } = await import('../utils/forceLayout');
     const positions = calculateConnectedNodesLayout(
       allNodes as MindNode[],
       visibleSynapses,

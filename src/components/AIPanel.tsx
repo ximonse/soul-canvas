@@ -230,8 +230,8 @@ export const AIPanel = ({ theme, onClose, onDiscussReflection }: AIPanelProps) =
 
           <div className="flex gap-2">
             <button
-              onClick={() => {
-                const count = intelligence.arrangeAsGraph();
+              onClick={async () => {
+                const count = await intelligence.arrangeAsGraph();
                 if (count === 0) alert('Inga kopplingar att visa som graf');
               }}
               disabled={intelligence.isProcessing || totalSynapseCount === 0}
