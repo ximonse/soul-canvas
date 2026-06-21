@@ -17,6 +17,7 @@ import { useSessionSearch } from './hooks/useSessionSearch';
 import { useWandering } from './hooks/useWandering';
 import { THEMES } from './themes';
 import { AUTOSAVE_DELAY_MS } from './utils/constants';
+import { FEATURE_FLAGS, FEATURE_FLAGS_EVENT } from './utils/featureFlags';
 
 // Komponenter
 import { NotificationSystem } from './components/NotificationSystem';
@@ -194,6 +195,10 @@ function App() {
   const sessionSearch = useSessionSearch({ allNodes: allNodesArray, activeSession });
   const selectionScope = useSelectionScope();
   const wandering = useWandering();
+  const isWanderingActive = wandering.isWandering;
+  const stopWandering = wandering.stopWandering;
+  const [enableWanderingTrails, setEnableWanderingTrails] = useState(FEATURE_FLAGS.enableWanderingTrails);
+  const [enableGraphGravityControls, setEnableGraphGravityControls] = useState(FEATURE_FLAGS.enableGraphGravityControls);
 
   // UI State
   const [themeIndex, setThemeIndex] = useState(() => {
@@ -238,6 +243,21 @@ function App() {
   useEffect(() => {
     setCurrentZoom(canvas.view.k);
   }, [canvas.view.k]);
+
+  useEffect(() => {
+    const handleFeatureFlagChange = (event: Event) => {
+      const detail = (event as CustomEvent<{ key?: string; value?: unknown }>).detail;
+      if (detail?.key === 'enableWanderingTrails') {
+        setEnableWanderingTrails(Boolean(detail.value));
+      }
+      if (detail?.key === 'enableGraphGravityControls') {
+        setEnableGraphGravityControls(Boolean(detail.value));
+      }
+    };
+
+    window.addEventListener(FEATURE_FLAGS_EVENT, handleFeatureFlagChange);
+    return () => window.removeEventListener(FEATURE_FLAGS_EVENT, handleFeatureFlagChange);
+  }, []);
 
   // Computed
   const selectedNodesCount = useMemo(() =>
@@ -461,6 +481,7 @@ function App() {
   }, [selectionScope]);
 
   const handleToggleWandering = useCallback(() => {
+    if (!enableWanderingTrails) return;
     if (wandering.isWandering) {
       wandering.stopWandering();
       setShowTrailPanel(false);
@@ -470,7 +491,15 @@ function App() {
     } else {
       setShowTrailPanel(prev => !prev);
     }
-  }, [wandering, firstSelectedNodeId]);
+  }, [enableWanderingTrails, wandering, firstSelectedNodeId]);
+
+  useEffect(() => {
+    if (enableWanderingTrails) return;
+    if (isWanderingActive) {
+      stopWandering();
+    }
+    setShowTrailPanel(false);
+  }, [enableWanderingTrails, isWanderingActive, stopWandering]);
 
   // Keyboard shortcuts
   useKeyboardHandlers({
@@ -487,7 +516,7 @@ function App() {
     showAIChat,
     showMassImport,
     showQuoteExtractor,
-    showTrailPanel,
+    showTrailPanel: enableWanderingTrails && showTrailPanel,
     showGuidance,
     isScopePanelOpen: selectionScope.isVisible,
     centerCamera,
@@ -525,9 +554,9 @@ function App() {
     onToggleScopePanel: selectionScope.toggleVisibility,
     onCloseScopePanel: selectionScope.close,
     onExpandScopeDegree: handleExpandScopeDegree,
-    onToggleWandering: handleToggleWandering,
-    onBacktrackTrail: wandering.backtrack,
-    onForwardTrail: () => { }, // Not implemented yet
+    onToggleWandering: enableWanderingTrails ? handleToggleWandering : undefined,
+    onBacktrackTrail: enableWanderingTrails ? wandering.backtrack : undefined,
+    onForwardTrail: undefined, // Not implemented yet
   });
 
   // Auto-save effect
@@ -578,14 +607,15 @@ function App() {
             canvas={canvas}
             stageRef={stageRef}
             nodes={filteredNodesArray}
-            isWandering={wandering.isWandering}
-            onWanderStep={wandering.stepTo}
-            gravitatingNodes={wandering.gravitatingNodes}
+            enableGraphGravityControls={enableGraphGravityControls}
+            isWandering={enableWanderingTrails && wandering.isWandering}
+            onWanderStep={enableWanderingTrails ? wandering.stepTo : undefined}
+            gravitatingNodes={enableWanderingTrails ? wandering.gravitatingNodes : []}
             gravitatingColorMode={wandering.colorMode}
-            wanderingCurrentNodeId={wandering.currentNodeId}
-            activeTrail={wandering.activeTrail}
-            selectedTrails={wandering.selectedTrails}
-            showActiveTrailLine={wandering.showActiveTrailLine}
+            wanderingCurrentNodeId={enableWanderingTrails ? wandering.currentNodeId : null}
+            activeTrail={enableWanderingTrails ? wandering.activeTrail : null}
+            selectedTrails={enableWanderingTrails ? wandering.selectedTrails : []}
+            showActiveTrailLine={enableWanderingTrails && wandering.showActiveTrailLine}
             onContextMenu={handleContextMenu}
             onZoomChange={setCurrentZoom}
             onLinkHover={setHoveredLink}
@@ -734,12 +764,12 @@ function App() {
         )}
 
         {/* Trail Panel - vandring */}
-        {showChrome && (
+        {showChrome && enableWanderingTrails && (
           <TrailPanel
             theme={theme}
             isOpen={showTrailPanel}
             onClose={() => setShowTrailPanel(false)}
-            isWandering={wandering.isWandering}
+            isWandering={enableWanderingTrails && wandering.isWandering}
             currentNodeId={wandering.currentNodeId}
             gravitatingNodes={wandering.gravitatingNodes}
             visitedNodeIds={wandering.visitedNodeIds}
@@ -798,7 +828,7 @@ function App() {
           <GuidanceOverlay
             theme={theme}
             viewMode={viewMode}
-            isWandering={wandering.isWandering}
+            isWandering={enableWanderingTrails && wandering.isWandering}
             selectionCount={selectedNodesCount}
             showSessionPanel={showSessionPanel}
             showAIChat={showAIChat}
@@ -892,6 +922,8 @@ function App() {
           onOpenImportPicker={openImportPicker}
           onToggleSessionPanel={() => setShowSessionPanel(prev => !prev)}
           onToggleWandering={handleToggleWandering}
+          enableWanderingTrails={enableWanderingTrails}
+          enableGraphGravityControls={enableGraphGravityControls}
           onToggleSynapseLines={toggleSynapseLines}
           onToggleViewMode={toggleViewMode}
           onToggleScopePanel={selectionScope.toggleVisibility}

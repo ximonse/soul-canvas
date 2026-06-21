@@ -20,6 +20,7 @@ interface KonvaCanvasProps {
   canvas: CanvasAPI;
   stageRef?: React.RefObject<Konva.Stage | null>;
   nodes: MindNode[];
+  enableGraphGravityControls?: boolean;
   isWandering?: boolean;
   onWanderStep?: (nodeId: string) => void;
   gravitatingNodes?: GravitatingNode[];
@@ -53,6 +54,7 @@ const KonvaCanvas: React.FC<KonvaCanvasProps> = ({
   canvas,
   stageRef: externalStageRef,
   nodes,
+  enableGraphGravityControls = false,
   isWandering = false,
   onWanderStep,
   gravitatingNodes = [],
@@ -327,7 +329,7 @@ const KonvaCanvas: React.FC<KonvaCanvasProps> = ({
   const handleStageWheel = (e: KonvaEventObject<WheelEvent>) => {
     e.evt.preventDefault();
 
-    if (e.evt.ctrlKey) {
+    if (enableGraphGravityControls && e.evt.ctrlKey) {
       const rawDelta = -e.evt.deltaY * GRAVITY_SCROLL_SCALE;
       const delta = Math.max(-GRAVITY_SCROLL_MAX_STEP, Math.min(GRAVITY_SCROLL_MAX_STEP, rawDelta));
       adjustGraphGravity(delta);

@@ -47,6 +47,7 @@ interface CommandPaletteProps {
   onFitAllNodes: () => void;
   onToggleSessionPanel: () => void;
   onToggleWandering: () => void;
+  enableWanderingTrails?: boolean;
   onDuplicate: () => void;
   onFlipToText: () => void;
   onFlipToImage: () => void;
@@ -88,6 +89,7 @@ export const CommandPalette = ({
   onFocusSearch,
   onToggleSessionPanel,
   onToggleWandering,
+  enableWanderingTrails = false,
   onDuplicate,
   onFlipToText,
   onFlipToImage,
@@ -126,6 +128,12 @@ export const CommandPalette = ({
     }))
     : [];
 
+  const wanderingCommands: Command[] = enableWanderingTrails
+    ? [
+      { id: 'wandering', name: 'Toggle Wandering Mode', shortcut: 'w', action: () => { onToggleWandering(); onClose(); }, category: 'view', icon: '\u{1F6B6}' },
+    ]
+    : [];
+
   const commands: Command[] = [
     // AI Commands
     { id: 'ai-panel', name: 'Open AI Panel', shortcut: 'b', action: () => { onOpenAIPanel(); onClose(); }, category: 'ai', icon: '\u{1F9E0}' },
@@ -147,7 +155,7 @@ export const CommandPalette = ({
     { id: 'view-mode', name: 'Toggle View Mode (Canvas/Column)', shortcut: 'k', action: () => { onToggleViewMode(); onClose(); }, category: 'view', icon: '\u{1F5FA}' },
     { id: 'session-panel', name: 'Toggle Session Panel', shortcut: 's', action: () => { onToggleSessionPanel(); onClose(); }, category: 'view', icon: '\u{1F5C2}' },
     { id: 'scope-panel', name: 'Toggle Scope Panel', shortcut: 'ctrl+`', action: () => { onToggleScopePanel(); onClose(); }, category: 'view', icon: '\u{1F9ED}' },
-    { id: 'wandering', name: 'Toggle Wandering Mode', shortcut: 'w', action: () => { onToggleWandering(); onClose(); }, category: 'view', icon: '\u{1F6B6}' },
+    ...wanderingCommands,
     { id: 'synapse-lines', name: 'Toggle Synapse Lines', shortcut: 'l', action: () => { onToggleSynapseLines(); onClose(); }, category: 'view', icon: '\u{1F500}' },
 
     // Create Commands

@@ -9,6 +9,7 @@ interface AIPanelProps {
   theme: Theme;
   onClose: () => void;
   onDiscussReflection?: (reflection: string) => void;
+  enableGraphGravityControls?: boolean;
 }
 
 // Steg-sektion med nummer och rubrik
@@ -36,7 +37,7 @@ const StepSection = ({
   </div>
 );
 
-export const AIPanel = ({ theme, onClose, onDiscussReflection }: AIPanelProps) => {
+export const AIPanel = ({ theme, onClose, onDiscussReflection, enableGraphGravityControls = false }: AIPanelProps) => {
   const panelAccent = '#a855f7';
   const {
     searchQuery,
@@ -232,16 +233,18 @@ export const AIPanel = ({ theme, onClose, onDiscussReflection }: AIPanelProps) =
           </div>
 
           <div className="flex gap-2">
-            <button
-              onClick={async () => {
-                const count = await intelligence.arrangeAsGraph(undefined, undefined, undefined, scopeNodeIds);
-                if (count === 0) alert('Inga kopplingar att visa som graf');
-              }}
-              disabled={intelligence.isProcessing || totalSynapseCount === 0}
-              className="flex-1 bg-violet-600 hover:bg-violet-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white py-2 rounded text-sm transition font-medium"
-            >
-              📊 Graf
-            </button>
+            {enableGraphGravityControls && (
+              <button
+                onClick={async () => {
+                  const count = await intelligence.arrangeAsGraph(undefined, undefined, undefined, scopeNodeIds);
+                  if (count === 0) alert('Inga kopplingar att visa som graf');
+                }}
+                disabled={intelligence.isProcessing || totalSynapseCount === 0}
+                className="flex-1 bg-violet-600 hover:bg-violet-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white py-2 rounded text-sm transition font-medium"
+              >
+                📊 Graf
+              </button>
+            )}
             <button
               onClick={() => setSynapseVisibilityThreshold(0)}
               disabled={synapseVisibilityThreshold === 0}

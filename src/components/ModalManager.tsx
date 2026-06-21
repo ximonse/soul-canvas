@@ -124,6 +124,8 @@ interface ModalManagerProps {
   onOpenImportPicker: (options?: { smartMarkdown?: boolean }) => Promise<void> | void;
   onToggleSessionPanel: () => void;
   onToggleWandering: () => void;
+  enableWanderingTrails: boolean;
+  enableGraphGravityControls: boolean;
   onToggleSynapseLines: () => void;
   onToggleViewMode: () => void;
   onToggleScopePanel: () => void;
@@ -227,6 +229,8 @@ export const ModalManager: React.FC<ModalManagerProps> = ({
   onOpenImportPicker,
   onToggleSessionPanel,
   onToggleWandering,
+  enableWanderingTrails,
+  enableGraphGravityControls,
   onToggleSynapseLines,
   onToggleViewMode,
   onToggleScopePanel,
@@ -281,6 +285,7 @@ export const ModalManager: React.FC<ModalManagerProps> = ({
           theme={theme}
           onClose={() => setShowAIPanel(false)}
           onDiscussReflection={onDiscussReflection}
+          enableGraphGravityControls={enableGraphGravityControls}
         />
       )}
 
@@ -342,6 +347,7 @@ export const ModalManager: React.FC<ModalManagerProps> = ({
           onQuoteExtractor={onOpenQuoteExtractor}
           onToggleViewMode={onToggleViewMode}
           onToggleWandering={onToggleWandering}
+          enableWanderingTrails={enableWanderingTrails}
           onMassImport={onOpenMassImport}
           onFocusSearch={() => {
             const searchInput = document.querySelector('input[type="text"]') as HTMLInputElement;

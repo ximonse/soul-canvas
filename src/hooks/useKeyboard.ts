@@ -369,23 +369,23 @@ export function useKeyboard(
       }
 
       // W = toggle wandering mode + trail panel
-      if (key === 'w' && !e.ctrlKey) {
+      if (key === 'w' && !e.ctrlKey && actions.onToggleWandering) {
         e.preventDefault();
-        actions.onToggleWandering?.();
+        actions.onToggleWandering();
         return;
       }
 
       // [ = backtrack trail
-      if (e.key === '[' && !e.ctrlKey) {
+      if (e.key === '[' && !e.ctrlKey && actions.onBacktrackTrail) {
         e.preventDefault();
-        actions.onBacktrackTrail?.();
+        actions.onBacktrackTrail();
         return;
       }
 
       // ] = forward trail
-      if (e.key === ']' && !e.ctrlKey) {
+      if (e.key === ']' && !e.ctrlKey && actions.onForwardTrail) {
         e.preventDefault();
-        actions.onForwardTrail?.();
+        actions.onForwardTrail();
         return;
       }
 
