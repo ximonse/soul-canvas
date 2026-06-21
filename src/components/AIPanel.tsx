@@ -54,10 +54,11 @@ export const AIPanel = ({ theme, onClose, onDiscussReflection }: AIPanelProps) =
     handleSearch,
     handleGenerateTags,
     intelligence,
+    scopedSynapses,
+    scopeNodeIds,
   } = useAIPanelActions();
 
   const [showTools, setShowTools] = useState(false);
-  const synapses = useBrainStore((state) => state.synapses);
   const synapseVisibilityThreshold = useBrainStore((state) => state.synapseVisibilityThreshold);
   const openaiKey = useBrainStore((state) => state.openaiKey);
   const claudeKey = useBrainStore((state) => state.claudeKey);
@@ -67,16 +68,16 @@ export const AIPanel = ({ theme, onClose, onDiscussReflection }: AIPanelProps) =
   const setSynapseVisibilityThreshold = useBrainStore((state) => state.setSynapseVisibilityThreshold);
 
   const sortedSynapseSimilarities = useMemo(() => (
-    synapses
+    scopedSynapses
       .map((s: { similarity?: number }) => s.similarity ?? 1)
       .sort((a, b) => a - b)
-  ), [synapses]);
+  ), [scopedSynapses]);
 
   // Beräkna synliga kopplingar baserat på threshold
-  const visibleSynapseCount = synapses.filter(
+  const visibleSynapseCount = scopedSynapses.filter(
     (s: { similarity?: number }) => (s.similarity || 1) >= (synapseVisibilityThreshold || 0)
   ).length;
-  const totalSynapseCount = synapses.length;
+  const totalSynapseCount = scopedSynapses.length;
   const MIN_VISIBILITY_PERCENT = 1;
   const MAX_VISIBILITY_PERCENT = 100;
   const visibilityPercent = useMemo(() => {
@@ -159,10 +160,12 @@ export const AIPanel = ({ theme, onClose, onDiscussReflection }: AIPanelProps) =
         <StepSection step={1} title="Vektorisera" textColor={theme.node.text}>
           <button
             onClick={handleEmbedAll}
-            disabled={intelligence.isProcessing || !openaiKey || embeddedCount === totalCount}
+            disabled={intelligence.isProcessing || !openaiKey || totalCount === 0 || embeddedCount === totalCount}
             className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white py-2 rounded text-sm transition font-medium"
           >
-            {embeddedCount === totalCount && totalCount > 0
+            {totalCount === 0
+              ? 'Inga kort i sessionen'
+              : embeddedCount === totalCount && totalCount > 0
               ? '✓ Alla har vektorer'
               : `Skapa vektorer (${totalCount - embeddedCount} kvar)`}
           </button>
@@ -231,7 +234,7 @@ export const AIPanel = ({ theme, onClose, onDiscussReflection }: AIPanelProps) =
           <div className="flex gap-2">
             <button
               onClick={async () => {
-                const count = await intelligence.arrangeAsGraph();
+                const count = await intelligence.arrangeAsGraph(undefined, undefined, undefined, scopeNodeIds);
                 if (count === 0) alert('Inga kopplingar att visa som graf');
               }}
               disabled={intelligence.isProcessing || totalSynapseCount === 0}

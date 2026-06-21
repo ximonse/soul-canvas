@@ -9,7 +9,7 @@ import { useCanvas } from './hooks/useCanvas';
 import { useSearch } from './hooks/useSearch';
 import { useAIChat } from './hooks/useAIChat';
 import { useArrangement } from './hooks/useArrangement';
-import { useImportHandlers } from './hooks/useImportHandlers';
+import { useImportHandlers, type ImportPickerOptions } from './hooks/useImportHandlers';
 import { useNodeActions } from './hooks/useNodeActions';
 import { useKeyboardHandlers } from './hooks/useKeyboardHandlers';
 import { useSelectionScope } from './hooks/useSelectionScope';
@@ -218,6 +218,7 @@ function App() {
   const [isChatMinimized, setIsChatMinimized] = useState(false);
   const [isReflectionChat, setIsReflectionChat] = useState(false);
   const [showMassImport, setShowMassImport] = useState(false);
+  const [showImportOptions, setShowImportOptions] = useState(false);
   const [showQuoteExtractor, setShowQuoteExtractor] = useState(false);
   const [showSessionPanel, setShowSessionPanel] = useState(false);
   const [showTrailPanel, setShowTrailPanel] = useState(false);
@@ -282,12 +283,28 @@ function App() {
   }, [pdfImportPrompt, handlePdfPromptConfirm, handlePdfPromptCancel]);
 
   // Import handlers
-  const { handleDrop } = useImportHandlers({
+  const { handleDrop, importFiles } = useImportHandlers({
     canvas,
     hasFile,
     saveAsset,
     requestPdfGroupName,
   });
+
+  const openImportPicker = useCallback(async (options?: ImportPickerOptions) => {
+    if (!hasFile) return;
+
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*,.json,.html,.pdf,.ris,.md,.markdown';
+    input.multiple = true;
+    input.onchange = async (e) => {
+      const files = Array.from((e.target as HTMLInputElement).files || []);
+      if (files.length === 0) return;
+      const worldPos = canvas.screenToWorld(window.innerWidth / 2, window.innerHeight / 2);
+      await importFiles(files, worldPos, options);
+    };
+    input.click();
+  }, [canvas, hasFile, importFiles]);
 
   // Node actions
   const { centerCamera, fitAllNodes, resetZoom, runOCR, runOCROnSelected, deleteSelected } = useNodeActions({
@@ -795,6 +812,7 @@ function App() {
           showSettings={showSettings}
           showAIPanel={showAIPanel}
           showCommandPalette={showCommandPalette}
+          showImportOptions={showImportOptions}
           showAIChat={showAIChat}
           showOcrPrompt={showOcrPrompt}
           contextMenu={contextMenu}
@@ -814,7 +832,6 @@ function App() {
           onTogglePin={handleTogglePin}
           handleManualSave={handleManualSave}
           centerCamera={centerCamera}
-          handleDrop={handleDrop}
           chatMessages={aiChat.messages}
           chatProvider={aiChat.provider}
           setChatProvider={aiChat.setProvider}
@@ -855,6 +872,7 @@ function App() {
           setShowSettings={setShowSettings}
           setShowAIPanel={setShowAIPanel}
           setShowCommandPalette={setShowCommandPalette}
+          setShowImportOptions={setShowImportOptions}
           setShowAIChat={setShowAIChat}
           setShowOcrPrompt={setShowOcrPrompt}
           setContextMenu={setContextMenu}
@@ -871,12 +889,14 @@ function App() {
           fitAllNodes={fitAllNodes}
           onOpenMassImport={() => setShowMassImport(true)}
           onOpenQuoteExtractor={() => setShowQuoteExtractor(true)}
+          onOpenImportPicker={openImportPicker}
           onToggleSessionPanel={() => setShowSessionPanel(prev => !prev)}
           onToggleWandering={handleToggleWandering}
           onToggleSynapseLines={toggleSynapseLines}
           onToggleViewMode={toggleViewMode}
           onToggleScopePanel={selectionScope.toggleVisibility}
           theme={theme}
+          claudeAvailable={Boolean(claudeKey)}
           onFocusSearch={() => search.openSearch()}
           pdfImportPrompt={pdfImportPromptProps}
         />

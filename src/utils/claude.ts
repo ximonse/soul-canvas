@@ -467,6 +467,16 @@ export interface ChatSummaryResult {
   cards: ChatCardResult[];
 }
 
+export interface MarkdownSmartImportCard {
+  title?: string;
+  content: string;
+  tags: string[];
+}
+
+export interface MarkdownSmartImportResult {
+  cards: MarkdownSmartImportCard[];
+}
+
 /**
  * Summarize a chat conversation into one or more cards
  * AI decides how many cards based on content length and topics
@@ -541,6 +551,89 @@ Respond ONLY with JSON`;
     return { cards };
   } catch {
     console.error('Failed to parse chat summary response:', responseText);
+    return emptyResult;
+  }
+};
+
+export const smartImportMarkdownToCards = async (
+  markdown: string,
+  apiKey: string,
+  sourceTitle?: string,
+): Promise<MarkdownSmartImportResult> => {
+  if (!apiKey) throw new Error('Claude API key saknas');
+
+  const emptyResult: MarkdownSmartImportResult = { cards: [] };
+  const trimmed = markdown.trim();
+  if (!trimmed) return emptyResult;
+
+  const wordCount = trimmed.split(/\s+/).filter(Boolean).length;
+  const suggestedCards = wordCount < 250
+    ? '3-4'
+    : wordCount < 700
+      ? '4-7'
+      : wordCount < 1400
+        ? '6-9'
+        : '8-12';
+
+  const anthropic = new Anthropic({ apiKey, dangerouslyAllowBrowser: true });
+  const prompt = `Analyze this Obsidian markdown note and split it into small Soul Canvas cards.
+
+Respond in exactly this JSON format:
+{
+  "kort": [
+    {
+      "titel": "short optional title",
+      "innehall": "1-3 sentences",
+      "taggar": ["tag1", "tag2"]
+    }
+  ]
+}
+
+NOTE TITLE:
+${sourceTitle || 'Unknown'}
+
+NOTE CONTENT:
+${trimmed.substring(0, 14000)}
+
+Instructions:
+- Create a mixed set of cards: summaries, quotes, ideas, and concrete points
+- Choose the number of cards based on text length and idea density
+- Suggested range for this note: ${suggestedCards}
+- Each card must be self-contained and useful on its own
+- Each card must be concise: 1-3 sentences, max 80 words
+- Prefer exact quotes only when they are actually memorable or sharp
+- Do not create near-duplicate cards
+- Tags per card: 2-4 tags
+- All tags must be English, lowercase, no hyphens (use spaces)
+- Write titles and content in Swedish
+- Respond ONLY with JSON`;
+
+  logTokenEstimate('claude markdown smart import', [{ label: 'prompt', text: prompt }]);
+  const message = await claudeLimiter.enqueue(() =>
+    anthropic.messages.create({
+      model: 'claude-sonnet-4-5-20250929',
+      max_tokens: 2200,
+      messages: [{ role: 'user', content: prompt }],
+    })
+  );
+  logUsage('claude markdown smart import', (message as { usage?: unknown }).usage);
+
+  const responseText = message.content[0].type === 'text' ? message.content[0].text : '';
+  try {
+    const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) return emptyResult;
+    const parsed = JSON.parse(jsonMatch[0]);
+    const cards: MarkdownSmartImportCard[] = (parsed.kort || [])
+      .map((card: { titel?: string; innehall?: string; taggar?: string[] }) => ({
+        title: (card.titel || '').trim() || undefined,
+        content: (card.innehall || '').trim(),
+        tags: normalizeTagList(Array.isArray(card.taggar) ? card.taggar : []),
+      }))
+      .filter((card: MarkdownSmartImportCard) => card.content.length > 0);
+
+    return { cards };
+  } catch {
+    console.error('Failed to parse markdown smart import response:', responseText);
     return emptyResult;
   }
 };

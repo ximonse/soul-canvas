@@ -152,7 +152,7 @@ export const CommandPalette = ({
 
     // Create Commands
     { id: 'new-card', name: 'New Card', shortcut: 'n', action: () => { onNewCard(); onClose(); }, category: 'edit', icon: '\u2795' },
-    { id: 'import', name: 'Import (Images, JSON, Zotero)', shortcut: 'i', action: () => { onImport(); onClose(); }, category: 'edit', icon: '\u2B06' },
+    { id: 'import', name: 'Import (Images, JSON, Zotero, Markdown)', shortcut: 'i', action: () => { onImport(); onClose(); }, category: 'edit', icon: '\u2B06' },
     { id: 'mass-import', name: 'Mass Import (Text)', shortcut: 'm', action: () => { onMassImport(); onClose(); }, category: 'edit', icon: '\u{1F4E5}' },
     { id: 'focus-search', name: 'Focus Search', shortcut: 'f', action: () => { onFocusSearch(); onClose(); }, category: 'edit', icon: '\u{1F50D}' },
 

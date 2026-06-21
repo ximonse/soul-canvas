@@ -10,6 +10,12 @@ import { parseZoteroHTML, parseZoteroPlainText, isZoteroHTML, type ZoteroNote } 
 import { processPdfFile, processPdfPreview } from '../utils/pdfProcessor';
 import { parseRis, type RisMetadata } from '../utils/risParser';
 import { parseCoinsHtml } from '../utils/coinsParser';
+import { smartImportMarkdownToCards } from '../utils/claude';
+import {
+  parseObsidianMarkdownFile,
+  resolveObsidianLinks,
+  type ParsedObsidianMarkdownFile,
+} from '../utils/obsidianImport';
 
 interface ImportHandlersProps {
   canvas: CanvasAPI;
@@ -20,6 +26,17 @@ interface ImportHandlersProps {
     options?: { subdir?: string; register?: boolean }
   ) => Promise<string | null>;
   requestPdfGroupName?: (suggestedName: string) => Promise<string | null>;
+}
+
+export interface ImportPickerOptions {
+  smartMarkdown?: boolean;
+}
+
+interface ImportTransferData {
+  html?: string;
+  plainText?: string;
+  uriList?: string;
+  risText?: string;
 }
 
 // Helper: Convert data URL to Blob
@@ -74,14 +91,21 @@ export function useImportHandlers({
   const saveStateForUndo = useBrainStore((state) => state.saveStateForUndo);
   const addNode = useBrainStore((state) => state.addNode);
   const addNodeWithId = useBrainStore((state) => state.addNodeWithId);
+  const addSynapse = useBrainStore((state) => state.addSynapse);
   const updateNode = useBrainStore((state) => state.updateNode);
   const updateNodesBulk = useBrainStore((state) => state.updateNodesBulk);
+  const claudeKey = useBrainStore((state) => state.claudeKey);
   const MAX_IMAGE_WIDTH = 800;
   const PDF_MAX_WIDTH = 1600;
   const PDF_QUALITY = 0.95;
 
   const toSafeName = (name: string) => name.replace(/\s+/g, '_');
   const normalizeKey = (name: string) => name.trim().toLowerCase();
+  const isMarkdownFile = (file: File) => /\.(md|markdown)$/i.test(file.name);
+
+  const mergeTags = (...groups: Array<string[] | undefined>) => (
+    Array.from(new Set(groups.flatMap((group) => group || []).map((tag) => tag.trim()).filter(Boolean)))
+  );
 
   const askPdfGroupName = useCallback(async (suggestedName: string) => {
     if (requestPdfGroupName) {
@@ -250,6 +274,128 @@ export function useImportHandlers({
     await saveAsset(file, filename, { subdir: 'originals', register: false });
   }, [saveAsset]);
 
+  const importObsidianMarkdownFiles = useCallback(async (
+    files: File[],
+    originX: number,
+    originY: number,
+    options?: ImportPickerOptions,
+  ) => {
+    if (files.length === 0) return;
+
+    const parsedFiles: ParsedObsidianMarkdownFile[] = [];
+    for (const file of files) {
+      parsedFiles.push(parseObsidianMarkdownFile(file.name, await file.text()));
+    }
+
+    const smartMarkdown = Boolean(options?.smartMarkdown);
+    if (smartMarkdown && !claudeKey) {
+      throw new Error('Claude API-nyckel saknas för AI smart-import.');
+    }
+
+    saveStateForUndo();
+
+    if (!smartMarkdown) {
+      const cols = Math.ceil(Math.sqrt(parsedFiles.length));
+      const spacing = 340;
+      const nodeIds = parsedFiles.map(() => crypto.randomUUID());
+      const linkDrafts = parsedFiles.map((parsed, index) => ({
+        nodeId: nodeIds[index],
+        fileStem: parsed.fileStem,
+        title: parsed.title,
+        wikilinks: parsed.wikilinks,
+      }));
+      const resolved = resolveObsidianLinks(linkDrafts);
+
+      parsedFiles.forEach((parsed, index) => {
+        const row = Math.floor(index / cols);
+        const col = index % cols;
+        const nodeId = nodeIds[index];
+        const unresolvedTags = resolved.unresolvedTags.get(nodeId) ?? [];
+
+        addNodeWithId(
+          nodeId,
+          parsed.content,
+          originX + (col - cols / 2) * spacing,
+          originY + (row - Math.ceil(parsedFiles.length / cols) / 2) * spacing,
+          'text'
+        );
+
+        updateNode(nodeId, {
+          title: parsed.title,
+          tags: mergeTags(parsed.tags, unresolvedTags),
+        });
+      });
+
+      resolved.links.forEach((link) => addSynapse(link.sourceId, link.targetId));
+      return;
+    }
+
+    const fileCards: Array<{
+      parsed: ParsedObsidianMarkdownFile;
+      nodeIds: string[];
+      cards: Array<{ title?: string; content: string; tags: string[] }>;
+    }> = [];
+
+    for (const parsed of parsedFiles) {
+      const smartResult = await smartImportMarkdownToCards(
+        parsed.content,
+        claudeKey || '',
+        parsed.title || parsed.fileStem,
+      );
+      const cards = smartResult.cards.length > 0
+        ? smartResult.cards
+        : [{
+          title: parsed.title,
+          content: parsed.content,
+          tags: parsed.tags,
+        }];
+
+      fileCards.push({
+        parsed,
+        nodeIds: cards.map(() => crypto.randomUUID()),
+        cards,
+      });
+    }
+
+    const representativeDrafts = fileCards.map((file) => ({
+      nodeId: file.nodeIds[0],
+      fileStem: file.parsed.fileStem,
+      title: file.parsed.title,
+      wikilinks: file.parsed.wikilinks,
+    }));
+    const resolved = resolveObsidianLinks(representativeDrafts);
+
+    const flattenedCards = fileCards.flatMap((file) => file.cards.map((card, index) => ({
+      file,
+      nodeId: file.nodeIds[index],
+      card,
+    })));
+    const cols = Math.ceil(Math.sqrt(flattenedCards.length));
+    const spacing = 340;
+
+    flattenedCards.forEach((entry, index) => {
+      const row = Math.floor(index / cols);
+      const col = index % cols;
+      const unresolvedTags = resolved.unresolvedTags.get(entry.file.nodeIds[0]) ?? [];
+
+      addNodeWithId(
+        entry.nodeId,
+        entry.card.content,
+        originX + (col - cols / 2) * spacing,
+        originY + (row - Math.ceil(flattenedCards.length / cols) / 2) * spacing,
+        'text'
+      );
+
+      updateNode(entry.nodeId, {
+        title: entry.card.title || entry.file.parsed.title,
+        tags: mergeTags(entry.file.parsed.tags, entry.card.tags, unresolvedTags),
+        caption: entry.file.parsed.title || entry.file.parsed.fileStem,
+      });
+    });
+
+    resolved.links.forEach((link) => addSynapse(link.sourceId, link.targetId));
+  }, [addNodeWithId, addSynapse, claudeKey, saveStateForUndo, updateNode]);
+
   // Import JSON files
   const handleJSONImport = useCallback(async (file: File) => {
     try {
@@ -332,14 +478,12 @@ export function useImportHandlers({
     }
   }, [saveStateForUndo, addNodeWithId, updateNodesBulk, canvas]);
 
-  // Handle drag-and-drop of files
-  const handleDrop = useCallback(async (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (!hasFile) return;
-
-    const worldPos = canvas.screenToWorld(e.clientX, e.clientY);
-    const files = Array.from(e.dataTransfer.files);
+  const importFiles = useCallback(async (
+    files: File[],
+    worldPos: { x: number; y: number },
+    options?: ImportPickerOptions,
+    transferData?: ImportTransferData,
+  ) => {
     const parseUriList = (raw: string) => (
       raw
         .split(/\r?\n/)
@@ -373,15 +517,16 @@ export function useImportHandlers({
       }
       return null;
     };
+
     const risMetadataByBaseName = new Map<string, RisMetadata>();
     const risFromText = extractRisFromText(
-      e.dataTransfer.getData('application/x-research-info-systems')
-        || e.dataTransfer.getData('text/plain')
+      transferData?.risText
+        || transferData?.plainText
     );
-    const htmlPayload = e.dataTransfer.getData('text/html');
-    const plainTextPayload = e.dataTransfer.getData('text/plain');
+    const htmlPayload = transferData?.html || '';
+    const plainTextPayload = transferData?.plainText || '';
     const coinsMetadata = parseCoinsHtml(htmlPayload);
-    const uriListRaw = e.dataTransfer.getData('text/uri-list');
+    const uriListRaw = transferData?.uriList || '';
     const zoteroInfo = extractZoteroInfo(uriListRaw, plainTextPayload, htmlPayload);
 
     for (const file of files) {
@@ -436,7 +581,7 @@ export function useImportHandlers({
         }
       }
 
-      const baseText = e.dataTransfer.getData('text/plain') || metadata?.title || '';
+      const baseText = plainTextPayload || metadata?.title || '';
       if (baseText.trim()) {
         saveStateForUndo();
         const nodeId = crypto.randomUUID();
@@ -449,8 +594,13 @@ export function useImportHandlers({
       return;
     }
 
+    const markdownFiles = files.filter(isMarkdownFile);
+    if (markdownFiles.length > 0) {
+      await importObsidianMarkdownFiles(markdownFiles, worldPos.x, worldPos.y, options);
+    }
+
     for (const file of files) {
-      if (file.name.toLowerCase().endsWith('.ris')) {
+      if (file.name.toLowerCase().endsWith('.ris') || isMarkdownFile(file)) {
         continue;
       }
       if (file.type.startsWith('image/')) {
@@ -513,10 +663,10 @@ export function useImportHandlers({
               });
               updates.imageRef = relativePath;
               updates.content = '';
-            const pdfLink = buildZoteroPdfLink(
-              zoteroInfo?.zoteroItemKey,
-              zoteroInfo?.zoteroPage || 1
-            );
+              const pdfLink = buildZoteroPdfLink(
+                zoteroInfo?.zoteroItemKey,
+                zoteroInfo?.zoteroPage || 1
+              );
               if (pdfLink) {
                 updates.link = `[PDF](${pdfLink})`;
               }
@@ -526,23 +676,22 @@ export function useImportHandlers({
           }
 
           const images = await processPdfFile(file, PDF_MAX_WIDTH, PDF_QUALITY);
-          const spacing = 320; // Slightly larger than standard card width
+          const spacing = 320;
           const cols = Math.ceil(Math.sqrt(images.length));
           const totalPages = images.length;
 
           for (let i = 0; i < images.length; i++) {
             const blob = images[i];
             const pageNum = i + 1;
-              const pdfId = `${safeBase}_${pageNum}_${totalPages}`;
-              const fileName = `${pdfId}.jpg`;
-              const processedFile = new File([blob], fileName, { type: 'image/jpeg' });
-              const relativePath = await saveAsset(processedFile, fileName);
+            const pdfId = `${safeBase}_${pageNum}_${totalPages}`;
+            const fileName = `${pdfId}.jpg`;
+            const processedFile = new File([blob], fileName, { type: 'image/jpeg' });
+            const relativePath = await saveAsset(processedFile, fileName);
 
             if (relativePath) {
               const row = Math.floor(i / cols);
               const col = i % cols;
               const nodeId = crypto.randomUUID();
-              // Add simple offset to avoid perfect overlap if dropped at same spot, but mainly grid
               addNodeWithId(
                 nodeId,
                 relativePath,
@@ -583,19 +732,34 @@ export function useImportHandlers({
       }
     }
   }, [
-    hasFile,
-    canvas,
-    saveAsset,
-    saveOriginal,
-    handleJSONImport,
     addNode,
     addNodeWithId,
-    updateNode,
+    addZoteroNotes,
     askPdfGroupName,
     extractRisFromText,
-    addZoteroNotes,
+    handleJSONImport,
+    importObsidianMarkdownFiles,
+    saveAsset,
+    saveOriginal,
     saveStateForUndo,
+    updateNode,
   ]);
+
+  // Handle drag-and-drop of files
+  const handleDrop = useCallback(async (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!hasFile) return;
+
+    const worldPos = canvas.screenToWorld(e.clientX, e.clientY);
+    const files = Array.from(e.dataTransfer.files);
+    await importFiles(files, worldPos, { smartMarkdown: false }, {
+      risText: e.dataTransfer.getData('application/x-research-info-systems'),
+      html: e.dataTransfer.getData('text/html'),
+      plainText: e.dataTransfer.getData('text/plain'),
+      uriList: e.dataTransfer.getData('text/uri-list'),
+    });
+  }, [canvas, hasFile, importFiles]);
 
   // Handle paste events (images)
   useEffect(() => {
@@ -630,6 +794,7 @@ export function useImportHandlers({
   }, [hasFile, canvas, saveAsset, saveOriginal, addNode]);
 
   return {
+    importFiles,
     handleDrop,
     handleJSONImport,
   };

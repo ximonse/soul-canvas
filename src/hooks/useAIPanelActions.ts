@@ -1,14 +1,18 @@
 // hooks/useAIPanelActions.ts
 // Hanterar alla AI-panel actions och state
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { useIntelligence } from './useIntelligence';
 import { useBrainStore } from '../store/useBrainStore';
 import type { MindNode } from '../types/types';
+import { getAIPanelScope } from '../utils/aiPanelScope';
 
 export function useAIPanelActions() {
   const nodes = useBrainStore((state) => state.nodes);
+  const sessions = useBrainStore((state) => state.sessions);
+  const activeSessionId = useBrainStore((state) => state.activeSessionId);
   const selectedNodeIds = useBrainStore((state) => state.selectedNodeIds);
+  const synapses = useBrainStore((state) => state.synapses);
   const openaiKey = useBrainStore((state) => state.openaiKey);
   const claudeKey = useBrainStore((state) => state.claudeKey);
   const enableAutoLink = useBrainStore((state) => state.enableAutoLink);
@@ -27,10 +31,17 @@ export function useAIPanelActions() {
     setStatus({ text, tone });
   };
 
-  // Counts
-  const selectedCount = selectedNodeIds.size;
-  const embeddedCount = (Array.from(nodes.values()) as MindNode[]).filter((n: MindNode) => n.embedding).length;
-  const totalCount = nodes.size;
+  const scope = useMemo(() => getAIPanelScope({
+    nodes,
+    sessions,
+    activeSessionId,
+    selectedNodeIds,
+    synapses,
+  }), [nodes, sessions, activeSessionId, selectedNodeIds, synapses]);
+
+  const selectedCount = scope.selectedCount;
+  const embeddedCount = scope.embeddedCount;
+  const totalCount = scope.totalCount;
 
   const handleEmbedAll = useCallback(async () => {
     if (!openaiKey) {
@@ -39,7 +50,7 @@ export function useAIPanelActions() {
     }
 
     try {
-      const count = await intelligence.embedAllNodes();
+      const count = await intelligence.embedAllNodes(scope.nodeIds);
       if (count > 0) {
         notify(`Skapade embeddings för ${count} noder!`, 'success');
 
@@ -47,7 +58,7 @@ export function useAIPanelActions() {
         if (!enableAutoLink) {
           toggleAutoLink(); // Aktivera för nya kort
         }
-        const links = await intelligence.autoLinkSimilarNodes();
+        const links = await intelligence.autoLinkSimilarNodes(undefined, scope.nodeIds);
         if (links > 0) {
           notify(`Skapade ${links} kopplingar!`, 'success');
         }
@@ -56,7 +67,7 @@ export function useAIPanelActions() {
       console.error('Fel vid skapande av embeddings', error);
       notify(`Fel vid skapande av embeddings: ${error instanceof Error ? error.message : 'Okänt fel'}`, 'error');
     }
-  }, [openaiKey, enableAutoLink, toggleAutoLink, intelligence]);
+  }, [openaiKey, enableAutoLink, toggleAutoLink, intelligence, scope.nodeIds]);
 
   const handleAutoLink = useCallback(async () => {
     if (embeddedCount < 2) {
@@ -65,7 +76,7 @@ export function useAIPanelActions() {
     }
 
     try {
-      const links = await intelligence.autoLinkSimilarNodes();
+      const links = await intelligence.autoLinkSimilarNodes(undefined, scope.nodeIds);
       if (links > 0) {
         notify(`Skapade ${links} nya länkar mellan liknande noder!`, 'success');
       } else {
@@ -75,7 +86,7 @@ export function useAIPanelActions() {
       console.error('Fel vid automatisk länkning', error);
       notify(`Fel vid automatisk länkning: ${error instanceof Error ? error.message : 'Okänt fel'}`, 'error');
     }
-  }, [embeddedCount, intelligence]);
+  }, [embeddedCount, intelligence, scope.nodeIds]);
 
   const handleReflect = useCallback(async () => {
     if (!claudeKey) {
@@ -89,7 +100,7 @@ export function useAIPanelActions() {
     }
 
     try {
-      const reflection = await intelligence.reflect();
+      const reflection = await intelligence.reflect(scope.nodeIds);
       if (reflection) {
         setShowReflection(true);
       }
@@ -97,7 +108,7 @@ export function useAIPanelActions() {
       console.error('Fel vid reflektion', error);
       notify(`Fel vid reflektion: ${error instanceof Error ? error.message : 'Okänt fel'}`, 'error');
     }
-  }, [claudeKey, totalCount, intelligence]);
+  }, [claudeKey, totalCount, intelligence, scope.nodeIds]);
 
   const handleAnalyzeCluster = useCallback(async () => {
     if (!claudeKey) {
@@ -111,7 +122,7 @@ export function useAIPanelActions() {
     }
 
     try {
-      const insight = await intelligence.analyzeSelectedCluster();
+      const insight = await intelligence.analyzeSelectedCluster(scope.nodeIds);
       if (insight) {
         setClusterInsight(insight);
       }
@@ -119,7 +130,7 @@ export function useAIPanelActions() {
       console.error('Fel vid klusteranalys', error);
       notify(`Fel vid klusteranalys: ${error instanceof Error ? error.message : 'Okänt fel'}`, 'error');
     }
-  }, [claudeKey, selectedCount, intelligence]);
+  }, [claudeKey, selectedCount, intelligence, scope.nodeIds]);
 
   const handleSearch = useCallback(async () => {
     if (!openaiKey) {
@@ -138,7 +149,7 @@ export function useAIPanelActions() {
     }
 
     try {
-      const results = await intelligence.semanticSearch(searchQuery);
+      const results = await intelligence.semanticSearch(searchQuery, scope.nodeIds);
       setSearchResults(results);
 
       if (results.length > 0) {
@@ -153,7 +164,7 @@ export function useAIPanelActions() {
       console.error('Fel vid sökning', error);
       notify(`Fel vid sökning: ${error instanceof Error ? error.message : 'Okänt fel'}`, 'error');
     }
-  }, [openaiKey, searchQuery, embeddedCount, intelligence, clearSelection, toggleSelection]);
+  }, [openaiKey, searchQuery, embeddedCount, intelligence, clearSelection, toggleSelection, scope.nodeIds]);
 
   const handleGenerateTags = useCallback(async () => {
     if (!claudeKey) {
@@ -161,16 +172,14 @@ export function useAIPanelActions() {
       return;
     }
 
-    const selectedNodes = Array.from(selectedNodeIds)
-      .map(id => nodes.get(id))
-      .filter(Boolean) as MindNode[];
+    const selectedNodes = scope.selectedNodes as MindNode[];
     if (selectedNodes.length === 0) {
       notify('Välj minst en nod först!', 'info');
       return;
     }
 
     try {
-      const { totalTags } = await intelligence.generateTagsForSelection();
+      const { totalTags } = await intelligence.generateTagsForSelection(undefined, scope.nodeIds);
       if (totalTags > 0) {
         notify(`Genererade ${totalTags} semantiska taggar!`, 'success');
       } else {
@@ -180,7 +189,7 @@ export function useAIPanelActions() {
       console.error('Fel vid generering av taggar', error);
       notify(`Fel vid generering av taggar: ${error instanceof Error ? error.message : 'Okänt fel'}`, 'error');
     }
-  }, [claudeKey, selectedNodeIds, nodes, intelligence]);
+  }, [claudeKey, scope.selectedNodes, scope.nodeIds, intelligence]);
 
   return {
     // State
@@ -196,6 +205,8 @@ export function useAIPanelActions() {
     selectedCount,
     embeddedCount,
     totalCount,
+    scopedSynapses: scope.synapses,
+    scopeNodeIds: scope.nodeIds,
 
     // Handlers
     handleEmbedAll,
