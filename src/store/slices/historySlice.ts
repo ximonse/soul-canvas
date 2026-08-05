@@ -2,15 +2,19 @@
 // Hanterar undo/redo och clipboard
 
 import type { MindNode, Session, Synapse } from '../../types/types';
+import {
+  markDocumentChanged,
+  persistenceInitialState,
+  type PersistenceState,
+} from '../persistenceState';
 
 const MAX_UNDO_STACK = 50;
 const MAX_REDO_STACK = 50;
 
-export interface HistoryState {
+export interface HistoryState extends PersistenceState {
   clipboard: MindNode[];
   undoStack: Array<{ nodes: Map<string, MindNode>; synapses: Synapse[]; selectedNodeIds: Set<string> }>;
   redoStack: Array<{ nodes: Map<string, MindNode>; synapses: Synapse[]; selectedNodeIds: Set<string> }>;
-  pendingSave: boolean;
 }
 
 export interface HistoryActions {
@@ -35,7 +39,7 @@ export const historyInitialState: HistoryState = {
   clipboard: [],
   undoStack: [],
   redoStack: [],
-  pendingSave: false,
+  ...persistenceInitialState,
 };
 
 export const createHistorySlice = (set: SetState): HistoryActions => ({
@@ -106,7 +110,7 @@ export const createHistorySlice = (set: SetState): HistoryActions => ({
       });
     }
 
-    return { nodes: newNodesMap, selectedNodeIds: newSelected, sessions: newSessions, pendingSave: true };
+    return { nodes: newNodesMap, selectedNodeIds: newSelected, sessions: newSessions, ...markDocumentChanged(state) };
   }),
 
   saveStateForUndo: () => set((state) => {
@@ -149,7 +153,7 @@ export const createHistorySlice = (set: SetState): HistoryActions => ({
       selectedNodeIds: new Set(previousState.selectedNodeIds),
       undoStack: newUndoStack,
       redoStack: newRedoStack,
-      pendingSave: true
+      ...markDocumentChanged(state)
     };
   }),
 
@@ -175,7 +179,7 @@ export const createHistorySlice = (set: SetState): HistoryActions => ({
       selectedNodeIds: new Set(nextState.selectedNodeIds),
       undoStack: newUndoStack,
       redoStack: newRedoStack,
-      pendingSave: true
+      ...markDocumentChanged(state)
     };
   }),
 });

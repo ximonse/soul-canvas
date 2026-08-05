@@ -5,7 +5,7 @@ import type { Theme } from '../themes';
 
 interface NotificationSystemProps {
     hasFile: boolean;
-    saveStatus: 'idle' | 'waiting' | 'saving' | 'saved';
+    saveStatus: 'idle' | 'waiting' | 'saving' | 'saved' | 'error';
     theme: Theme;
     zenMode: boolean;
     onConnect: () => void;
@@ -57,6 +57,9 @@ export const NotificationSystem: React.FC<NotificationSystemProps> = ({
         } else if (saveStatus === 'saved') {
             barColor = '#22c55e'; // Green check
             icon = '';
+        } else if (saveStatus === 'error') {
+            barColor = '#ef4444';
+            icon = '❌';
         }
     }
 

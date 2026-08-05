@@ -174,8 +174,8 @@ export function useFileSystem() {
   }, [readDirectory]);
 
   // --- SPARA DATA (JSON) ---
-  const saveFile = useCallback(async () => {
-    if (!fileHandle) return;
+  const saveFile = useCallback(async (): Promise<boolean> => {
+    if (!fileHandle) return false;
     try {
       // Skapa/Öppna data.json i roten av mappen
       const fileRef = await fileHandle.getFileHandle('data.json', { create: true });
@@ -200,8 +200,10 @@ export function useFileSystem() {
 
       await writable.write(JSON.stringify(dataToSave, null, 2));
       await writable.close();
-    } catch {
-      // Save failed silently - data persists in memory
+      return true;
+    } catch (err) {
+      console.error('Kunde inte spara data.json:', err);
+      return false;
     }
   }, [fileHandle]);
 

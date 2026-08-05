@@ -102,6 +102,7 @@ describe('historySlice', () => {
     expect(updated).toBeTruthy();
     expect(new Set(updated?.cardIds ?? [])).toEqual(new Set(['a', 'uuid-1', 'uuid-2']));
     expect(state.pendingSave).toBe(true);
+    expect(state.documentRevision).toBe(1);
   });
 
   it('does not change sessions when there is no active session', () => {

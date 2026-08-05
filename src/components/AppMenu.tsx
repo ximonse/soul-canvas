@@ -3,7 +3,7 @@ import type { Theme } from '../themes';
 
 interface AppMenuProps {
   hasFile: boolean;
-  saveStatus: 'idle' | 'waiting' | 'saving' | 'saved';
+  saveStatus: 'idle' | 'waiting' | 'saving' | 'saved' | 'error';
   theme: Theme;
   zenMode: boolean;
   onConnect: () => void;
@@ -40,6 +40,7 @@ export const AppMenu = ({
               saveStatus === 'idle' ? 'rgba(128, 128, 128, 0.3)' :
               saveStatus === 'waiting' ? '#eab308' :
               saveStatus === 'saving' ? '#3b82f6' :
+              saveStatus === 'error' ? '#ef4444' :
               '#22c55e',
             boxShadow: saveStatus !== 'idle' ? `0 0 8px currentColor` : 'none',
           }}

@@ -59,6 +59,7 @@ function App() {
   const canvasEternalView = useBrainStore((state) => state.canvasEternalView);
   const pendingSave = useBrainStore((state) => state.pendingSave);
   const setPendingSave = useBrainStore((state) => state.setPendingSave);
+  const addNotification = useBrainStore((state) => state.addNotification);
   const saveStateForUndo = useBrainStore((state) => state.saveStateForUndo);
   const addTagToSelected = useBrainStore((state) => state.addTagToSelected);
   const clearSelection = useBrainStore((state) => state.clearSelection);
@@ -228,7 +229,7 @@ function App() {
   const [showSessionPanel, setShowSessionPanel] = useState(false);
   const [showTrailPanel, setShowTrailPanel] = useState(false);
   const [editingCardId, setEditingCardId] = useState<string | null>(null);
-  const [saveStatus, setSaveStatus] = useState<'idle' | 'waiting' | 'saving' | 'saved'>('idle');
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'waiting' | 'saving' | 'saved' | 'error'>('idle');
   const [zenMode, setZenMode] = useState(false);
   const [currentZoom, setCurrentZoom] = useState(1);
   const [isSavingChat, setIsSavingChat] = useState(false);
@@ -393,14 +394,20 @@ function App() {
   // Simple callbacks
   const handleManualSave = useCallback(() => {
     if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
-    setTimeout(() => {
-      saveFile();
+    setTimeout(async () => {
+      setSaveStatus('saving');
+      const saved = await saveFile();
+      if (!saved) {
+        setSaveStatus('error');
+        addNotification('Kunde inte spara. Dina ändringar finns kvar i appen.', 'error', 6000);
+        return;
+      }
       saveAIExports();
       setPendingSave(false);
       setSaveStatus('saved');
       setTimeout(() => setSaveStatus('idle'), 2000);
     }, 100);
-  }, [saveFile, saveAIExports, setPendingSave]);
+  }, [addNotification, saveFile, saveAIExports, setPendingSave]);
 
   const handleSearchConfirm = useCallback(() => {
     const ids = search.confirmSearch();
@@ -565,13 +572,18 @@ function App() {
     setSaveStatus('waiting');
     const timer = setTimeout(async () => {
       setSaveStatus('saving');
-      await saveFile();
+      const saved = await saveFile();
+      if (!saved) {
+        setSaveStatus('error');
+        addNotification('Autosparning misslyckades. Försök spara manuellt.', 'error', 6000);
+        return;
+      }
       setPendingSave(false);
       setSaveStatus('saved');
       setTimeout(() => setSaveStatus('idle'), 2000);
     }, AUTOSAVE_DELAY_MS);
     return () => clearTimeout(timer);
-  }, [pendingSave, hasFile, saveFile, setPendingSave]);
+  }, [pendingSave, hasFile, saveFile, setPendingSave, addNotification]);
 
   // AI Export auto-save (var 30:e minut)
   useEffect(() => {
