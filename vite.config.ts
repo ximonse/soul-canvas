@@ -11,7 +11,6 @@ export default defineConfig({
           if (!id.includes('node_modules')) return;
 
           if (id.includes('pdfjs-dist')) return 'pdfjs';
-          if (id.includes('react-konva') || id.includes('/konva/')) return 'konva';
           if (
             id.includes('@anthropic-ai/sdk') ||
             id.includes('@google/generative-ai') ||
@@ -20,7 +19,6 @@ export default defineConfig({
             return 'ai-vendors';
           }
           if (id.includes('d3-force')) return 'graph';
-          if (id.includes('/react/') || id.includes('/react-dom/')) return 'react-vendor';
         },
       },
     },
