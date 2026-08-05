@@ -5,6 +5,7 @@ import { type Theme } from '../../themes';
 import type { MindNode } from '../../types/types';
 import { ImageCropper } from '../ImageCropper';
 import { getImageRef, resolveImageUrl } from '../../utils/imageRefs';
+import { requestOmnicalSync } from '../../utils/omnicalSync';
 
 interface CardEditorProps {
   cardId: string | null;
@@ -195,7 +196,9 @@ export const CardEditor = ({ cardId, onClose, theme }: CardEditorProps) => {
     if ((accentColor || undefined) !== (card.accentColor || undefined)) updates.accentColor = accentColor;
 
     if (Object.keys(updates).length > 0) {
+      const sharedFieldChanged = 'content' in updates || 'tags' in updates;
       updateNode(cardId, updates);
+      if (card.omnicalLink && sharedFieldChanged) requestOmnicalSync();
     }
 
     onClose();
@@ -254,6 +257,18 @@ export const CardEditor = ({ cardId, onClose, theme }: CardEditorProps) => {
           >
             Redigera kort
           </h3>
+          {card.omnicalLink && (
+            <span
+              className="text-xs px-2 py-1 rounded-full"
+              style={{ backgroundColor: theme.canvasColor, color: theme.node.text }}
+            >
+              {card.omnicalLink.status === 'pending' || card.omnicalLink.status === 'share-requested'
+                ? 'Väntar på Omnical'
+                : card.omnicalLink.status === 'detached'
+                  ? 'Omnical-fil saknas'
+                  : 'Delad med Omnical'}
+            </span>
+          )}
           <button
             onClick={onClose}
             className="text-2xl leading-none opacity-60 hover:opacity-100"

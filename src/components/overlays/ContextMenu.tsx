@@ -2,6 +2,8 @@ import { useLayoutEffect, useRef } from 'react';
 import { useBrainStore } from '../../store/useBrainStore';
 import type { MindNode } from '../../types/types';
 import { clampMenuPosition } from './contextMenuPosition';
+import { FEATURE_FLAGS } from '../../utils/featureFlags';
+import { requestOmnicalSync } from '../../utils/omnicalSync';
 
 export interface ContextMenuState {
   x: number;
@@ -105,6 +107,18 @@ export function ContextMenu({
 
   const handleDelete = () => {
     removeNode(menu.nodeId);
+    onClose();
+  };
+
+  const handleShareWithOmnical = () => {
+    updateNode(menu.nodeId, {
+      omnicalLink: {
+        status: 'share-requested',
+        bodyHash: '',
+        tagsHash: '',
+      },
+    });
+    requestOmnicalSync();
     onClose();
   };
 
@@ -338,6 +352,22 @@ export function ContextMenu({
           <button onClick={handleRemoveFromSession} className="arrow-action-item text-orange-400">
             📤 Ta bort från session
           </button>
+        )}
+
+        {FEATURE_FLAGS.enableOmnicalSharedNotes && node.type === 'text' && (
+          node.omnicalLink ? (
+            <button className="arrow-action-item" disabled>
+              {node.omnicalLink.status === 'pending' || node.omnicalLink.status === 'share-requested'
+                ? 'Väntar på Omnical'
+                : node.omnicalLink.status === 'detached'
+                  ? 'Omnical-fil saknas'
+                  : 'Delad med Omnical'}
+            </button>
+          ) : (
+            <button onClick={handleShareWithOmnical} className="arrow-action-item">
+              Dela med Omnical
+            </button>
+          )
         )}
 
         <div className="h-px bg-white/10 my-1 mx-2" />

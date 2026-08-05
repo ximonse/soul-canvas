@@ -657,6 +657,13 @@ const KonvaNodeInner: React.FC<KonvaNodeInnerProps> = ({
   );
   // Force black canvas text for now (per UX request).
   const textColor = '#000000';
+  const omnicalStatusLabel = node.omnicalLink
+    ? node.omnicalLink.status === 'pending' || node.omnicalLink.status === 'share-requested'
+      ? 'Väntar på Omnical'
+      : node.omnicalLink.status === 'detached'
+        ? 'Omnical-fil saknas'
+        : 'Omnical'
+    : null;
 
   // Är detta en gravitating node?
   const isGravitating = gravitatingSimilarity !== undefined;
@@ -715,6 +722,20 @@ const KonvaNodeInner: React.FC<KonvaNodeInnerProps> = ({
         strokeWidth={isGravitating ? 4 : strokeWidth}
         dash={isScopeSelected && !isSelected && !isGravitating ? [8, 4] : undefined}
       />
+
+      {omnicalStatusLabel && (
+        <Text
+          text={omnicalStatusLabel}
+          x={10}
+          y={-19}
+          width={CARD.WIDTH - 20}
+          fontSize={11}
+          fontStyle="bold"
+          fill={node.omnicalLink?.status === 'detached' ? '#b91c1c' : theme.node.text}
+          opacity={0.75}
+          listening={false}
+        />
+      )}
 
       {node.accentColor && (
         <Group clipFunc={(ctx) => {

@@ -81,6 +81,7 @@ describe('historySlice', () => {
 
   it('pastes nodes into active session and selects new copies', () => {
     const nodeA = makeNode('a', 10, 20);
+    nodeA.omnicalLink = { omnicalId: 'shared', status: 'linked', bodyHash: 'body', tagsHash: 'tags' };
     const nodeB = makeNode('b', 30, 40);
     const session = makeSession('s1', ['a']);
     initStore({
@@ -98,6 +99,7 @@ describe('historySlice', () => {
     expect(state.nodes.size).toBe(4);
     expect(state.selectedNodeIds.has('uuid-1')).toBe(true);
     expect(state.selectedNodeIds.has('uuid-2')).toBe(true);
+    expect(state.nodes.get('uuid-1')?.omnicalLink).toBeUndefined();
     const updated = state.sessions.find((s) => s.id === 's1');
     expect(updated).toBeTruthy();
     expect(new Set(updated?.cardIds ?? [])).toEqual(new Set(['a', 'uuid-1', 'uuid-2']));

@@ -4,6 +4,7 @@ import type { MindNode, Session } from './types/types';
 import type Konva from 'konva';
 import { useFileSystem } from './hooks/useFileSystem';
 import { usePortableBackup } from './hooks/usePortableBackup';
+import { useOmnicalSync } from './hooks/useOmnicalSync';
 import { useBrainStore } from './store/useBrainStore';
 import { useIntelligence } from './hooks/useIntelligence';
 import { useCanvas } from './hooks/useCanvas';
@@ -28,6 +29,7 @@ import { ColumnView } from './components/ColumnView';
 import { CanvasWeekView } from './components/CanvasWeekView';
 import { CanvasEternalView } from './components/CanvasEternalView';
 import { MiniMap } from './components/overlays/MiniMap';
+import { OmnicalConflictModal } from './components/overlays/OmnicalConflictModal';
 import { SessionPanel } from './components/SessionPanel';
 import { AIBatchStatus } from './components/overlays/AIBatchStatus';
 import type { ContextMenuState } from './components/overlays/ContextMenu';
@@ -45,7 +47,7 @@ const THEME_KEYS = Object.keys(THEMES);
 
 function App() {
   // Core hooks
-  const { openFile, saveFile, saveAsset, saveAIExports, hasFile } = useFileSystem();
+  const { openFile, saveFile, saveAsset, saveAIExports, hasFile, isReady } = useFileSystem();
   const { exportBackup, restoreBackup } = usePortableBackup();
   const handleExportBackup = useCallback(() => { void exportBackup(); }, [exportBackup]);
   const handleRestoreBackup = useCallback(() => { void restoreBackup(); }, [restoreBackup]);
@@ -204,6 +206,8 @@ function App() {
   const stopWandering = wandering.stopWandering;
   const [enableWanderingTrails, setEnableWanderingTrails] = useState(FEATURE_FLAGS.enableWanderingTrails);
   const [enableGraphGravityControls, setEnableGraphGravityControls] = useState(FEATURE_FLAGS.enableGraphGravityControls);
+  const [enableOmnicalSharedNotes, setEnableOmnicalSharedNotes] = useState(FEATURE_FLAGS.enableOmnicalSharedNotes);
+  useOmnicalSync(enableOmnicalSharedNotes && isReady);
 
   // UI State
   const [themeIndex, setThemeIndex] = useState(() => {
@@ -257,6 +261,9 @@ function App() {
       }
       if (detail?.key === 'enableGraphGravityControls') {
         setEnableGraphGravityControls(Boolean(detail.value));
+      }
+      if (detail?.key === 'enableOmnicalSharedNotes') {
+        setEnableOmnicalSharedNotes(Boolean(detail.value));
       }
     };
 
@@ -697,6 +704,8 @@ function App() {
           onRestoreBackup={handleRestoreBackup}
         />
       )}
+
+      {enableOmnicalSharedNotes && <OmnicalConflictModal theme={theme} />}
 
       {showChrome && (
         <SessionPanel

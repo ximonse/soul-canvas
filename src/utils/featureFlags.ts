@@ -8,6 +8,7 @@ export type FeatureFlags = {
   logChatPayload: boolean;
   enableWanderingTrails: boolean;
   enableGraphGravityControls: boolean;
+  enableOmnicalSharedNotes: boolean;
 };
 
 const STORAGE_KEY = 'soul-canvas-feature-flags';
@@ -25,6 +26,8 @@ const DEFAULT_FEATURE_FLAGS: FeatureFlags = {
   enableWanderingTrails: false,
   // Experimental force-layout graph controls and layout.
   enableGraphGravityControls: false,
+  // Experimental local-folder interoperability with Omnical.
+  enableOmnicalSharedNotes: false,
 };
 
 const readStoredFlags = (): Partial<FeatureFlags> => {

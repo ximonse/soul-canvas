@@ -1,5 +1,39 @@
-﻿// src/types/types.ts
+// src/types/types.ts
 /// <reference types="wicg-file-system-access" />
+export type OmnicalLinkStatus = 'linked' | 'pending' | 'detached' | 'share-requested';
+
+export interface OmnicalLink {
+  omnicalId?: string;
+  path?: string;
+  status: OmnicalLinkStatus;
+  bodyHash: string;
+  tagsHash: string;
+}
+
+export interface PendingOmnicalFile {
+  nodeId: string;
+  path: string;
+  fingerprint: string;
+  bodyHash: string;
+  tagsHash: string;
+  createdAt: string;
+}
+
+export interface OmnicalDocumentState {
+  pendingFiles: PendingOmnicalFile[];
+  ignoredNoteIds: string[];
+}
+
+export interface OmnicalConflict {
+  id: string;
+  nodeId: string;
+  omnicalId: string;
+  path: string;
+  fields: Array<'body' | 'tags'>;
+  remoteBody: string;
+  remoteTags: string[];
+}
+
 // View mode för canvas vs kolumn-vy
 export type ViewMode = 'canvas' | 'column';
 
@@ -55,6 +89,9 @@ export interface MindNode {
 
   // Selection Scope (transient, ej sparad till fil)
   scopeDegree?: number;    // 0 = ej scope, 1-6 = grad av koppling från bas-selektion
+
+  // Optional shared-note identity. All other card fields remain Soul-only.
+  omnicalLink?: OmnicalLink;
 }
 
 export interface Synapse {

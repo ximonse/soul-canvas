@@ -1,6 +1,6 @@
 // src/store/useBrainStore.ts
 import { create } from 'zustand';
-import type { AIProvider, MindNode, Synapse, Sequence, Conversation, ConversationMessage, Session, ViewMode, SortOption } from '../types/types';
+import type { AIProvider, MindNode, OmnicalConflict, OmnicalDocumentState, Synapse, Sequence, Conversation, ConversationMessage, Session, ViewMode, SortOption } from '../types/types';
 import { createSelectionSlice, type SelectionActions, type SelectionState } from './slices/selectionSlice';
 import { createHistorySlice, historyInitialState, type HistoryState, type HistoryActions } from './slices/historySlice';
 import { createTrailSlice, initialTrailState, type TrailState, type TrailActions } from './slices/trailSlice';
@@ -15,6 +15,10 @@ interface CoreState {
   fileHandle: FileSystemDirectoryHandle | null;
   lastSaved: string | null;
   assets: Record<string, string>;
+  omnical: OmnicalDocumentState;
+  omnicalSyncStatus: 'disconnected' | 'idle' | 'syncing' | 'synced' | 'error';
+  omnicalSyncMessage: string | null;
+  omnicalConflicts: OmnicalConflict[];
 
   // AI Keys & Settings
   geminiKey?: string;
@@ -77,6 +81,7 @@ interface CoreActions {
 
   loadNodes: (nodes: MindNode[], synapses?: Synapse[]) => void;
   loadAssets: (assets: Record<string, string>) => void;
+  loadOmnicalState: (state: OmnicalDocumentState) => void;
   createNodesMap: (nodesArray: MindNode[]) => Map<string, MindNode>;
 
   addNode: (content: string, x: number, y: number, type?: 'text' | 'image' | 'zotero') => void;
@@ -195,6 +200,10 @@ export const useBrainStore = create<BrainStore>()((set, get, api) => ({
   fileHandle: null,
   lastSaved: null,
   assets: {},
+  omnical: { pendingFiles: [], ignoredNoteIds: [] },
+  omnicalSyncStatus: 'disconnected',
+  omnicalSyncMessage: null,
+  omnicalConflicts: [],
   taggingNodes: new Set(),
   aiProcessingNodes: new Map(),
   selectedNodeIds: new Set(),
@@ -303,6 +312,12 @@ export const useBrainStore = create<BrainStore>()((set, get, api) => ({
     pendingSave: false,
   })),
   loadAssets: (assets) => set({ assets }),
+  loadOmnicalState: (omnical) => set({
+    omnical: {
+      pendingFiles: omnical.pendingFiles.map((file) => ({ ...file })),
+      ignoredNoteIds: [...omnical.ignoredNoteIds],
+    },
+  }),
 
   // Node CRUD
   addNode: (content, x, y, type = 'text') => set((state) => {
@@ -354,6 +369,7 @@ export const useBrainStore = create<BrainStore>()((set, get, api) => ({
   }),
 
   removeNode: (id) => set((state) => {
+    const linkedId = state.nodes.get(id)?.omnicalLink?.omnicalId;
     const newNodes = new Map(state.nodes);
     newNodes.delete(id);
     const nextSelected = new Set(state.selectedNodeIds);
@@ -361,7 +377,13 @@ export const useBrainStore = create<BrainStore>()((set, get, api) => ({
     return {
       nodes: newNodes,
       synapses: state.synapses.filter(s => s.sourceId !== id && s.targetId !== id),
+      sessions: state.sessions.map((session) => ({ ...session, cardIds: session.cardIds.filter((cardId) => cardId !== id) })),
       selectedNodeIds: nextSelected,
+      omnical: linkedId ? {
+        ...state.omnical,
+        ignoredNoteIds: [...new Set([...state.omnical.ignoredNoteIds, linkedId])],
+        pendingFiles: state.omnical.pendingFiles.filter((file) => file.nodeId !== id),
+      } : state.omnical,
       pendingSave: true
     };
   }),
@@ -369,6 +391,10 @@ export const useBrainStore = create<BrainStore>()((set, get, api) => ({
   deleteNodesPermanently: (ids) => set((state) => {
     const newNodes = new Map(state.nodes);
     const idsSet = new Set(ids);
+
+    const deletedOmnicalIds = ids
+      .map(id => state.nodes.get(id)?.omnicalLink?.omnicalId)
+      .filter((id): id is string => Boolean(id));
 
     // Remove from nodes map
     ids.forEach(id => newNodes.delete(id));
@@ -402,24 +428,39 @@ export const useBrainStore = create<BrainStore>()((set, get, api) => ({
       synapses: newSynapses,
       sequences: newSequences,
       selectedNodeIds: nextSelected,
+      omnical: {
+        ...state.omnical,
+        ignoredNoteIds: [...new Set([...state.omnical.ignoredNoteIds, ...deletedOmnicalIds])],
+        pendingFiles: state.omnical.pendingFiles.filter((file) => !idsSet.has(file.nodeId)),
+      },
       pendingSave: true
     };
   }),
 
-  updateNode: (id, updates) => set((state) => {
-    const existingNode = state.nodes.get(id);
-    if (!existingNode) return {};
-    const updatedNode: MindNode = {
-      ...existingNode,
-      ...updates,
-      updatedAt: shouldTouchUpdatedAt(updates)
-        ? new Date().toISOString()
-        : existingNode.updatedAt,
-    };
-    const newNodes = new Map(state.nodes);
-    newNodes.set(id, updatedNode);
-    return { nodes: newNodes, pendingSave: true };
-  }),
+  updateNode: (id, updates) => {
+    const existing = get().nodes.get(id);
+    const shouldSyncOmnical = Boolean(
+      existing?.omnicalLink
+      && ('content' in updates || 'tags' in updates)
+    );
+    set((state) => {
+      const existingNode = state.nodes.get(id);
+      if (!existingNode) return {};
+      const updatedNode: MindNode = {
+        ...existingNode,
+        ...updates,
+        updatedAt: shouldTouchUpdatedAt(updates)
+          ? new Date().toISOString()
+          : existingNode.updatedAt,
+      };
+      const newNodes = new Map(state.nodes);
+      newNodes.set(id, updatedNode);
+      return { nodes: newNodes, pendingSave: true };
+    });
+    if (shouldSyncOmnical && typeof window !== 'undefined') {
+      window.dispatchEvent(new Event('soul-canvas:omnical-sync-request'));
+    }
+  },
   updateNodesBulk: (updates) => set((state) => {
     if (!updates || updates.length === 0) return {};
     const newNodes = new Map(state.nodes);

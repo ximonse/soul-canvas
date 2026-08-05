@@ -14,6 +14,7 @@ export function usePortableBackup() {
         nodes: Array.from(state.nodes.values()), synapses: state.synapses, conversations: state.conversations,
         sessions: state.sessions, trails: state.trails, sequences: state.sequences, activeSessionId: state.activeSessionId,
         trailUi: { selectedTrailIds: state.selectedTrailIds, showActiveTrailLine: state.showActiveTrailLine },
+        omnical: state.omnical,
       });
       const backup = createPortableBackup(document, await collectAssetDataUrls(state.assets));
       const url = URL.createObjectURL(new Blob([JSON.stringify(backup)], { type: 'application/json' }));

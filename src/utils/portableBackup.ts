@@ -1,4 +1,4 @@
-import type { CanvasDocumentV1 } from './canvasDocument';
+import type { CanvasDocumentV2 } from './canvasDocument';
 
 export const PORTABLE_BACKUP_VERSION = 1;
 
@@ -6,12 +6,12 @@ export interface PortableBackupV1 {
   format: 'soul-canvas-backup';
   version: typeof PORTABLE_BACKUP_VERSION;
   exportedAt: string;
-  document: CanvasDocumentV1;
+  document: CanvasDocumentV2;
   assets: Record<string, string>;
 }
 
 export function createPortableBackup(
-  document: CanvasDocumentV1,
+  document: CanvasDocumentV2,
   assets: Record<string, string>,
 ): PortableBackupV1 {
   return {

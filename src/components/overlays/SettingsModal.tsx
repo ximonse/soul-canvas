@@ -6,6 +6,7 @@ import { useBrainStore } from '../../store/useBrainStore';
 import type { Theme } from '../../themes';
 import { GEMINI_OCR_MODELS } from '../../utils/gemini';
 import { FEATURE_FLAGS, setFeatureFlag } from '../../utils/featureFlags';
+import { connectOmnicalFolder, disconnectOmnicalFolder, syncOmnicalNotes } from '../../utils/omnicalSync';
 
 interface SettingsModalProps {
   onClose: () => void;
@@ -24,6 +25,11 @@ export function SettingsModal({ onClose, theme }: SettingsModalProps) {
   const [logChatPayload, setLogChatPayload] = useState(FEATURE_FLAGS.logChatPayload);
   const [enableWanderingTrails, setEnableWanderingTrails] = useState(FEATURE_FLAGS.enableWanderingTrails);
   const [enableGraphGravityControls, setEnableGraphGravityControls] = useState(FEATURE_FLAGS.enableGraphGravityControls);
+  const [enableOmnicalSharedNotes, setEnableOmnicalSharedNotes] = useState(FEATURE_FLAGS.enableOmnicalSharedNotes);
+  const omnicalSyncStatus = useBrainStore((state) => state.omnicalSyncStatus);
+  const omnicalSyncMessage = useBrainStore((state) => state.omnicalSyncMessage);
+  const pendingOmnicalCount = useBrainStore((state) => state.omnical.pendingFiles.length);
+  const omnicalConflictCount = useBrainStore((state) => state.omnicalConflicts.length);
 
   return (
     <div
@@ -114,6 +120,65 @@ export function SettingsModal({ onClose, theme }: SettingsModalProps) {
               </div>
             </div>
           )}
+
+          <div className="space-y-3 p-4 rounded bg-black/5">
+            <label className="flex items-center justify-between gap-4 text-sm font-semibold">
+              <span>Delade Omnical-anteckningar (experiment)</span>
+              <input
+                type="checkbox"
+                checked={enableOmnicalSharedNotes}
+                onChange={(e) => {
+                  const next = e.target.checked;
+                  setEnableOmnicalSharedNotes(next);
+                  setFeatureFlag('enableOmnicalSharedNotes', next);
+                }}
+              />
+            </label>
+            {enableOmnicalSharedNotes && (
+              <>
+                <p className="text-xs opacity-70">
+                  Anslut själva Omnical-mappen. Soul-mappen och dess data.json förblir separata.
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {omnicalSyncStatus === 'disconnected' ? (
+                    <button
+                      type="button"
+                      onClick={() => void connectOmnicalFolder()}
+                      className="px-3 py-2 rounded text-sm font-semibold"
+                      style={{ backgroundColor: theme.node.selectedBorder, color: theme.node.bg }}
+                    >
+                      Anslut Omnical-mapp
+                    </button>
+                  ) : (
+                    <>
+                      <button
+                        type="button"
+                        disabled={omnicalSyncStatus === 'syncing'}
+                        onClick={() => void syncOmnicalNotes()}
+                        className="px-3 py-2 rounded text-sm font-semibold disabled:opacity-50"
+                        style={{ backgroundColor: theme.node.selectedBorder, color: theme.node.bg }}
+                      >
+                        {omnicalSyncStatus === 'syncing' ? 'Synkar…' : 'Synka nu'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => void disconnectOmnicalFolder()}
+                        className="px-3 py-2 rounded text-sm"
+                        style={{ border: '1px solid ' + theme.node.border }}
+                      >
+                        Koppla från
+                      </button>
+                    </>
+                  )}
+                </div>
+                <div className="text-xs opacity-75">
+                  {omnicalSyncMessage || 'Inte ansluten.'}
+                  {pendingOmnicalCount > 0 ? ' Väntar på Omnical: ' + pendingOmnicalCount + '.' : ''}
+                  {omnicalConflictCount > 0 ? ' Konflikter: ' + omnicalConflictCount + '.' : ''}
+                </div>
+              </>
+            )}
+          </div>
 
           <div className="space-y-3 p-4 rounded bg-black/5">
             <div className="text-sm font-semibold">Debug</div>

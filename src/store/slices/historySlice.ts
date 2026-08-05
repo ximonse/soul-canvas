@@ -95,6 +95,7 @@ export const createHistorySlice = (set: SetState): HistoryActions => ({
         copyRef: originalId,
         copiedAt,
         originalCreatedAt,
+        omnicalLink: undefined,
       };
       newNodesMap.set(newNode.id, newNode);
       newSelected.add(newNode.id);

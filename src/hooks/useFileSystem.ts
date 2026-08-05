@@ -18,6 +18,7 @@ export function useFileSystem() {
   const setFileHandle = useBrainStore((state) => state.setFileHandle);
   const loadNodes = useBrainStore((state) => state.loadNodes);
   const loadAssets = useBrainStore((state) => state.loadAssets);
+  const loadOmnicalState = useBrainStore((state) => state.loadOmnicalState);
   const loadConversations = useBrainStore((state) => state.loadConversations);
   const loadSessions = useBrainStore((state) => state.loadSessions);
   const loadTrails = useBrainStore((state) => state.loadTrails);
@@ -78,6 +79,7 @@ export function useFileSystem() {
 
       loadNodes(data.nodes || [], data.synapses || []);
       loadAssets(assetsMap);
+      loadOmnicalState(data.omnical);
       loadConversations(data.conversations || []);
       loadSessions(data.sessions || []);
       loadTrails(data.trails || []);
@@ -101,6 +103,7 @@ export function useFileSystem() {
     setFileHandle,
     loadNodes,
     loadAssets,
+    loadOmnicalState,
     loadConversations,
     loadSessions,
     loadTrails,
@@ -158,6 +161,7 @@ export function useFileSystem() {
           selectedTrailIds: state.selectedTrailIds,
           showActiveTrailLine: state.showActiveTrailLine,
         },
+        omnical: state.omnical,
       });
 
       await writable.write(JSON.stringify(dataToSave, null, 2));

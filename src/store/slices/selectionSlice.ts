@@ -102,6 +102,8 @@ export const createSelectionSlice = (set: SetState): SelectionActions => ({
         copyRef: originalId,
         copiedAt,
         originalCreatedAt,
+        // A duplicated shared card is deliberately a private Soul copy.
+        omnicalLink: undefined,
       };
       newNodesMap.set(newNode.id, newNode);
       newSelected.add(newNode.id);

@@ -1,8 +1,8 @@
-import type { Conversation, MindNode, Sequence, Session, Synapse, Trail } from '../types/types';
+import type { Conversation, MindNode, OmnicalDocumentState, PendingOmnicalFile, Sequence, Session, Synapse, Trail } from '../types/types';
 
-export const CANVAS_DOCUMENT_VERSION = 1;
+export const CANVAS_DOCUMENT_VERSION = 2;
 
-export interface CanvasDocumentV1 {
+export interface CanvasDocumentV2 {
   schemaVersion: typeof CANVAS_DOCUMENT_VERSION;
   exportedAt: string;
   nodes: MindNode[];
@@ -16,12 +16,14 @@ export interface CanvasDocumentV1 {
     selectedTrailIds: string[];
     showActiveTrailLine: boolean;
   };
+  omnical: OmnicalDocumentState;
 }
 
-type LegacyDocument = Partial<Omit<CanvasDocumentV1, 'schemaVersion' | 'exportedAt'>> & {
+type LegacyDocument = Partial<Omit<CanvasDocumentV2, 'schemaVersion' | 'exportedAt' | 'omnical'>> & {
   version?: unknown;
   selectedTrailIds?: unknown;
   showActiveTrailLine?: unknown;
+  omnical?: unknown;
 };
 
 const isRecord = (value: unknown): value is Record<string, unknown> => (
@@ -36,7 +38,30 @@ const asNodes = (value: unknown): MindNode[] => {
   return [];
 };
 
-export function createEmptyCanvasDocument(): CanvasDocumentV1 {
+const asOmnical = (value: unknown): OmnicalDocumentState => {
+  if (value === undefined) return { pendingFiles: [], ignoredNoteIds: [] };
+  if (!isRecord(value) || !Array.isArray(value.pendingFiles) || !Array.isArray(value.ignoredNoteIds)) {
+    throw new Error('Dokumentet har ett ogiltigt omnical-fält.');
+  }
+  const pendingFiles = value.pendingFiles;
+  if (!pendingFiles.every((item) => (
+    isRecord(item)
+    && typeof item.nodeId === 'string'
+    && typeof item.path === 'string'
+    && typeof item.fingerprint === 'string'
+    && typeof item.bodyHash === 'string'
+    && typeof item.tagsHash === 'string'
+    && typeof item.createdAt === 'string'
+  )) || !value.ignoredNoteIds.every((id) => typeof id === 'string')) {
+    throw new Error('Dokumentet har ett ogiltigt omnical-fält.');
+  }
+  return {
+    pendingFiles: pendingFiles as PendingOmnicalFile[],
+    ignoredNoteIds: value.ignoredNoteIds as string[],
+  };
+};
+
+export function createEmptyCanvasDocument(): CanvasDocumentV2 {
   return {
     schemaVersion: CANVAS_DOCUMENT_VERSION,
     exportedAt: new Date().toISOString(),
@@ -48,11 +73,15 @@ export function createEmptyCanvasDocument(): CanvasDocumentV1 {
     sequences: [],
     activeSessionId: null,
     trailUi: { selectedTrailIds: [], showActiveTrailLine: true },
+    omnical: { pendingFiles: [], ignoredNoteIds: [] },
   };
 }
 
-export function parseCanvasDocument(raw: unknown): CanvasDocumentV1 {
+export function parseCanvasDocument(raw: unknown): CanvasDocumentV2 {
   if (!isRecord(raw)) throw new Error('Dokumentet måste vara ett JSON-objekt.');
+  if (typeof raw.schemaVersion === 'number' && raw.schemaVersion !== 1 && raw.schemaVersion !== CANVAS_DOCUMENT_VERSION) {
+    throw new Error('Dokumentversionen stöds inte.');
+  }
   if (raw.nodes !== undefined && !Array.isArray(raw.nodes) && !isRecord(raw.nodes)) {
     throw new Error('Dokumentet har ett ogiltigt nodes-fält.');
   }
@@ -81,10 +110,11 @@ export function parseCanvasDocument(raw: unknown): CanvasDocumentV1 {
     sequences: asArray<Sequence>(legacy.sequences),
     activeSessionId: typeof legacy.activeSessionId === 'string' ? legacy.activeSessionId : null,
     trailUi: { selectedTrailIds, showActiveTrailLine },
+    omnical: asOmnical(legacy.omnical),
   };
 }
 
-export function serializeCanvasDocument(document: Omit<CanvasDocumentV1, 'schemaVersion' | 'exportedAt'>): CanvasDocumentV1 {
+export function serializeCanvasDocument(document: Omit<CanvasDocumentV2, 'schemaVersion' | 'exportedAt'>): CanvasDocumentV2 {
   return {
     schemaVersion: CANVAS_DOCUMENT_VERSION,
     exportedAt: new Date().toISOString(),
@@ -98,6 +128,10 @@ export function serializeCanvasDocument(document: Omit<CanvasDocumentV1, 'schema
     trailUi: {
       selectedTrailIds: [...document.trailUi.selectedTrailIds],
       showActiveTrailLine: document.trailUi.showActiveTrailLine,
+    },
+    omnical: {
+      pendingFiles: document.omnical.pendingFiles.map((file) => ({ ...file })),
+      ignoredNoteIds: [...document.omnical.ignoredNoteIds],
     },
   };
 }
