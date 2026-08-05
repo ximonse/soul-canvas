@@ -601,7 +601,7 @@ export const useBrainStore = create<BrainStore>()((set, get, api) => ({
     // Jämför längd/innehåll för att se om vi faktiskt ändrade något (React render optimization)
     // Enkel check: om antalet sekvenser ändrades eller om vi hittar en ändrad sekvens
     // Här kör vi bara replace för enkelhetens skull, Zustand sköter shallow compare oftast
-    return { sequences: newSequences };
+    return { sequences: newSequences, pendingSave: true };
   }),
 
   loadSequences: (sequences) => set({ sequences }),
@@ -721,7 +721,7 @@ export const useBrainStore = create<BrainStore>()((set, get, api) => ({
 
     const newConversations = [...state.conversations];
     newConversations[convIndex] = updatedConv;
-    return { conversations: newConversations };
+    return { conversations: newConversations, pendingSave: true };
   }),
 
   updateConversation: (id, updates) => set((state) => {
@@ -736,7 +736,7 @@ export const useBrainStore = create<BrainStore>()((set, get, api) => ({
 
     const newConversations = [...state.conversations];
     newConversations[convIndex] = updatedConv;
-    return { conversations: newConversations };
+    return { conversations: newConversations, pendingSave: true };
   }),
 
   archiveConversation: (id) => set((state) => {
@@ -751,7 +751,7 @@ export const useBrainStore = create<BrainStore>()((set, get, api) => ({
 
     const newConversations = [...state.conversations];
     newConversations[convIndex] = updatedConv;
-    return { conversations: newConversations };
+    return { conversations: newConversations, pendingSave: true };
   }),
 
   // Session actions
@@ -882,7 +882,7 @@ export const useBrainStore = create<BrainStore>()((set, get, api) => ({
         }
       });
 
-      return { nodes: updatedNodes };
+      return migratedCount > 0 ? { nodes: updatedNodes, pendingSave: true } : {};
     });
 
     console.log(`✅ Migrated ${migratedCount} cards from comment to link field`);
