@@ -1,0 +1,25 @@
+# Local workspaces and imported material
+my_eternal_mind/
+.tmp.driveupload/
+qa-test/
+Egna tempfiler/
+backend/
+
+# Local tooling and generated output
+node_modules/
+dist/
+.git/
+.vercel/
+*.log
+
+# Project-only development material
+codex-playbook/
+docs/
+tests/
+scripts/
+tools/
+sample-data-*.json
+WORKLOG.md
+CHANGELOG.md
+CLAUDE.md
+AGENTS.md
