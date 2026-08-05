@@ -3,6 +3,7 @@ import { useEffect, useState, useCallback, useMemo, useRef, lazy, Suspense } fro
 import type { MindNode, Session } from './types/types';
 import type Konva from 'konva';
 import { useFileSystem } from './hooks/useFileSystem';
+import { usePortableBackup } from './hooks/usePortableBackup';
 import { useBrainStore } from './store/useBrainStore';
 import { useIntelligence } from './hooks/useIntelligence';
 import { useCanvas } from './hooks/useCanvas';
@@ -45,6 +46,9 @@ const THEME_KEYS = Object.keys(THEMES);
 function App() {
   // Core hooks
   const { openFile, saveFile, saveAsset, saveAIExports, hasFile } = useFileSystem();
+  const { exportBackup, restoreBackup } = usePortableBackup();
+  const handleExportBackup = useCallback(() => { void exportBackup(); }, [exportBackup]);
+  const handleRestoreBackup = useCallback(() => { void restoreBackup(); }, [restoreBackup]);
   const nodes = useBrainStore((state) => state.nodes);
   const synapses = useBrainStore((state) => state.synapses);
   const sessions = useBrainStore((state) => state.sessions);
@@ -689,6 +693,8 @@ function App() {
           zenMode={zenMode}
           onConnect={openFile}
           onSave={handleManualSave}
+          onExportBackup={handleExportBackup}
+          onRestoreBackup={handleRestoreBackup}
         />
       )}
 
