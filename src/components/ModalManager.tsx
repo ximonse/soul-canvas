@@ -19,6 +19,7 @@ const CardEditor = lazy(() => import('./overlays/CardEditor').then(m => ({ defau
 const AIPanel = lazy(() => import('./AIPanel').then(m => ({ default: m.AIPanel })));
 const CommandPalette = lazy(() => import('./CommandPalette').then(m => ({ default: m.CommandPalette })));
 const PdfImportPrompt = lazy(() => import('./overlays/PdfImportPrompt').then(m => ({ default: m.PdfImportPrompt })));
+const ImportOptionsModal = lazy(() => import('./overlays/ImportOptionsModal').then(m => ({ default: m.ImportOptionsModal })));
 const OcrPromptModal = lazy(() => import('./overlays/OcrPromptModal').then(m => ({ default: m.OcrPromptModal })));
 
 
@@ -27,6 +28,7 @@ interface ModalManagerProps {
   showSettings: boolean;
   showAIPanel: boolean;
   showCommandPalette: boolean;
+  showImportOptions: boolean;
   showAIChat: boolean;
   isChatMinimized: boolean;
   contextMenu: ContextMenuState | null;
@@ -49,7 +51,6 @@ interface ModalManagerProps {
   onAttractSimilar?: () => void;
   handleManualSave: () => void;
   centerCamera: () => void;
-  handleDrop: (e: React.DragEvent) => void;
   onSummarizeToComment?: (id: string) => void;
   onSuggestTitle?: (id: string) => void;
   onResetZoom: () => void;
@@ -101,6 +102,7 @@ interface ModalManagerProps {
   setShowSettings: (show: boolean) => void;
   setShowAIPanel: (show: boolean) => void;
   setShowCommandPalette: (show: boolean) => void;
+  setShowImportOptions: (show: boolean) => void;
   setShowAIChat: (show: boolean) => void;
   setShowOcrPrompt: (show: boolean) => void;
   setContextMenu: (menu: ContextMenuState | null) => void;
@@ -119,14 +121,18 @@ interface ModalManagerProps {
   fitAllNodes: () => void;
   onOpenMassImport: () => void;
   onOpenQuoteExtractor: () => void;
+  onOpenImportPicker: (options?: { smartMarkdown?: boolean }) => Promise<void> | void;
   onToggleSessionPanel: () => void;
   onToggleWandering: () => void;
+  enableWanderingTrails: boolean;
+  enableGraphGravityControls: boolean;
   onToggleSynapseLines: () => void;
   onToggleViewMode: () => void;
   onToggleScopePanel: () => void;
 
   // Theme
   theme: Theme;
+  claudeAvailable: boolean;
 
   // PDF import prompt
   pdfImportPrompt?: {
@@ -143,6 +149,7 @@ export const ModalManager: React.FC<ModalManagerProps> = ({
   showSettings,
   showAIPanel,
   showCommandPalette,
+  showImportOptions,
   showAIChat,
   isChatMinimized,
   contextMenu,
@@ -159,7 +166,6 @@ export const ModalManager: React.FC<ModalManagerProps> = ({
   onAttractSimilar,
   handleManualSave,
   centerCamera,
-  handleDrop,
   onSummarizeToComment,
   onSuggestTitle,
   onResetZoom,
@@ -202,6 +208,7 @@ export const ModalManager: React.FC<ModalManagerProps> = ({
   setShowSettings,
   setShowAIPanel,
   setShowCommandPalette,
+  setShowImportOptions,
   setShowAIChat,
   setShowOcrPrompt,
   setIsChatMinimized,
@@ -219,12 +226,16 @@ export const ModalManager: React.FC<ModalManagerProps> = ({
   fitAllNodes,
   onOpenMassImport,
   onOpenQuoteExtractor,
+  onOpenImportPicker,
   onToggleSessionPanel,
   onToggleWandering,
+  enableWanderingTrails,
+  enableGraphGravityControls,
   onToggleSynapseLines,
   onToggleViewMode,
   onToggleScopePanel,
   theme,
+  claudeAvailable,
   pdfImportPrompt,
 }) => {
   return (
@@ -235,6 +246,18 @@ export const ModalManager: React.FC<ModalManagerProps> = ({
           onConfirm={pdfImportPrompt.onConfirm}
           onCancel={pdfImportPrompt.onCancel}
           theme={theme}
+        />
+      )}
+
+      {showImportOptions && (
+        <ImportOptionsModal
+          theme={theme}
+          claudeAvailable={claudeAvailable}
+          onClose={() => setShowImportOptions(false)}
+          onChooseFiles={async (options) => {
+            await onOpenImportPicker(options);
+            setShowImportOptions(false);
+          }}
         />
       )}
 
@@ -262,6 +285,7 @@ export const ModalManager: React.FC<ModalManagerProps> = ({
           theme={theme}
           onClose={() => setShowAIPanel(false)}
           onDiscussReflection={onDiscussReflection}
+          enableGraphGravityControls={enableGraphGravityControls}
         />
       )}
 
@@ -318,27 +342,12 @@ export const ModalManager: React.FC<ModalManagerProps> = ({
           }}
           onImport={async () => {
             if (!hasFile) return;
-            const input = document.createElement('input');
-            input.type = 'file';
-            input.accept = 'image/*,.json,.html,.pdf,.ris';
-            input.multiple = true;
-            input.onchange = async (e) => {
-              const files = (e.target as HTMLInputElement).files;
-              if (!files) return;
-              const fakeEvent = {
-                preventDefault: () => { },
-                stopPropagation: () => { },
-                clientX: window.innerWidth / 2,
-                clientY: window.innerHeight / 2,
-                dataTransfer: { files: Array.from(files) },
-              } as unknown as React.DragEvent;
-              await handleDrop(fakeEvent);
-            };
-            input.click();
+            setShowImportOptions(true);
           }}
           onQuoteExtractor={onOpenQuoteExtractor}
           onToggleViewMode={onToggleViewMode}
           onToggleWandering={onToggleWandering}
+          enableWanderingTrails={enableWanderingTrails}
           onMassImport={onOpenMassImport}
           onFocusSearch={() => {
             const searchInput = document.querySelector('input[type="text"]') as HTMLInputElement;

@@ -22,6 +22,8 @@ export function SettingsModal({ onClose, theme }: SettingsModalProps) {
   const [showKeys, setShowKeys] = useState(false);
   const [logChatTokens, setLogChatTokens] = useState(FEATURE_FLAGS.logChatTokens);
   const [logChatPayload, setLogChatPayload] = useState(FEATURE_FLAGS.logChatPayload);
+  const [enableWanderingTrails, setEnableWanderingTrails] = useState(FEATURE_FLAGS.enableWanderingTrails);
+  const [enableGraphGravityControls, setEnableGraphGravityControls] = useState(FEATURE_FLAGS.enableGraphGravityControls);
 
   return (
     <div
@@ -139,6 +141,30 @@ export function SettingsModal({ onClose, theme }: SettingsModalProps) {
                 }}
               />
             </label>
+            <label className="flex items-center justify-between gap-4 text-sm">
+              <span>Wandering/trails (experiment)</span>
+              <input
+                type="checkbox"
+                checked={enableWanderingTrails}
+                onChange={(e) => {
+                  const next = e.target.checked;
+                  setEnableWanderingTrails(next);
+                  setFeatureFlag('enableWanderingTrails', next);
+                }}
+              />
+            </label>
+            <label className="flex items-center justify-between gap-4 text-sm">
+              <span>Graph gravity/layout (experiment)</span>
+              <input
+                type="checkbox"
+                checked={enableGraphGravityControls}
+                onChange={(e) => {
+                  const next = e.target.checked;
+                  setEnableGraphGravityControls(next);
+                  setFeatureFlag('enableGraphGravityControls', next);
+                }}
+              />
+            </label>
             <div className="flex items-center justify-between text-xs opacity-70">
               <span>Status</span>
               <span>
@@ -146,7 +172,7 @@ export function SettingsModal({ onClose, theme }: SettingsModalProps) {
               </span>
             </div>
             <div className="text-xs opacity-70">
-              Visar uppskattning + ev. usage i DevTools Console.
+              Experimenten är avstängda som standard för stabil lokal v1.
             </div>
           </div>
         </div>

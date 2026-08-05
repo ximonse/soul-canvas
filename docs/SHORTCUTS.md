@@ -14,9 +14,9 @@
 | `M` | Massimport (text -> kort) |
 | `S` | Session-panel |
 | `K` | Växla canvas/kolumnvy |
-| `W` | Wandering-läge + trail-panel |
-| `[` | Wandering: bakåt i trail |
-| `]` | Wandering: framåt i trail (ej implementerat) |
+| `W` | Wandering-läge + trail-panel (experiment, avstängt som standard) |
+| `[` | Wandering: bakåt i trail (experiment, bara när wandering-flaggan är på) |
+| `]` | Wandering: framåt i trail (ej implementerat, fångas inte i stabilt läge) |
 | `O` | Visa bildsida på bildkort |
 | `O` + `O` | Visa text på bildkort |
 | `Z` | Zen mode |
@@ -47,11 +47,12 @@
 | `Alt+W` | Markera kort från denna vecka |
 | `Alt+N` | Markera kort från nästa vecka |
 | `D` (håll) + klick | Skapa sekvenskedja |
-| `Ctrl+scroll` | Justera graph gravity |
+| `Ctrl+scroll` | Justera graph gravity (experiment, avstängt som standard) |
 | `Alt+scroll` | Panorera canvas |
 
 Noteringar:
 - Delete i session tar bort kort från sessionen. I "Alla kort" blir det permanent (med bekräftelse).
 - `Ctrl+Backquote` fungerar även för internationella tangentbord (`IntlBackslash`/`Backquote`).
+- Wandering/trails och graph gravity/layout är inte del av stabil lokal v1-planen. De finns kvar bakom feature flags i Settings > Debug.
 
 Tema byts via Command Palette (sök "theme").

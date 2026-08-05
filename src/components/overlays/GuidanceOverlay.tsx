@@ -25,7 +25,7 @@ const TIPS: Record<GuideContext, { title: string; tips: Tip[] }> = {
         tips: [
             { icon: '🖱️', text: 'Double-click to create a new card' },
             { icon: '⌨️', text: 'Press Space to open Command Palette', shortcut: 'Space' },
-            { icon: '🔍', text: 'Use mouse wheel to zoom', shortcut: 'Ctrl+Scroll' },
+            { icon: '🔍', text: 'Use mouse wheel to zoom' },
             { icon: '📂', text: 'Drag & drop files to import' },
             { icon: '👀', text: 'Fit all nodes to screen', shortcut: '-' },
         ]

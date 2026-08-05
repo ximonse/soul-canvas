@@ -390,7 +390,7 @@ export const useBrainStore = create<BrainStore>()((set, get, api) => ({
 
     // HEALING SEQUENCES
     // För varje borttagen nod, "sy ihop" sekvenser
-    let newSequences = state.sequences.map(seq => {
+    const newSequences = state.sequences.map(seq => {
       // Filtrera bort deleted nodes från nodeIds
       const healedNodeIds = seq.nodeIds.filter(nodeId => !idsSet.has(nodeId));
       return { ...seq, nodeIds: healedNodeIds };
@@ -576,6 +576,7 @@ export const useBrainStore = create<BrainStore>()((set, get, api) => ({
     return {
       sequences: [...state.sequences, state.activeSequence],
       activeSequence: null,
+      pendingSave: true,
     };
   }),
 
@@ -601,7 +602,7 @@ export const useBrainStore = create<BrainStore>()((set, get, api) => ({
     // Jämför längd/innehåll för att se om vi faktiskt ändrade något (React render optimization)
     // Enkel check: om antalet sekvenser ändrades eller om vi hittar en ändrad sekvens
     // Här kör vi bara replace för enkelhetens skull, Zustand sköter shallow compare oftast
-    return { sequences: newSequences };
+    return { sequences: newSequences, pendingSave: true };
   }),
 
   loadSequences: (sequences) => set({ sequences }),
@@ -693,6 +694,7 @@ export const useBrainStore = create<BrainStore>()((set, get, api) => ({
     useBrainStore.setState((state: BrainStore) => ({
       conversations: [newConversation, ...state.conversations],
       activeConversationId: id,
+      pendingSave: true,
     }));
     return id;
   },
@@ -721,7 +723,7 @@ export const useBrainStore = create<BrainStore>()((set, get, api) => ({
 
     const newConversations = [...state.conversations];
     newConversations[convIndex] = updatedConv;
-    return { conversations: newConversations };
+    return { conversations: newConversations, pendingSave: true };
   }),
 
   updateConversation: (id, updates) => set((state) => {
@@ -736,7 +738,7 @@ export const useBrainStore = create<BrainStore>()((set, get, api) => ({
 
     const newConversations = [...state.conversations];
     newConversations[convIndex] = updatedConv;
-    return { conversations: newConversations };
+    return { conversations: newConversations, pendingSave: true };
   }),
 
   archiveConversation: (id) => set((state) => {
@@ -751,7 +753,7 @@ export const useBrainStore = create<BrainStore>()((set, get, api) => ({
 
     const newConversations = [...state.conversations];
     newConversations[convIndex] = updatedConv;
-    return { conversations: newConversations };
+    return { conversations: newConversations, pendingSave: true };
   }),
 
   // Session actions
@@ -771,6 +773,7 @@ export const useBrainStore = create<BrainStore>()((set, get, api) => ({
     useBrainStore.setState((state: BrainStore) => ({
       sessions: [...state.sessions, newSession],
       activeSessionId: id,
+      pendingSave: true,
     }));
     return id;
   },
@@ -778,10 +781,12 @@ export const useBrainStore = create<BrainStore>()((set, get, api) => ({
   deleteSession: (id) => set((state) => ({
     sessions: state.sessions.filter(s => s.id !== id),
     activeSessionId: state.activeSessionId === id ? null : state.activeSessionId,
+    pendingSave: true,
   })),
 
   renameSession: (id, name) => set((state) => ({
     sessions: state.sessions.map(s => s.id === id ? { ...s, name } : s),
+    pendingSave: true,
   })),
 
   switchSession: (id) => set((state) => {
@@ -795,6 +800,7 @@ export const useBrainStore = create<BrainStore>()((set, get, api) => ({
       sessions: state.sessions.map(s =>
         s.id === id ? { ...s, lastOpened: Date.now() } : s
       ),
+      pendingSave: true,
     };
   }),
 
@@ -804,6 +810,7 @@ export const useBrainStore = create<BrainStore>()((set, get, api) => ({
       const newCardIds = [...new Set([...s.cardIds, ...cardIds])];
       return { ...s, cardIds: newCardIds };
     }),
+    pendingSave: true,
   })),
 
   removeCardsFromSession: (sessionId, cardIds) => set((state) => ({
@@ -812,12 +819,14 @@ export const useBrainStore = create<BrainStore>()((set, get, api) => ({
       const cardIdSet = new Set(cardIds);
       return { ...s, cardIds: s.cardIds.filter(id => !cardIdSet.has(id)) };
     }),
+    pendingSave: true,
   })),
 
   saveSessionViewState: (sessionId, viewState) => set((state) => ({
     sessions: state.sessions.map(s =>
       s.id === sessionId ? { ...s, viewState } : s
     ),
+    pendingSave: true,
   })),
 
   // View mode actions
@@ -882,7 +891,7 @@ export const useBrainStore = create<BrainStore>()((set, get, api) => ({
         }
       });
 
-      return { nodes: updatedNodes };
+      return migratedCount > 0 ? { nodes: updatedNodes, pendingSave: true } : {};
     });
 
     console.log(`✅ Migrated ${migratedCount} cards from comment to link field`);

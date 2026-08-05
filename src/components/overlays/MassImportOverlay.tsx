@@ -1,7 +1,8 @@
-// src/components/overlays/MassImportOverlay.tsx
 import React, { useState, useCallback } from 'react';
 import { useBrainStore } from '../../store/useBrainStore';
 import { type Theme } from '../../themes';
+import type { MindNode } from '../../types/types';
+import { parseImportText } from './massImport';
 
 interface MassImportOverlayProps {
   theme: Theme;
@@ -9,41 +10,6 @@ interface MassImportOverlayProps {
   centerX: number;
   centerY: number;
 }
-
-/**
- * Parse mass import text into cards
- * - Double newline (\n\n) separates cards
- * - If last line starts with #, it becomes tags (space-separated)
- */
-const parseImportText = (text: string): Array<{ content: string; tags: string[] }> => {
-  const blocks = text.split(/\n\n+/).filter(block => block.trim());
-
-  return blocks.map(block => {
-    const lines = block.trim().split('\n');
-    const lastLine = lines[lines.length - 1];
-
-    // Check if last line is tags (starts with #)
-    if (lastLine.trim().startsWith('#')) {
-      const tagLine = lines.pop() || '';
-      // Extract tags: split by space, filter those starting with #, remove #
-      const tags = tagLine
-        .split(/\s+/)
-        .filter(t => t.startsWith('#'))
-        .map(t => t.slice(1).trim())
-        .filter(t => t.length > 0);
-
-      return {
-        content: lines.join('\n').trim(),
-        tags
-      };
-    }
-
-    return {
-      content: block.trim(),
-      tags: []
-    };
-  }).filter(card => card.content.length > 0);
-};
 
 const MassImportOverlay: React.FC<MassImportOverlayProps> = ({
   theme,
@@ -75,8 +41,11 @@ const MassImportOverlay: React.FC<MassImportOverlayProps> = ({
       const nodeId = crypto.randomUUID();
       addNodeWithId(nodeId, card.content, x, y, 'text');
 
-      if (card.tags.length > 0) {
-        updateNode(nodeId, { tags: card.tags });
+      if (card.title || card.tags.length > 0) {
+        const updates: Partial<MindNode> = {};
+        if (card.title) updates.title = card.title;
+        if (card.tags.length > 0) updates.tags = card.tags;
+        updateNode(nodeId, updates);
       }
     });
 
@@ -145,28 +114,32 @@ const MassImportOverlay: React.FC<MassImportOverlayProps> = ({
           </button>
         </div>
 
-        <p style={{
+        <div style={{
           margin: 0,
           color: theme.node.text,
           opacity: 0.7,
           fontSize: 14,
-          fontFamily: "'Noto Serif', Georgia, serif"
+          fontFamily: "'Noto Serif', Georgia, serif",
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 4
         }}>
-          Klistra in text. Dubbla radbrytningar = nytt kort.<br />
-          Sista raden med #taggar blir taggar (visas ej på kortet).
-        </p>
+          <p style={{ margin: 0 }}>Klistra in text. Dubbla radbrytningar = nytt kort.</p>
+          <p style={{ margin: 0 }}><strong>Första raden blir rubrik</strong> ( # tas bort automatiskt).</p>
+          <p style={{ margin: 0 }}>Sista raden med #taggar blir taggar.</p>
+        </div>
 
         <textarea
           value={text}
           onChange={e => setText(e.target.value)}
           onKeyDown={handleKeyDown}
           autoFocus
-          placeholder={`Första kortet här...
+          placeholder={`# Rubrik här
+Här kommer själva texten...
 
-Andra kortet här...
-#tagg1 #tagg2
-
-Tredje kortet...`}
+Nästa kort med rubrik
+Och innehåll
+#tagg1 #tagg2`}
           style={{
             width: '100%',
             height: 300,

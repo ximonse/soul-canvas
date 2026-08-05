@@ -5,11 +5,13 @@ import type { Theme } from '../themes';
 
 interface NotificationSystemProps {
     hasFile: boolean;
-    saveStatus: 'idle' | 'waiting' | 'saving' | 'saved';
+    saveStatus: 'idle' | 'waiting' | 'saving' | 'saved' | 'error';
     theme: Theme;
     zenMode: boolean;
     onConnect: () => void;
     onSave: () => void;
+    onExportBackup: () => void;
+    onRestoreBackup: () => void;
 }
 
 export const NotificationSystem: React.FC<NotificationSystemProps> = ({
@@ -19,6 +21,8 @@ export const NotificationSystem: React.FC<NotificationSystemProps> = ({
     zenMode,
     onConnect,
     onSave,
+    onExportBackup,
+    onRestoreBackup,
 }) => {
     const notifications = useBrainStore((state) => state.notifications);
     // Show the latest notification if available
@@ -57,6 +61,9 @@ export const NotificationSystem: React.FC<NotificationSystemProps> = ({
         } else if (saveStatus === 'saved') {
             barColor = '#22c55e'; // Green check
             icon = '';
+        } else if (saveStatus === 'error') {
+            barColor = '#ef4444';
+            icon = '❌';
         }
     }
 
@@ -123,6 +130,8 @@ export const NotificationSystem: React.FC<NotificationSystemProps> = ({
                         )}
                     </div>
 
+                    <button onClick={onExportBackup} className="px-2 py-1 text-xs rounded shadow" style={{ backgroundColor: theme.canvasColor, color: theme.node.text, border: `1px solid ${theme.node.border}` }}>Backup</button>
+                    <button onClick={onRestoreBackup} className="px-2 py-1 text-xs rounded shadow" style={{ backgroundColor: theme.canvasColor, color: theme.node.text, border: `1px solid ${theme.node.border}` }}>Återställ</button>
                 </div>
             )}
         </div>

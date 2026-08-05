@@ -1,14 +1,17 @@
 // src/utils/featureFlags.ts
 // Central place to track optional behavior toggles and experiments.
 
-type FeatureFlags = {
+export type FeatureFlags = {
   viewCommitDelayMs: number;
   useCursorRaf: boolean;
   logChatTokens: boolean;
   logChatPayload: boolean;
+  enableWanderingTrails: boolean;
+  enableGraphGravityControls: boolean;
 };
 
 const STORAGE_KEY = 'soul-canvas-feature-flags';
+export const FEATURE_FLAGS_EVENT = 'soul-canvas-feature-flags-changed';
 
 const DEFAULT_FEATURE_FLAGS: FeatureFlags = {
   // Set to 0 to disable delayed view commits (useful if zoom/pan feels wobbly).
@@ -18,6 +21,10 @@ const DEFAULT_FEATURE_FLAGS: FeatureFlags = {
   // Log AI token estimates and payloads in the browser console.
   logChatTokens: true,
   logChatPayload: true,
+  // Experimental navigation/path feature. Keep isolated from stable local v1.
+  enableWanderingTrails: false,
+  // Experimental force-layout graph controls and layout.
+  enableGraphGravityControls: false,
 };
 
 const readStoredFlags = (): Partial<FeatureFlags> => {
@@ -44,4 +51,6 @@ const persistFlags = () => {
 export const setFeatureFlag = <K extends keyof FeatureFlags>(key: K, value: FeatureFlags[K]) => {
   FEATURE_FLAGS[key] = value;
   persistFlags();
+  if (typeof window === 'undefined') return;
+  window.dispatchEvent(new CustomEvent(FEATURE_FLAGS_EVENT, { detail: { key, value } }));
 };

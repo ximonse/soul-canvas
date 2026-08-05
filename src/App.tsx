@@ -3,13 +3,14 @@ import { useEffect, useState, useCallback, useMemo, useRef, lazy, Suspense } fro
 import type { MindNode, Session } from './types/types';
 import type Konva from 'konva';
 import { useFileSystem } from './hooks/useFileSystem';
+import { usePortableBackup } from './hooks/usePortableBackup';
 import { useBrainStore } from './store/useBrainStore';
 import { useIntelligence } from './hooks/useIntelligence';
 import { useCanvas } from './hooks/useCanvas';
 import { useSearch } from './hooks/useSearch';
 import { useAIChat } from './hooks/useAIChat';
 import { useArrangement } from './hooks/useArrangement';
-import { useImportHandlers } from './hooks/useImportHandlers';
+import { useImportHandlers, type ImportPickerOptions } from './hooks/useImportHandlers';
 import { useNodeActions } from './hooks/useNodeActions';
 import { useKeyboardHandlers } from './hooks/useKeyboardHandlers';
 import { useSelectionScope } from './hooks/useSelectionScope';
@@ -17,6 +18,7 @@ import { useSessionSearch } from './hooks/useSessionSearch';
 import { useWandering } from './hooks/useWandering';
 import { THEMES } from './themes';
 import { AUTOSAVE_DELAY_MS } from './utils/constants';
+import { FEATURE_FLAGS, FEATURE_FLAGS_EVENT } from './utils/featureFlags';
 
 // Komponenter
 import { NotificationSystem } from './components/NotificationSystem';
@@ -44,6 +46,9 @@ const THEME_KEYS = Object.keys(THEMES);
 function App() {
   // Core hooks
   const { openFile, saveFile, saveAsset, saveAIExports, hasFile } = useFileSystem();
+  const { exportBackup, restoreBackup } = usePortableBackup();
+  const handleExportBackup = useCallback(() => { void exportBackup(); }, [exportBackup]);
+  const handleRestoreBackup = useCallback(() => { void restoreBackup(); }, [restoreBackup]);
   const nodes = useBrainStore((state) => state.nodes);
   const synapses = useBrainStore((state) => state.synapses);
   const sessions = useBrainStore((state) => state.sessions);
@@ -58,6 +63,7 @@ function App() {
   const canvasEternalView = useBrainStore((state) => state.canvasEternalView);
   const pendingSave = useBrainStore((state) => state.pendingSave);
   const setPendingSave = useBrainStore((state) => state.setPendingSave);
+  const addNotification = useBrainStore((state) => state.addNotification);
   const saveStateForUndo = useBrainStore((state) => state.saveStateForUndo);
   const addTagToSelected = useBrainStore((state) => state.addTagToSelected);
   const clearSelection = useBrainStore((state) => state.clearSelection);
@@ -194,6 +200,10 @@ function App() {
   const sessionSearch = useSessionSearch({ allNodes: allNodesArray, activeSession });
   const selectionScope = useSelectionScope();
   const wandering = useWandering();
+  const isWanderingActive = wandering.isWandering;
+  const stopWandering = wandering.stopWandering;
+  const [enableWanderingTrails, setEnableWanderingTrails] = useState(FEATURE_FLAGS.enableWanderingTrails);
+  const [enableGraphGravityControls, setEnableGraphGravityControls] = useState(FEATURE_FLAGS.enableGraphGravityControls);
 
   // UI State
   const [themeIndex, setThemeIndex] = useState(() => {
@@ -218,11 +228,12 @@ function App() {
   const [isChatMinimized, setIsChatMinimized] = useState(false);
   const [isReflectionChat, setIsReflectionChat] = useState(false);
   const [showMassImport, setShowMassImport] = useState(false);
+  const [showImportOptions, setShowImportOptions] = useState(false);
   const [showQuoteExtractor, setShowQuoteExtractor] = useState(false);
   const [showSessionPanel, setShowSessionPanel] = useState(false);
   const [showTrailPanel, setShowTrailPanel] = useState(false);
   const [editingCardId, setEditingCardId] = useState<string | null>(null);
-  const [saveStatus, setSaveStatus] = useState<'idle' | 'waiting' | 'saving' | 'saved'>('idle');
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'waiting' | 'saving' | 'saved' | 'error'>('idle');
   const [zenMode, setZenMode] = useState(false);
   const [currentZoom, setCurrentZoom] = useState(1);
   const [isSavingChat, setIsSavingChat] = useState(false);
@@ -237,6 +248,21 @@ function App() {
   useEffect(() => {
     setCurrentZoom(canvas.view.k);
   }, [canvas.view.k]);
+
+  useEffect(() => {
+    const handleFeatureFlagChange = (event: Event) => {
+      const detail = (event as CustomEvent<{ key?: string; value?: unknown }>).detail;
+      if (detail?.key === 'enableWanderingTrails') {
+        setEnableWanderingTrails(Boolean(detail.value));
+      }
+      if (detail?.key === 'enableGraphGravityControls') {
+        setEnableGraphGravityControls(Boolean(detail.value));
+      }
+    };
+
+    window.addEventListener(FEATURE_FLAGS_EVENT, handleFeatureFlagChange);
+    return () => window.removeEventListener(FEATURE_FLAGS_EVENT, handleFeatureFlagChange);
+  }, []);
 
   // Computed
   const selectedNodesCount = useMemo(() =>
@@ -282,12 +308,28 @@ function App() {
   }, [pdfImportPrompt, handlePdfPromptConfirm, handlePdfPromptCancel]);
 
   // Import handlers
-  const { handleDrop } = useImportHandlers({
+  const { handleDrop, importFiles } = useImportHandlers({
     canvas,
     hasFile,
     saveAsset,
     requestPdfGroupName,
   });
+
+  const openImportPicker = useCallback(async (options?: ImportPickerOptions) => {
+    if (!hasFile) return;
+
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*,.json,.html,.pdf,.ris,.md,.markdown';
+    input.multiple = true;
+    input.onchange = async (e) => {
+      const files = Array.from((e.target as HTMLInputElement).files || []);
+      if (files.length === 0) return;
+      const worldPos = canvas.screenToWorld(window.innerWidth / 2, window.innerHeight / 2);
+      await importFiles(files, worldPos, options);
+    };
+    input.click();
+  }, [canvas, hasFile, importFiles]);
 
   // Node actions
   const { centerCamera, fitAllNodes, resetZoom, runOCR, runOCROnSelected, deleteSelected } = useNodeActions({
@@ -356,14 +398,20 @@ function App() {
   // Simple callbacks
   const handleManualSave = useCallback(() => {
     if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
-    setTimeout(() => {
-      saveFile();
+    setTimeout(async () => {
+      setSaveStatus('saving');
+      const saved = await saveFile();
+      if (!saved) {
+        setSaveStatus('error');
+        addNotification('Kunde inte spara. Dina ändringar finns kvar i appen.', 'error', 6000);
+        return;
+      }
       saveAIExports();
       setPendingSave(false);
       setSaveStatus('saved');
       setTimeout(() => setSaveStatus('idle'), 2000);
     }, 100);
-  }, [saveFile, saveAIExports, setPendingSave]);
+  }, [addNotification, saveFile, saveAIExports, setPendingSave]);
 
   const handleSearchConfirm = useCallback(() => {
     const ids = search.confirmSearch();
@@ -444,6 +492,7 @@ function App() {
   }, [selectionScope]);
 
   const handleToggleWandering = useCallback(() => {
+    if (!enableWanderingTrails) return;
     if (wandering.isWandering) {
       wandering.stopWandering();
       setShowTrailPanel(false);
@@ -453,7 +502,15 @@ function App() {
     } else {
       setShowTrailPanel(prev => !prev);
     }
-  }, [wandering, firstSelectedNodeId]);
+  }, [enableWanderingTrails, wandering, firstSelectedNodeId]);
+
+  useEffect(() => {
+    if (enableWanderingTrails) return;
+    if (isWanderingActive) {
+      stopWandering();
+    }
+    setShowTrailPanel(false);
+  }, [enableWanderingTrails, isWanderingActive, stopWandering]);
 
   // Keyboard shortcuts
   useKeyboardHandlers({
@@ -470,7 +527,7 @@ function App() {
     showAIChat,
     showMassImport,
     showQuoteExtractor,
-    showTrailPanel,
+    showTrailPanel: enableWanderingTrails && showTrailPanel,
     showGuidance,
     isScopePanelOpen: selectionScope.isVisible,
     centerCamera,
@@ -508,9 +565,9 @@ function App() {
     onToggleScopePanel: selectionScope.toggleVisibility,
     onCloseScopePanel: selectionScope.close,
     onExpandScopeDegree: handleExpandScopeDegree,
-    onToggleWandering: handleToggleWandering,
-    onBacktrackTrail: wandering.backtrack,
-    onForwardTrail: () => { }, // Not implemented yet
+    onToggleWandering: enableWanderingTrails ? handleToggleWandering : undefined,
+    onBacktrackTrail: enableWanderingTrails ? wandering.backtrack : undefined,
+    onForwardTrail: undefined, // Not implemented yet
   });
 
   // Auto-save effect
@@ -519,13 +576,18 @@ function App() {
     setSaveStatus('waiting');
     const timer = setTimeout(async () => {
       setSaveStatus('saving');
-      await saveFile();
+      const saved = await saveFile();
+      if (!saved) {
+        setSaveStatus('error');
+        addNotification('Autosparning misslyckades. Försök spara manuellt.', 'error', 6000);
+        return;
+      }
       setPendingSave(false);
       setSaveStatus('saved');
       setTimeout(() => setSaveStatus('idle'), 2000);
     }, AUTOSAVE_DELAY_MS);
     return () => clearTimeout(timer);
-  }, [pendingSave, hasFile, saveFile, setPendingSave]);
+  }, [pendingSave, hasFile, saveFile, setPendingSave, addNotification]);
 
   // AI Export auto-save (var 30:e minut)
   useEffect(() => {
@@ -561,14 +623,15 @@ function App() {
             canvas={canvas}
             stageRef={stageRef}
             nodes={filteredNodesArray}
-            isWandering={wandering.isWandering}
-            onWanderStep={wandering.stepTo}
-            gravitatingNodes={wandering.gravitatingNodes}
+            enableGraphGravityControls={enableGraphGravityControls}
+            isWandering={enableWanderingTrails && wandering.isWandering}
+            onWanderStep={enableWanderingTrails ? wandering.stepTo : undefined}
+            gravitatingNodes={enableWanderingTrails ? wandering.gravitatingNodes : []}
             gravitatingColorMode={wandering.colorMode}
-            wanderingCurrentNodeId={wandering.currentNodeId}
-            activeTrail={wandering.activeTrail}
-            selectedTrails={wandering.selectedTrails}
-            showActiveTrailLine={wandering.showActiveTrailLine}
+            wanderingCurrentNodeId={enableWanderingTrails ? wandering.currentNodeId : null}
+            activeTrail={enableWanderingTrails ? wandering.activeTrail : null}
+            selectedTrails={enableWanderingTrails ? wandering.selectedTrails : []}
+            showActiveTrailLine={enableWanderingTrails && wandering.showActiveTrailLine}
             onContextMenu={handleContextMenu}
             onZoomChange={setCurrentZoom}
             onLinkHover={setHoveredLink}
@@ -630,6 +693,8 @@ function App() {
           zenMode={zenMode}
           onConnect={openFile}
           onSave={handleManualSave}
+          onExportBackup={handleExportBackup}
+          onRestoreBackup={handleRestoreBackup}
         />
       )}
 
@@ -717,12 +782,12 @@ function App() {
         )}
 
         {/* Trail Panel - vandring */}
-        {showChrome && (
+        {showChrome && enableWanderingTrails && (
           <TrailPanel
             theme={theme}
             isOpen={showTrailPanel}
             onClose={() => setShowTrailPanel(false)}
-            isWandering={wandering.isWandering}
+            isWandering={enableWanderingTrails && wandering.isWandering}
             currentNodeId={wandering.currentNodeId}
             gravitatingNodes={wandering.gravitatingNodes}
             visitedNodeIds={wandering.visitedNodeIds}
@@ -781,7 +846,7 @@ function App() {
           <GuidanceOverlay
             theme={theme}
             viewMode={viewMode}
-            isWandering={wandering.isWandering}
+            isWandering={enableWanderingTrails && wandering.isWandering}
             selectionCount={selectedNodesCount}
             showSessionPanel={showSessionPanel}
             showAIChat={showAIChat}
@@ -795,6 +860,7 @@ function App() {
           showSettings={showSettings}
           showAIPanel={showAIPanel}
           showCommandPalette={showCommandPalette}
+          showImportOptions={showImportOptions}
           showAIChat={showAIChat}
           showOcrPrompt={showOcrPrompt}
           contextMenu={contextMenu}
@@ -814,7 +880,6 @@ function App() {
           onTogglePin={handleTogglePin}
           handleManualSave={handleManualSave}
           centerCamera={centerCamera}
-          handleDrop={handleDrop}
           chatMessages={aiChat.messages}
           chatProvider={aiChat.provider}
           setChatProvider={aiChat.setProvider}
@@ -855,6 +920,7 @@ function App() {
           setShowSettings={setShowSettings}
           setShowAIPanel={setShowAIPanel}
           setShowCommandPalette={setShowCommandPalette}
+          setShowImportOptions={setShowImportOptions}
           setShowAIChat={setShowAIChat}
           setShowOcrPrompt={setShowOcrPrompt}
           setContextMenu={setContextMenu}
@@ -871,12 +937,16 @@ function App() {
           fitAllNodes={fitAllNodes}
           onOpenMassImport={() => setShowMassImport(true)}
           onOpenQuoteExtractor={() => setShowQuoteExtractor(true)}
+          onOpenImportPicker={openImportPicker}
           onToggleSessionPanel={() => setShowSessionPanel(prev => !prev)}
           onToggleWandering={handleToggleWandering}
+          enableWanderingTrails={enableWanderingTrails}
+          enableGraphGravityControls={enableGraphGravityControls}
           onToggleSynapseLines={toggleSynapseLines}
           onToggleViewMode={toggleViewMode}
           onToggleScopePanel={selectionScope.toggleVisibility}
           theme={theme}
+          claudeAvailable={Boolean(claudeKey)}
           onFocusSearch={() => search.openSearch()}
           pdfImportPrompt={pdfImportPromptProps}
         />

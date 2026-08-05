@@ -20,6 +20,7 @@ interface KonvaCanvasProps {
   canvas: CanvasAPI;
   stageRef?: React.RefObject<Konva.Stage | null>;
   nodes: MindNode[];
+  enableGraphGravityControls?: boolean;
   isWandering?: boolean;
   onWanderStep?: (nodeId: string) => void;
   gravitatingNodes?: GravitatingNode[];
@@ -53,6 +54,7 @@ const KonvaCanvas: React.FC<KonvaCanvasProps> = ({
   canvas,
   stageRef: externalStageRef,
   nodes,
+  enableGraphGravityControls = false,
   isWandering = false,
   onWanderStep,
   gravitatingNodes = [],
@@ -85,12 +87,16 @@ const KonvaCanvas: React.FC<KonvaCanvasProps> = ({
     segmentIndex: number;
   } | null>(null);
 
-  // Stäng menyn om man klickar utanför
+  // Stäng menyn om man klickar utanför (vänster eller höger)
   useEffect(() => {
     if (!arrowMenu) return;
     const handleClose = () => setArrowMenu(null);
     window.addEventListener('click', handleClose);
-    return () => window.removeEventListener('click', handleClose);
+    window.addEventListener('contextmenu', handleClose);
+    return () => {
+      window.removeEventListener('click', handleClose);
+      window.removeEventListener('contextmenu', handleClose);
+    };
   }, [arrowMenu]);
   const internalStageRef = useRef<Konva.Stage>(null);
   const stageRef = externalStageRef || internalStageRef;
@@ -158,6 +164,11 @@ const KonvaCanvas: React.FC<KonvaCanvasProps> = ({
       }
     }, VIEW_COMMIT_DELAY_MS);
   }, [canvas, onZoomChange]);
+
+  const handleContextMenu = useCallback((nodeId: string, pos: { x: number; y: number }) => {
+    setArrowMenu(null);
+    onContextMenu?.(nodeId, pos);
+  }, [onContextMenu]);
 
   const scheduleCursorPos = useCallback((nextPos: { x: number; y: number }) => {
     if (!FEATURE_FLAGS.useCursorRaf) {
@@ -318,7 +329,7 @@ const KonvaCanvas: React.FC<KonvaCanvasProps> = ({
   const handleStageWheel = (e: KonvaEventObject<WheelEvent>) => {
     e.evt.preventDefault();
 
-    if (e.evt.ctrlKey) {
+    if (enableGraphGravityControls && e.evt.ctrlKey) {
       const rawDelta = -e.evt.deltaY * GRAVITY_SCROLL_SCALE;
       const delta = Math.max(-GRAVITY_SCROLL_MAX_STEP, Math.min(GRAVITY_SCROLL_MAX_STEP, rawDelta));
       adjustGraphGravity(delta);
@@ -620,7 +631,7 @@ const KonvaCanvas: React.FC<KonvaCanvasProps> = ({
                 onEditCard={onEditCard}
                 onDragStart={handleNodeDragStart}
                 onDragEnd={handleNodeDragEnd}
-                onContextMenu={onContextMenu}
+                onContextMenu={handleContextMenu}
                 onLinkHover={onLinkHover}
                 onHover={onCommentHover}
               />

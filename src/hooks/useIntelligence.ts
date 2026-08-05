@@ -8,7 +8,6 @@ import {
   generateEmbedding,
   findNodesSimilarToGroup,
 } from '../utils/embeddings';
-import { calculateConnectedNodesLayout } from '../utils/forceLayout';
 import { 
   generateReflection, 
   generateSemanticTags, 
@@ -40,7 +39,6 @@ export interface AIBatchState {
 
 export const useIntelligence = () => {
   const nodes = useBrainStore((state) => state.nodes);
-  const selectedNodeIds = useBrainStore((state) => state.selectedNodeIds);
   const openaiKey = useBrainStore((state) => state.openaiKey);
   const claudeKey = useBrainStore((state) => state.claudeKey);
   const updateNode = useBrainStore((state) => state.updateNode);
@@ -53,18 +51,40 @@ export const useIntelligence = () => {
   const [batch, setBatch] = useState<AIBatchState | null>(null);
   const cancelBatchRef = useRef(false);
 
-  const resolveTargets = useCallback((nodeId?: string): MindNode[] => {
+  const getScopeNodeIdSet = useCallback((
+    currentState: ReturnType<typeof useBrainStore.getState>,
+    scopeNodeIds?: Iterable<string>,
+  ): Set<string> => {
+    if (scopeNodeIds) return new Set(scopeNodeIds);
+    if (!currentState.activeSessionId) return new Set(currentState.nodes.keys());
+    const session = currentState.sessions.find((item) => item.id === currentState.activeSessionId);
+    return new Set(session?.cardIds ?? []);
+  }, []);
+
+  const getScopedNodes = useCallback((
+    currentState: ReturnType<typeof useBrainStore.getState>,
+    scopeNodeIds?: Iterable<string>,
+  ): MindNode[] => {
+    const scopeIds = getScopeNodeIdSet(currentState, scopeNodeIds);
+    return (Array.from(currentState.nodes.values()) as MindNode[])
+      .filter((node: MindNode) => scopeIds.has(node.id));
+  }, [getScopeNodeIdSet]);
+
+  const resolveTargets = useCallback((nodeId?: string, scopeNodeIds?: Iterable<string>): MindNode[] => {
     const currentState = useBrainStore.getState();
+    const scopeIds = getScopeNodeIdSet(currentState, scopeNodeIds);
     const selected = Array.from(currentState.selectedNodeIds)
+      .filter((id) => scopeIds.has(id))
       .map(id => currentState.nodes.get(id))
       .filter(Boolean) as MindNode[];
     if (selected.length > 0) return selected;
     if (nodeId) {
+      if (!scopeIds.has(nodeId)) return [];
       const node = currentState.nodes.get(nodeId);
       return node ? [node] : [];
     }
     return [];
-  }, []);
+  }, [getScopeNodeIdSet]);
 
   const getBatchTitle = useCallback((node: MindNode): string => {
     const title = getNodeDisplayTitle(node);
@@ -210,11 +230,13 @@ export const useIntelligence = () => {
   /**
    * Generate embeddings for all nodes that don't have them
    */
-  const embedAllNodes = useCallback(async (): Promise<number> => {
+  const embedAllNodes = useCallback(async (scopeNodeIds?: Iterable<string>): Promise<number> => {
     if (!openaiKey) return 0;
 
-    const nodesToEmbed = (Array.from(nodes.values()) as MindNode[]).filter(
-      (n: MindNode) => !n.embedding && !isCopyNode(n),
+    const currentState = useBrainStore.getState();
+    const scopeIds = getScopeNodeIdSet(currentState, scopeNodeIds);
+    const nodesToEmbed = (Array.from(currentState.nodes.values()) as MindNode[]).filter(
+      (n: MindNode) => scopeIds.has(n.id) && !n.embedding && !isCopyNode(n),
     );
     if (nodesToEmbed.length === 0) return 0;
 
@@ -247,12 +269,12 @@ export const useIntelligence = () => {
       setIsProcessing(false);
       setProgress({ current: 0, total: 0 });
     }
-  }, [nodes, openaiKey, updateNodesBulk]);
+  }, [getScopeNodeIdSet, openaiKey, updateNodesBulk]);
 
   /**
    * Find and create links between semantically similar nodes
    */
-  const autoLinkSimilarNodes = useCallback(async (nodeId?: string): Promise<number> => {
+  const autoLinkSimilarNodes = useCallback(async (nodeId?: string, scopeNodeIds?: Iterable<string>): Promise<number> => {
     // Use fresh state to avoid stale closures
     const currentState = useBrainStore.getState();
     if (!currentState.enableAutoLink) return 0;
@@ -261,10 +283,14 @@ export const useIntelligence = () => {
     if (isProcessing) return 0;
 
     const threshold = currentState.autoLinkThreshold || 0.75;
+    const scopeIds = getScopeNodeIdSet(currentState, scopeNodeIds);
     const allNodes = (Array.from(currentState.nodes.values()) as MindNode[])
-      .filter((n: MindNode) => !isCopyNode(n));
+      .filter((n: MindNode) => scopeIds.has(n.id) && !isCopyNode(n));
+    const scopedNode = nodeId ? currentState.nodes.get(nodeId) : undefined;
     const nodesToCheck: MindNode[] = nodeId
-      ? [currentState.nodes.get(nodeId)].filter(Boolean).filter((n) => !isCopyNode(n)) as MindNode[]
+      ? scopedNode && scopeIds.has(scopedNode.id) && !isCopyNode(scopedNode)
+        ? [scopedNode]
+        : []
       : allNodes.filter((n: MindNode) => n.embedding);
 
     let linksCreated = 0;
@@ -299,7 +325,7 @@ export const useIntelligence = () => {
     }
 
     return linksCreated;
-  }, [isProcessing]);
+  }, [getScopeNodeIdSet, isProcessing]);
 
   /**
    * Generate both practical and hidden tags for a node using Claude
@@ -317,12 +343,12 @@ export const useIntelligence = () => {
     }
   }, [nodes, claudeKey, tagSingleNode]);
 
-  const generateTagsForSelection = useCallback(async (nodeId?: string): Promise<{ processed: number; totalTags: number }> => {
+  const generateTagsForSelection = useCallback(async (nodeId?: string, scopeNodeIds?: Iterable<string>): Promise<{ processed: number; totalTags: number }> => {
     const currentState = useBrainStore.getState();
     const key = currentState.claudeKey;
     if (!key) return { processed: 0, totalTags: 0 };
 
-    const targets = resolveTargets(nodeId);
+    const targets = resolveTargets(nodeId, scopeNodeIds);
     if (targets.length === 0) return { processed: 0, totalTags: 0 };
 
     let totalTags = 0;
@@ -339,12 +365,12 @@ export const useIntelligence = () => {
   /**
    * Generate a short summary and write to node.comment
    */
-  const summarizeToComment = useCallback(async (nodeId?: string): Promise<number> => {
+  const summarizeToComment = useCallback(async (nodeId?: string, scopeNodeIds?: Iterable<string>): Promise<number> => {
     const currentState = useBrainStore.getState();
     const key = currentState.claudeKey;
     if (!key) return 0;
 
-    const targets = resolveTargets(nodeId);
+    const targets = resolveTargets(nodeId, scopeNodeIds);
     if (targets.length === 0) return 0;
 
     currentState.saveStateForUndo?.();
@@ -367,12 +393,12 @@ export const useIntelligence = () => {
   /**
    * Generate a concise title for nodes
    */
-  const suggestTitle = useCallback(async (nodeId?: string): Promise<number> => {
+  const suggestTitle = useCallback(async (nodeId?: string, scopeNodeIds?: Iterable<string>): Promise<number> => {
     const currentState = useBrainStore.getState();
     const key = currentState.claudeKey;
     if (!key) return 0;
 
-    const targets = resolveTargets(nodeId);
+    const targets = resolveTargets(nodeId, scopeNodeIds);
     if (targets.length === 0) return 0;
 
     currentState.saveStateForUndo?.();
@@ -395,13 +421,18 @@ export const useIntelligence = () => {
   /**
    * Generate a reflective question based on selected or all nodes
    */
-  const reflect = useCallback(async (): Promise<AIReflection | null> => {
+  const reflect = useCallback(async (scopeNodeIds?: Iterable<string>): Promise<AIReflection | null> => {
     if (!claudeKey) return null;
 
-    const selectedNodes = Array.from(selectedNodeIds)
-      .map(id => nodes.get(id))
+    const currentState = useBrainStore.getState();
+    const scopeIds = getScopeNodeIdSet(currentState, scopeNodeIds);
+    const selectedNodes = Array.from(currentState.selectedNodeIds)
+      .filter((id) => scopeIds.has(id))
+      .map(id => currentState.nodes.get(id))
       .filter(Boolean) as MindNode[];
-    const nodesToAnalyze: MindNode[] = selectedNodes.length > 0 ? selectedNodes : Array.from(nodes.values()) as MindNode[];
+    const nodesToAnalyze: MindNode[] = selectedNodes.length > 0
+      ? selectedNodes
+      : getScopedNodes(currentState, scopeNodeIds);
 
     if (nodesToAnalyze.length === 0) return null;
 
@@ -416,16 +447,19 @@ export const useIntelligence = () => {
     } finally {
       setIsProcessing(false);
     }
-  }, [claudeKey, selectedNodeIds, nodes]);
+  }, [claudeKey, getScopeNodeIdSet, getScopedNodes]);
 
   /**
    * Analyze a cluster of connected nodes
    */
-  const analyzeSelectedCluster = useCallback(async (): Promise<string | null> => {
+  const analyzeSelectedCluster = useCallback(async (scopeNodeIds?: Iterable<string>): Promise<string | null> => {
     if (!claudeKey) return null;
 
-    const selectedNodes = Array.from(selectedNodeIds)
-      .map(id => nodes.get(id))
+    const currentState = useBrainStore.getState();
+    const scopeIds = getScopeNodeIdSet(currentState, scopeNodeIds);
+    const selectedNodes = Array.from(currentState.selectedNodeIds)
+      .filter((id) => scopeIds.has(id))
+      .map(id => currentState.nodes.get(id))
       .filter(Boolean) as MindNode[];
     if (selectedNodes.length < 2) return null;
 
@@ -439,18 +473,20 @@ export const useIntelligence = () => {
     } finally {
       setIsProcessing(false);
     }
-  }, [claudeKey, selectedNodeIds, nodes]);
+  }, [claudeKey, getScopeNodeIdSet]);
 
   /**
    * Search nodes by semantic similarity to a query
    */
-  const semanticSearch = useCallback(async (query: string): Promise<MindNode[]> => {
+  const semanticSearch = useCallback(async (query: string, scopeNodeIds?: Iterable<string>): Promise<MindNode[]> => {
     if (!openaiKey) return [];
 
     if (!query.trim()) return [];
 
     try {
       setIsProcessing(true);
+      const currentState = useBrainStore.getState();
+      const scopeIds = getScopeNodeIdSet(currentState, scopeNodeIds);
       
       // Generate embedding for the search query
       const queryEmbedding = await generateEmbedding(query, openaiKey);
@@ -467,8 +503,8 @@ export const useIntelligence = () => {
       };
 
       // Find similar nodes
-      const nodesWithEmbeddings = (Array.from(nodes.values()) as MindNode[])
-        .filter((n: MindNode) => n.embedding && !isCopyNode(n));
+      const nodesWithEmbeddings = (Array.from(currentState.nodes.values()) as MindNode[])
+        .filter((n: MindNode) => scopeIds.has(n.id) && n.embedding && !isCopyNode(n));
 
       const results = findSimilarNodes(queryMindNode, nodesWithEmbeddings as MindNode[], 0); // Find similar nodes
 
@@ -476,7 +512,8 @@ export const useIntelligence = () => {
         .filter(r => r.similarity > 0.5) // Threshold for search
         .sort((a, b) => b.similarity - a.similarity)
         .slice(0, 10) // Top 10 results
-        .map(r => nodes.get(r.nodeId)!); // Map back to MindNode objects
+        .map(r => currentState.nodes.get(r.nodeId)!)
+        .filter(Boolean);
 
     } catch (error) {
       console.error('Semantic search error:', error);
@@ -484,7 +521,7 @@ export const useIntelligence = () => {
     } finally {
       setIsProcessing(false);
     }
-  }, [openaiKey, nodes]);
+  }, [getScopeNodeIdSet, openaiKey]);
 
   /**
    * Attract similar nodes to the selected nodes
@@ -539,10 +576,11 @@ export const useIntelligence = () => {
   /**
    * Arrange nodes as a force-directed graph based on their connections
    */
-  const arrangeAsGraph = useCallback((centerX?: number, centerY?: number, gravity?: number): number => {
+  const arrangeAsGraph = useCallback(async (centerX?: number, centerY?: number, gravity?: number, scopeNodeIds?: Iterable<string>): Promise<number> => {
     const currentState = useBrainStore.getState();
+    const scopeIds = getScopeNodeIdSet(currentState, scopeNodeIds);
     const allNodes = (Array.from(currentState.nodes.values()) as MindNode[])
-      .filter((n: MindNode) => !isCopyNode(n));
+      .filter((n: MindNode) => scopeIds.has(n.id) && !isCopyNode(n));
 
     if (currentState.synapses.length === 0) return 0;
     if (allNodes.length === 0) return 0;
@@ -556,12 +594,14 @@ export const useIntelligence = () => {
 
     const visibleSynapses = currentState.synapses.filter((s: Synapse) => {
       if ((s.similarity || 1) < currentState.synapseVisibilityThreshold) return false;
+      if (!scopeIds.has(s.sourceId) || !scopeIds.has(s.targetId)) return false;
       const sourceNode = currentState.nodes.get(s.sourceId);
       const targetNode = currentState.nodes.get(s.targetId);
       return !isCopyNode(sourceNode) && !isCopyNode(targetNode);
     });
     if (visibleSynapses.length === 0) return 0;
 
+    const { calculateConnectedNodesLayout } = await import('../utils/forceLayout');
     const positions = calculateConnectedNodesLayout(
       allNodes as MindNode[],
       visibleSynapses,
@@ -573,7 +613,7 @@ export const useIntelligence = () => {
     }
 
     return positions.size;
-  }, []);
+  }, [getScopeNodeIdSet]);
 
   return {
     // State

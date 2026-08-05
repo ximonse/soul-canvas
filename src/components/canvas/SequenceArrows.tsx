@@ -1,5 +1,6 @@
 import React from 'react';
 import { Arrow } from 'react-konva';
+import type Konva from 'konva';
 import type { MindNode, Sequence } from '../../types/types';
 
 interface SequenceArrowsProps {
@@ -10,6 +11,17 @@ interface SequenceArrowsProps {
     activeSessionId: string | null;
     onArrowClick?: (data: { x: number; y: number; seqId: string; segmentIndex: number }) => void;
 }
+
+type ArrowInteractionEvent = MouseEvent | PointerEvent | TouchEvent;
+
+const getEventClientPosition = (event: ArrowInteractionEvent) => {
+    if ('clientX' in event && 'clientY' in event) {
+        return { x: event.clientX, y: event.clientY };
+    }
+
+    const touch = event.touches[0] ?? event.changedTouches[0];
+    return touch ? { x: touch.clientX, y: touch.clientY } : null;
+};
 
 // Beräkna pilpunkter från kant till kant mellan två kort
 const getEdgeToEdgePoints = (
@@ -107,22 +119,27 @@ export const SequenceArrows: React.FC<SequenceArrowsProps> = ({
 
                     const { fromX, fromY, toX, toY } = getEdgeToEdgePoints(fromNode, toNode);
 
-                    const handleArrowClickInternal = (e: any) => {
+                    const handleArrowClickInternal = (e: Konva.KonvaEventObject<ArrowInteractionEvent>) => {
                         e.cancelBubble = true;
                         const event = e.evt;
 
-                        // Hindra webbläsarens kontextmeny om det är ett högerklick
-                        if (event && event.type === 'contextmenu') {
-                            event.preventDefault();
-                        }
+                        if (event) {
+                            event.stopPropagation(); // Hindra händelsen från att bubbla till fönstret
 
-                        if (event && onArrowClick) {
-                            onArrowClick({
-                                x: event.clientX,
-                                y: event.clientY,
-                                seqId: sequence.id,
-                                segmentIndex: i - 1
-                            });
+                            // Hindra webbläsarens kontextmeny om det är ett högerklick
+                            if (event.type === 'contextmenu') {
+                                event.preventDefault();
+                            }
+
+                            const pos = getEventClientPosition(event);
+                            if (onArrowClick && pos) {
+                                onArrowClick({
+                                    x: pos.x,
+                                    y: pos.y,
+                                    seqId: sequence.id,
+                                    segmentIndex: i - 1
+                                });
+                            }
                         }
                     };
 

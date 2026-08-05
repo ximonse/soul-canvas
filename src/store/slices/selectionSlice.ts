@@ -25,6 +25,7 @@ export interface SelectionActions {
 type SelectionStoreState = {
   nodes: Map<string, MindNode>;
   selectedNodeIds: Set<string>;
+  pendingSave: boolean;
 };
 
 type SetState = (fn: (state: SelectionStoreState) => Partial<SelectionStoreState>) => void;
@@ -69,7 +70,7 @@ export const createSelectionSlice = (set: SetState): SelectionActions => ({
         newNodes.set(id, { ...node, x: node.x + dx, y: node.y + dy });
       }
     });
-    return { nodes: newNodes };
+    return { nodes: newNodes, pendingSave: true };
   }),
 
   duplicateSelectedNodes: () => set((state) => {
@@ -106,7 +107,7 @@ export const createSelectionSlice = (set: SetState): SelectionActions => ({
       newSelected.add(newNode.id);
     });
 
-    return { nodes: newNodesMap, selectedNodeIds: newSelected };
+    return { nodes: newNodesMap, selectedNodeIds: newSelected, pendingSave: true };
   }),
 
   addTagToSelected: (tag) => set((state) => {
@@ -119,7 +120,7 @@ export const createSelectionSlice = (set: SetState): SelectionActions => ({
         newNodes.set(id, { ...node, tags: [...node.tags, clean] });
       }
     });
-    return { nodes: newNodes };
+    return { nodes: newNodes, pendingSave: true };
   }),
 
   removeTagFromSelected: (tag) => set((state) => {
@@ -130,7 +131,7 @@ export const createSelectionSlice = (set: SetState): SelectionActions => ({
         newNodes.set(id, { ...node, tags: node.tags.filter(t => t !== tag) });
       }
     });
-    return { nodes: newNodes };
+    return { nodes: newNodes, pendingSave: true };
   }),
 
   togglePin: (id) => set((state) => {
@@ -139,7 +140,7 @@ export const createSelectionSlice = (set: SetState): SelectionActions => ({
     const updatedNode = { ...existingNode, pinned: !existingNode.pinned };
     const newNodes = new Map(state.nodes);
     newNodes.set(id, updatedNode);
-    return { nodes: newNodes };
+    return { nodes: newNodes, pendingSave: true };
   }),
 
   pinSelected: () => set((state) => {
@@ -150,7 +151,7 @@ export const createSelectionSlice = (set: SetState): SelectionActions => ({
         newNodes.set(id, { ...node, pinned: true });
       }
     });
-    return { nodes: newNodes };
+    return { nodes: newNodes, pendingSave: true };
   }),
 
   unpinSelected: () => set((state) => {
@@ -161,20 +162,20 @@ export const createSelectionSlice = (set: SetState): SelectionActions => ({
         newNodes.set(id, { ...node, pinned: false });
       }
     });
-    return { nodes: newNodes };
+    return { nodes: newNodes, pendingSave: true };
   }),
 
   setScopeDegreeOnNodes: (scopeMap: Map<string, number>) => set((state) => {
     const newNodes = new Map(state.nodes);
 
-    // Rensa alla scope-grader först
+    // Rensa alla scope-grader fï¿½rst
     newNodes.forEach((node, id) => {
       if (node.scopeDegree) {
         newNodes.set(id, { ...node, scopeDegree: undefined });
       }
     });
 
-    // Sätt nya scope-grader
+    // Sï¿½tt nya scope-grader
     scopeMap.forEach((degree, nodeId) => {
       const node = newNodes.get(nodeId);
       if (node) {
@@ -182,6 +183,6 @@ export const createSelectionSlice = (set: SetState): SelectionActions => ({
       }
     });
 
-    return { nodes: newNodes };
+    return { nodes: newNodes, pendingSave: true };
   }),
 });

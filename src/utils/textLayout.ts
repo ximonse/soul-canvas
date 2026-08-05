@@ -79,6 +79,35 @@ export function measureTextHeight(text: string, options: TextMeasureOptions): nu
   return height;
 }
 
+export function measureTextWidth(text: string, options: TextMeasureOptions): number {
+  const { fontSize, fontFamily, fontStyle = 'normal' } = options;
+  const textNode = new Konva.Text({
+    text,
+    fontSize,
+    fontFamily,
+    fontStyle,
+    wrap: 'none',
+  });
+  return textNode.width();
+}
+
+function mergeFontStyles(base: string, override?: string): string {
+  if (!override || override === 'normal') return base;
+  if (!base || base === 'normal') return override;
+
+  const baseBold = base.includes('bold');
+  const baseItalic = base.includes('italic');
+  const overrideBold = override.includes('bold');
+  const overrideItalic = override.includes('italic');
+  const bold = baseBold || overrideBold;
+  const italic = baseItalic || overrideItalic;
+
+  if (bold && italic) return 'bold italic';
+  if (bold) return 'bold';
+  if (italic) return 'italic';
+  return 'normal';
+}
+
 export function layoutMarkdownText(
   text: string,
   options: TextMeasureOptions
@@ -93,35 +122,73 @@ export function layoutMarkdownText(
 
   for (const line of parsedLines) {
     let lineFontSize = options.fontSize;
-    let fontStyle = line.fontStyle || 'normal';
+    let baseStyle = line.fontStyle || 'normal';
 
     if (line.isHeading === 1) {
-      lineFontSize = options.fontSize * 1.5;
-      fontStyle = 'bold';
+      lineFontSize = options.fontSize * 1.375; // 22px
+      baseStyle = 'bold';
     } else if (line.isHeading === 2) {
-      lineFontSize = options.fontSize * 1.3;
-      fontStyle = 'bold';
+      lineFontSize = options.fontSize * 1.25; // 20px
+      baseStyle = 'bold';
     } else if (line.isHeading === 3) {
-      lineFontSize = options.fontSize * 1.15;
-      fontStyle = 'bold';
+      lineFontSize = options.fontSize * 1.125; // 18px
+      baseStyle = 'bold';
     }
 
-    const height = measureTextHeight(line.text, {
-      ...options,
-      fontSize: lineFontSize,
-      fontStyle,
-    });
+    let lineHeight = 0;
+    const segments = line.segments && line.segments.length > 0
+      ? line.segments
+      : [{ text: line.text }];
+    const hasInline = segments.some((segment) => segment.fontStyle);
+
+    if (!hasInline) {
+      lineHeight = measureTextHeight(line.text, {
+        ...options,
+        fontSize: lineFontSize,
+        fontStyle: baseStyle,
+      });
+    } else {
+      // Replicate MarkdownText wrapping logic for accurate height
+      const hPx = lineFontSize * (options.lineHeight || DEFAULT_LINE_HEIGHT);
+      let cursorX = 0;
+      let cursorY = 0;
+
+      segments.forEach((segment) => {
+        if (!segment.text) return;
+        const fontStyle = mergeFontStyles(baseStyle, segment.fontStyle);
+        const parts = segment.text.split(/(\s+)/).filter((part) => part.length > 0);
+
+        parts.forEach((part) => {
+          const isSpace = part.trim().length === 0;
+          if (cursorX === 0 && isSpace) return;
+
+          const partWidth = measureTextWidth(part, {
+            ...options,
+            fontSize: lineFontSize,
+            fontStyle,
+          });
+
+          if (cursorX + partWidth > options.width && cursorX > 0) {
+            cursorX = 0;
+            cursorY += hPx;
+            if (isSpace) return;
+          }
+          cursorX += partWidth;
+        });
+      });
+      lineHeight = cursorY + hPx;
+    }
 
     lines.push({
       text: line.text,
       y: currentY,
       fontSize: lineFontSize,
-      fontStyle,
-      height,
+      fontStyle: baseStyle,
+      height: lineHeight,
       segments: line.segments,
     });
 
-    currentY += height;
+    currentY += lineHeight;
   }
 
   const result = { lines, height: currentY };
