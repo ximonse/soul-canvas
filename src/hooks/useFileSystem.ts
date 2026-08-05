@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState, useRef } from 'react';
 import { useBrainStore } from '../store/useBrainStore';
 import { set as setDb, get as getDb } from 'idb-keyval';
 import { exportSessionForAI, sanitizeFilename } from '../utils/aiExport';
+import { createEmptyCanvasDocument, parseCanvasDocument, serializeCanvasDocument } from '../utils/canvasDocument';
 
 // Helper to revoke all blob URLs in an assets map
 function revokeAssetUrls(assets: Record<string, string>) {
@@ -40,56 +41,19 @@ export function useFileSystem() {
       setFileHandle(dirHandle);
       await setDb('soul-folder-handle', dirHandle);
 
-      // 2. Leta efter data.json
-      let data = {
-        nodes: [],
-        synapses: [],
-        conversations: [],
-        sessions: [],
-        trails: [],
-        sequences: [], // Ny
-        activeSessionId: null as string | null,
-        trailUi: { selectedTrailIds: [] as string[], showActiveTrailLine: true },
-      };
+      // 2. Läs data.json. A corrupt or unsupported document must stop the
+      // load instead of being mistaken for an empty workspace.
+      let data = createEmptyCanvasDocument();
       try {
         const fileHandle = await dirHandle.getFileHandle('data.json');
         const file = await fileHandle.getFile();
-        const text = await file.text();
-        const parsed = JSON.parse(text);
-
-        // Säkerställ att nodes är en array
-        let nodes = parsed.nodes || [];
-        if (!Array.isArray(nodes)) {
-          // Om nodes är ett objekt (från en Map), konvertera till array
-          nodes = Object.values(nodes).filter(n => n && typeof n === 'object');
+        data = parseCanvasDocument(JSON.parse(await file.text()));
+      } catch (err: unknown) {
+        if (err instanceof DOMException && err.name === 'NotFoundError') {
+          // New folder: keep the empty V1 document.
+        } else {
+          throw new Error(`Kunde inte läsa data.json: ${err instanceof Error ? err.message : String(err)}`);
         }
-
-        const rawSelectedTrailIds = Array.isArray(parsed.trailUi?.selectedTrailIds)
-          ? parsed.trailUi.selectedTrailIds
-          : Array.isArray(parsed.selectedTrailIds)
-            ? parsed.selectedTrailIds
-            : [];
-        const rawShowActiveTrailLine = typeof parsed.trailUi?.showActiveTrailLine === 'boolean'
-          ? parsed.trailUi.showActiveTrailLine
-          : typeof parsed.showActiveTrailLine === 'boolean'
-            ? parsed.showActiveTrailLine
-            : true;
-
-        data = {
-          nodes,
-          synapses: parsed.synapses || [],
-          conversations: parsed.conversations || [],
-          sessions: parsed.sessions || [],
-          trails: parsed.trails || [],
-          sequences: parsed.sequences || [], // Läs in
-          activeSessionId: parsed.activeSessionId || null,
-          trailUi: {
-            selectedTrailIds: rawSelectedTrailIds,
-            showActiveTrailLine: rawShowActiveTrailLine,
-          },
-        };
-      } catch {
-        // No data.json found, start with empty brain
       }
 
       // 3. Ladda in bilder från 'assets'-mappen
@@ -182,21 +146,19 @@ export function useFileSystem() {
       const writable = await fileRef.createWritable();
 
       const state = useBrainStore.getState();
-      const dataToSave = {
-        version: "3.0-folder",
-        lastSaved: new Date().toISOString(),
+      const dataToSave = serializeCanvasDocument({
         nodes: Array.from(state.nodes.values()),
         synapses: state.synapses,
         conversations: state.conversations,
         sessions: state.sessions,
         trails: state.trails,
-        sequences: state.sequences, // Spara
+        sequences: state.sequences,
         activeSessionId: state.activeSessionId,
         trailUi: {
           selectedTrailIds: state.selectedTrailIds,
           showActiveTrailLine: state.showActiveTrailLine,
         },
-      };
+      });
 
       await writable.write(JSON.stringify(dataToSave, null, 2));
       await writable.close();
