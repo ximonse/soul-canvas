@@ -33,7 +33,4 @@ my_eternal_mind/
 .claude/
 backend/.env
 
-# WIP features (local only)
-src/hooks/useWandering.ts
-src/store/slices/trailSlice.ts
-src/utils/trailPathfinding.ts
+.vercel
