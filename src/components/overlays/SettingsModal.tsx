@@ -30,6 +30,8 @@ export function SettingsModal({ onClose, theme }: SettingsModalProps) {
   const omnicalSyncMessage = useBrainStore((state) => state.omnicalSyncMessage);
   const pendingOmnicalCount = useBrainStore((state) => state.omnical.pendingFiles.length);
   const omnicalConflictCount = useBrainStore((state) => state.omnicalConflicts.length);
+  const hideOmnicalDoneArchived = useBrainStore((state) => state.hideOmnicalDoneArchived);
+  const toggleHideOmnicalDoneArchived = useBrainStore((state) => state.toggleHideOmnicalDoneArchived);
 
   return (
     <div
@@ -176,6 +178,14 @@ export function SettingsModal({ onClose, theme }: SettingsModalProps) {
                   {pendingOmnicalCount > 0 ? ' Väntar på Omnical: ' + pendingOmnicalCount + '.' : ''}
                   {omnicalConflictCount > 0 ? ' Konflikter: ' + omnicalConflictCount + '.' : ''}
                 </div>
+                <label className="flex items-center justify-between gap-4 text-sm">
+                  <span>Dölj klara/arkiverade Omnical-kort på canvasen</span>
+                  <input
+                    type="checkbox"
+                    checked={hideOmnicalDoneArchived}
+                    onChange={toggleHideOmnicalDoneArchived}
+                  />
+                </label>
               </>
             )}
           </div>

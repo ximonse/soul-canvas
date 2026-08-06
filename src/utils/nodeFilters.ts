@@ -22,6 +22,15 @@ export const filterNodesOutsideSession = (
   return nodes.filter(n => !cardIdSet.has(n.id));
 };
 
+// Dölj klara/arkiverade Omnical-kort (opt-in canvas-läge)
+export const filterNodesByOmnicalStatus = (
+  nodes: MindNode[],
+  hideDoneArchived: boolean
+): MindNode[] => {
+  if (!hideDoneArchived) return nodes;
+  return nodes.filter(n => !n.done && !n.archived);
+};
+
 export const filterNodesByTags = (
   nodes: MindNode[],
   includeTags: string[],

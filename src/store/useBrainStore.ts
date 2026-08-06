@@ -38,6 +38,7 @@ interface CoreState {
   synapseVisibilityThreshold: number;  // Visa bara kopplingar med similarity >= detta värde (0-1)
   includeTags: string[];   // Taggar att inkludera (visa bara kort med dessa)
   excludeTags: string[];   // Taggar att exkludera (dölj kort med dessa)
+  hideOmnicalDoneArchived: boolean; // Dölj klara/arkiverade Omnical-kort på canvasen
 
   // Sequences (D+klick kedjor)
   sequences: Sequence[];
@@ -78,6 +79,7 @@ interface CoreActions {
   setSynapseVisibilityThreshold: (threshold: number) => void;
   toggleTagFilter: (tag: string) => void;  // Växla: neutral → include → exclude → neutral
   clearTagFilter: () => void;
+  toggleHideOmnicalDoneArchived: () => void;
 
   loadNodes: (nodes: MindNode[], synapses?: Synapse[]) => void;
   loadAssets: (assets: Record<string, string>) => void;
@@ -219,6 +221,7 @@ export const useBrainStore = create<BrainStore>()((set, get, api) => ({
   activeSessionId: null,
   includeTags: [],
   excludeTags: [],
+  hideOmnicalDoneArchived: false,
   viewMode: 'canvas',
   columnSort: 'newest',
   columnShowComments: false,
@@ -296,6 +299,8 @@ export const useBrainStore = create<BrainStore>()((set, get, api) => ({
   }),
 
   clearTagFilter: () => set({ includeTags: [], excludeTags: [] }),
+
+  toggleHideOmnicalDoneArchived: () => set((state) => ({ hideOmnicalDoneArchived: !state.hideOmnicalDoneArchived })),
 
   // Helper function
   createNodesMap: (nodesArray: MindNode[]) => {

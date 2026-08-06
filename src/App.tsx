@@ -33,7 +33,7 @@ import { OmnicalConflictModal } from './components/overlays/OmnicalConflictModal
 import { SessionPanel } from './components/SessionPanel';
 import { AIBatchStatus } from './components/overlays/AIBatchStatus';
 import type { ContextMenuState } from './components/overlays/ContextMenu';
-import { filterNodesByTags, filterNodesBySession } from './utils/nodeFilters';
+import { filterNodesByTags, filterNodesBySession, filterNodesByOmnicalStatus } from './utils/nodeFilters';
 import { summarizeChatToCard } from './utils/claude';
 
 // Lazy loaded overlays
@@ -57,6 +57,7 @@ function App() {
   const activeSessionId = useBrainStore((state) => state.activeSessionId);
   const includeTags = useBrainStore((state) => state.includeTags);
   const excludeTags = useBrainStore((state) => state.excludeTags);
+  const hideOmnicalDoneArchived = useBrainStore((state) => state.hideOmnicalDoneArchived);
   const selectedNodeIds = useBrainStore((state) => state.selectedNodeIds);
   const claudeKey = useBrainStore((state) => state.claudeKey);
   const enableAutoLink = useBrainStore((state) => state.enableAutoLink);
@@ -188,9 +189,13 @@ function App() {
     () => filterNodesBySession(allNodesArray, activeSession),
     [allNodesArray, activeSession]
   );
+  const statusFilteredNodes = useMemo(
+    () => filterNodesByOmnicalStatus(sessionFilteredNodes, hideOmnicalDoneArchived),
+    [sessionFilteredNodes, hideOmnicalDoneArchived]
+  );
   const filteredNodesArray = useMemo(() =>
-    filterNodesByTags(sessionFilteredNodes, includeTags, excludeTags),
-    [sessionFilteredNodes, includeTags, excludeTags]
+    filterNodesByTags(statusFilteredNodes, includeTags, excludeTags),
+    [statusFilteredNodes, includeTags, excludeTags]
   );
   const filteredNodesMap = useMemo(
     () => new Map<string, MindNode>(filteredNodesArray.map((n: MindNode) => [n.id, n] as const)),
