@@ -11,6 +11,7 @@ export default defineConfig({
           if (!id.includes('node_modules')) return;
 
           if (id.includes('pdfjs-dist')) return 'pdfjs';
+          if (id.includes('react-konva') || id.includes('/konva/')) return 'konva';
           if (
             id.includes('@anthropic-ai/sdk') ||
             id.includes('@google/generative-ai') ||
