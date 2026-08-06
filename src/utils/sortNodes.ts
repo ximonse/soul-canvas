@@ -75,6 +75,18 @@ export function sortNodes(
       });
       break;
 
+    case 'area':
+      // Alfabetiskt på område (Omnical), kort utan område sist
+      sorted.sort((a, b) => {
+        const areaA = a.area?.trim() || '';
+        const areaB = b.area?.trim() || '';
+        if (!areaA && !areaB) return 0;
+        if (!areaA) return 1;
+        if (!areaB) return -1;
+        return areaA.localeCompare(areaB, 'sv-SE');
+      });
+      break;
+
     case 'value-low':
       // Lägst värde först (6 = lowest, 1 = highest, undefined last)
       sorted.sort((a, b) => {
@@ -101,4 +113,5 @@ export const SORT_LABELS: Record<SortOption, string> = {
   copied: 'Senast kopierad',
   'value-high': 'Högst värde (1→6)',
   'value-low': 'Lägst värde (6→1)',
+  area: 'Område (Omnical)',
 };

@@ -1,6 +1,13 @@
 import type { MindNode, OmnicalLink } from '../types/types';
 
-export interface OmnicalMarkdownNote {
+export interface OmnicalMeta {
+  done: boolean;
+  archived: boolean;
+  area: string;
+  remindAt: string;
+}
+
+export interface OmnicalMarkdownNote extends OmnicalMeta {
   id: string;
   path: string;
   body: string;
@@ -11,11 +18,13 @@ export interface OmnicalMarkdownNote {
 }
 
 export interface SharedMergePlan {
-  conflictFields: Array<'body' | 'tags'>;
+  conflictFields: Array<'body' | 'tags' | 'meta'>;
   body: string;
   tags: string[];
+  meta: OmnicalMeta;
   writeBody: boolean;
   writeTags: boolean;
+  writeMeta: boolean;
 }
 
 const INLINE_TAG = /#([^\s#]+)/g;
@@ -53,6 +62,15 @@ export function tagsHash(tags: readonly string[]) {
       .map((tag) => tag.toLocaleLowerCase('sv-SE'))
       .sort((left, right) => left.localeCompare(right, 'sv-SE')),
   ));
+}
+
+export function metaHash(meta: OmnicalMeta) {
+  return stableTextHash(JSON.stringify({
+    done: meta.done,
+    archived: meta.archived,
+    area: meta.area.trim().normalize('NFC'),
+    remindAt: meta.remindAt.trim(),
+  }));
 }
 
 function parseScalar(value: string): unknown {
@@ -114,6 +132,10 @@ export function parseOmnicalMarkdown(source: string, path: string): OmnicalMarkd
   const propertyTags = Array.isArray(rawTags) && rawTags.every((tag) => typeof tag === 'string')
     ? rawTags
     : [];
+  const done = values.get('done');
+  const archived = values.get('archived');
+  const area = values.get('område');
+  const remindAt = values.get('remindAt');
   return {
     id,
     path,
@@ -122,6 +144,10 @@ export function parseOmnicalMarkdown(source: string, path: string): OmnicalMarkd
     source,
     frontmatterLines: split.frontmatterLines,
     lineEnding: split.lineEnding,
+    done: typeof done === 'boolean' ? done : false,
+    archived: typeof archived === 'boolean' ? archived : false,
+    area: typeof area === 'string' ? area : '',
+    remindAt: typeof remindAt === 'string' ? remindAt : '',
   };
 }
 
@@ -144,8 +170,18 @@ function replaceFrontmatterField(lines: string[], key: string, value: string) {
   return result;
 }
 
-export function writeSharedMarkdown(note: OmnicalMarkdownNote, body: string, tags: string[], updated = new Date().toISOString()) {
+export function writeSharedMarkdown(
+  note: OmnicalMarkdownNote,
+  body: string,
+  tags: string[],
+  meta: OmnicalMeta,
+  updated = new Date().toISOString(),
+) {
   let lines = replaceFrontmatterField(note.frontmatterLines, 'tags', JSON.stringify(normalizeTags(tags, body)));
+  lines = replaceFrontmatterField(lines, 'done', JSON.stringify(meta.done));
+  lines = replaceFrontmatterField(lines, 'archived', JSON.stringify(meta.archived));
+  lines = replaceFrontmatterField(lines, 'område', JSON.stringify(meta.area));
+  lines = replaceFrontmatterField(lines, 'remindAt', meta.remindAt.trim() ? JSON.stringify(meta.remindAt.trim()) : '');
   lines = replaceFrontmatterField(lines, 'updated', JSON.stringify(updated));
   const eol = note.lineEnding;
   return [
@@ -162,7 +198,11 @@ export function fingerprintForPending(body: string) {
   return bodyHash(body);
 }
 
-export function planSharedMerge(node: Pick<MindNode, 'content' | 'tags'>, link: OmnicalLink, remote: OmnicalMarkdownNote): SharedMergePlan {
+export function planSharedMerge(
+  node: Pick<MindNode, 'content' | 'tags' | 'done' | 'archived' | 'area' | 'remindAt'>,
+  link: OmnicalLink,
+  remote: OmnicalMarkdownNote,
+): SharedMergePlan {
   const soulBodyHash = bodyHash(node.content);
   const soulTagsHash = tagsHash(normalizeTags(node.tags, node.content));
   const remoteBodyHash = bodyHash(remote.body);
@@ -172,18 +212,42 @@ export function planSharedMerge(node: Pick<MindNode, 'content' | 'tags'>, link: 
   const soulTagsChanged = soulTagsHash !== link.tagsHash;
   const remoteBodyChanged = remoteBodyHash !== link.bodyHash;
   const remoteTagsChanged = remoteTagsHash !== link.tagsHash;
-  const conflictFields: Array<'body' | 'tags'> = [];
+  const conflictFields: Array<'body' | 'tags' | 'meta'> = [];
 
   if (soulBodyChanged && remoteBodyChanged && soulBodyHash !== remoteBodyHash) conflictFields.push('body');
   if (soulTagsChanged && remoteTagsChanged && soulTagsHash !== remoteTagsHash) conflictFields.push('tags');
 
   const body = soulBodyChanged ? node.content : remote.body;
   const tags = soulTagsChanged ? normalizeTags(node.tags, node.content) : remote.tags;
+
+  const soulMeta: OmnicalMeta = {
+    done: node.done ?? false,
+    archived: node.archived ?? false,
+    area: node.area ?? '',
+    remindAt: node.remindAt ?? '',
+  };
+  const remoteMeta: OmnicalMeta = {
+    done: remote.done,
+    archived: remote.archived,
+    area: remote.area,
+    remindAt: remote.remindAt,
+  };
+  const linkMetaHash = link.metaHash ?? '';
+  const soulMetaHash = metaHash(soulMeta);
+  const remoteMetaHash = metaHash(remoteMeta);
+  const soulMetaChanged = soulMetaHash !== linkMetaHash;
+  const remoteMetaChanged = remoteMetaHash !== linkMetaHash;
+
+  if (soulMetaChanged && remoteMetaChanged && soulMetaHash !== remoteMetaHash) conflictFields.push('meta');
+
+  const meta = soulMetaChanged ? soulMeta : remoteMeta;
   return {
     conflictFields,
     body,
     tags,
+    meta,
     writeBody: bodyHash(body) !== remoteBodyHash,
     writeTags: tagsHash(tags) !== remoteTagsHash,
+    writeMeta: metaHash(meta) !== remoteMetaHash,
   };
 }

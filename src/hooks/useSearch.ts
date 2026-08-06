@@ -137,6 +137,10 @@ type SearchField =
   | 'copied'
   | 'originalcreated'
   | 'value'
+  | 'area'
+  | 'done'
+  | 'archived'
+  | 'remindat'
   | 'all';
 
 const FIELD_ALIASES: Record<string, SearchField> = {
@@ -173,6 +177,16 @@ const FIELD_ALIASES: Record<string, SearchField> = {
   value: 'value',
   val: 'value',
   v: 'value',
+  area: 'area',
+  område: 'area',
+  omrade: 'area',
+  done: 'done',
+  klar: 'done',
+  archived: 'archived',
+  arkiverad: 'archived',
+  remindat: 'remindat',
+  remind: 'remindat',
+  påminn: 'remindat',
 };
 
 const parseFieldTerm = (raw: string): { field?: SearchField; value: string } => {
@@ -235,6 +249,10 @@ export function useSearch({ nodes }: UseSearchOptions): UseSearchResult {
         copied: normalizeDateSearchText(node.copiedAt),
         originalcreated: normalizeDateSearchText(node.originalCreatedAt),
         value: node.value !== undefined ? String(node.value) : '',
+        area: (node.area || '').toLowerCase(),
+        done: node.done ? 'true' : 'false',
+        archived: node.archived ? 'true' : 'false',
+        remindat: (node.remindAt || '').toLowerCase(),
         all: '',
       } as Record<SearchField, string>;
 
@@ -254,9 +272,13 @@ export function useSearch({ nodes }: UseSearchOptions): UseSearchResult {
         searchable.created,
         searchable.updated,
         searchable.value,
+        searchable.area,
+        searchable.remindat,
         // Include field names to allow finding cards by typing "val" or "crea"
         node.value !== undefined ? 'value' : '',
         node.link ? 'link' : '',
+        node.done ? 'done' : '',
+        node.archived ? 'archived' : '',
         'created',
         'updated',
         'type'

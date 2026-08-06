@@ -4,13 +4,24 @@ import type { MindNode, OmnicalConflict, PendingOmnicalFile, Session } from '../
 import {
   bodyHash,
   fingerprintForPending,
+  metaHash,
   normalizeTags,
   parseOmnicalMarkdown,
   planSharedMerge,
   tagsHash,
   writeSharedMarkdown,
   type OmnicalMarkdownNote,
+  type OmnicalMeta,
 } from './omnicalNotes';
+
+function metaOf(note: Pick<MindNode, 'done' | 'archived' | 'area' | 'remindAt'>): OmnicalMeta {
+  return {
+    done: note.done ?? false,
+    archived: note.archived ?? false,
+    area: note.area ?? '',
+    remindAt: note.remindAt ?? '',
+  };
+}
 
 const HANDLE_KEY = 'soul-omnical-folder-handle';
 const OMNICAL_SESSION_ID = 'soul-omnical-shared-session';
@@ -245,14 +256,15 @@ async function runSync() {
     linkedIds.add(adopted.id);
     nodes.set(node.id, {
       ...node,
-      // Keep Soul's shared fields so explicit tags can flow into the newly
-      // adopted Omnical file during the same three-way sync.
+      // Keep Soul's shared fields so explicit tags/meta can flow into the
+      // newly adopted Omnical file during the same three-way sync.
       omnicalLink: {
         omnicalId: adopted.id,
         path: adopted.path,
         status: 'linked',
         bodyHash: bodyHash(adopted.body),
         tagsHash: tagsHash(adopted.tags),
+        metaHash: metaHash(metaOf(adopted)),
       },
     });
   }
@@ -288,9 +300,9 @@ async function runSync() {
       continue;
     }
 
-    if (plan.writeBody || plan.writeTags) {
+    if (plan.writeBody || plan.writeTags || plan.writeMeta) {
       try {
-        const source = writeSharedMarkdown(remote, plan.body, plan.tags);
+        const source = writeSharedMarkdown(remote, plan.body, plan.tags, plan.meta);
         await writeRelative(activeHandle, remote.path, source);
         const parsed = parseOmnicalMarkdown(source, remote.path);
         if (parsed) scan.notes.set(omnicalId, parsed);
@@ -299,11 +311,16 @@ async function runSync() {
         continue;
       }
     }
+    const metaChanged = metaHash(metaOf(node)) !== metaHash(plan.meta);
     nodes.set(node.id, {
       ...node,
       content: plan.body,
       tags: plan.tags,
-      updatedAt: node.content !== plan.body || tagsHash(node.tags) !== tagsHash(plan.tags)
+      done: plan.meta.done,
+      archived: plan.meta.archived,
+      area: plan.meta.area || undefined,
+      remindAt: plan.meta.remindAt || undefined,
+      updatedAt: node.content !== plan.body || tagsHash(node.tags) !== tagsHash(plan.tags) || metaChanged
         ? new Date().toISOString()
         : node.updatedAt,
       omnicalLink: {
@@ -312,6 +329,7 @@ async function runSync() {
         status: 'linked',
         bodyHash: bodyHash(plan.body),
         tagsHash: tagsHash(plan.tags),
+        metaHash: metaHash(plan.meta),
       },
     });
   }
@@ -340,12 +358,17 @@ async function runSync() {
       tags: note.tags,
       type: 'text',
       createdAt: new Date().toISOString(),
+      done: note.done,
+      archived: note.archived,
+      area: note.area || undefined,
+      remindAt: note.remindAt || undefined,
       omnicalLink: {
         omnicalId: note.id,
         path: note.path,
         status: 'linked',
         bodyHash: bodyHash(note.body),
         tagsHash: tagsHash(note.tags),
+        metaHash: metaHash(metaOf(note)),
       },
     };
     gridIndex += 1;
@@ -395,7 +418,8 @@ export async function resolveOmnicalConflict(conflictId: string, resolution: 'om
   const nodes = new Map(state.nodes);
   let sessions = state.sessions;
   if (resolution === 'soul') {
-    const source = writeSharedMarkdown(remote, node.content, normalizeTags(node.tags, node.content));
+    const soulMeta = metaOf(node);
+    const source = writeSharedMarkdown(remote, node.content, normalizeTags(node.tags, node.content), soulMeta);
     await writeRelative(activeHandle, remote.path, source);
     nodes.set(node.id, {
       ...node,
@@ -405,6 +429,7 @@ export async function resolveOmnicalConflict(conflictId: string, resolution: 'om
         status: 'linked',
         bodyHash: bodyHash(node.content),
         tagsHash: tagsHash(normalizeTags(node.tags, node.content)),
+        metaHash: metaHash(soulMeta),
       },
     });
   } else {
@@ -426,10 +451,15 @@ export async function resolveOmnicalConflict(conflictId: string, resolution: 'om
           ? { ...session, cardIds: [...session.cardIds, copyId] }
           : session);
     }
+    const remoteMeta = metaOf(remote);
     nodes.set(node.id, {
       ...node,
       content: remote.body,
       tags: remote.tags,
+      done: remoteMeta.done,
+      archived: remoteMeta.archived,
+      area: remoteMeta.area || undefined,
+      remindAt: remoteMeta.remindAt || undefined,
       updatedAt: new Date().toISOString(),
       omnicalLink: {
         omnicalId: remote.id,
@@ -437,6 +467,7 @@ export async function resolveOmnicalConflict(conflictId: string, resolution: 'om
         status: 'linked',
         bodyHash: bodyHash(remote.body),
         tagsHash: tagsHash(remote.tags),
+        metaHash: metaHash(remoteMeta),
       },
     });
   }

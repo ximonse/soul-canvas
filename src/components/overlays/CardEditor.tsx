@@ -28,6 +28,9 @@ export const CardEditor = ({ cardId, onClose, theme }: CardEditorProps) => {
   const [value, setValue] = useState<number | undefined>(undefined);
   const [eventDate, setEventDate] = useState('');
   const [remindAt, setRemindAt] = useState('');
+  const [area, setArea] = useState('');
+  const [done, setDone] = useState(false);
+  const [archived, setArchived] = useState(false);
   const [remindSlider, setRemindSlider] = useState(0);
   const [reminderMenuOpen, setReminderMenuOpen] = useState(false);
   const [accentColor, setAccentColor] = useState<string | undefined>(undefined);
@@ -110,6 +113,9 @@ export const CardEditor = ({ cardId, onClose, theme }: CardEditorProps) => {
       setEventDate(card.event || '');
       setRemindAt(card.remindAt || '');
       setRemindSlider(0);
+      setArea(card.area || '');
+      setDone(card.done || false);
+      setArchived(card.archived || false);
       setAccentColor(card.accentColor);
 
       // Parse link field if it exists
@@ -194,9 +200,14 @@ export const CardEditor = ({ cardId, onClose, theme }: CardEditorProps) => {
     if ((nextEvent || undefined) !== (card.event || undefined)) updates.event = nextEvent;
     if ((nextRemindAt || undefined) !== (card.remindAt || undefined)) updates.remindAt = nextRemindAt;
     if ((accentColor || undefined) !== (card.accentColor || undefined)) updates.accentColor = accentColor;
+    const nextArea = area.trim() || undefined;
+    if (nextArea !== (card.area || undefined)) updates.area = nextArea;
+    if (done !== (card.done || false)) updates.done = done;
+    if (archived !== (card.archived || false)) updates.archived = archived;
 
     if (Object.keys(updates).length > 0) {
-      const sharedFieldChanged = 'content' in updates || 'tags' in updates;
+      const sharedFieldChanged = 'content' in updates || 'tags' in updates
+        || 'done' in updates || 'archived' in updates || 'area' in updates || 'remindAt' in updates;
       updateNode(cardId, updates);
       if (card.omnicalLink && sharedFieldChanged) requestOmnicalSync();
     }
@@ -490,6 +501,35 @@ export const CardEditor = ({ cardId, onClose, theme }: CardEditorProps) => {
               borderStyle: 'solid'
             }}
           />
+
+          {card.type === 'text' && (
+            <div className="flex items-center gap-3 flex-wrap">
+              <input
+                type="text"
+                value={area}
+                onChange={e => setArea(e.target.value)}
+                placeholder="Område (Omnical)"
+                className="flex-1 px-4 rounded-lg outline-none text-sm"
+                style={{
+                  backgroundColor: theme.canvasColor,
+                  paddingTop: '0.2em',
+                  paddingBottom: '0.2rem',
+                  color: theme.node.text,
+                  borderColor: theme.node.border,
+                  borderWidth: '1px',
+                  borderStyle: 'solid',
+                }}
+              />
+              <label className="flex items-center gap-1 text-sm" style={{ color: theme.node.text }}>
+                <input type="checkbox" checked={done} onChange={e => setDone(e.target.checked)} />
+                Klar
+              </label>
+              <label className="flex items-center gap-1 text-sm" style={{ color: theme.node.text }}>
+                <input type="checkbox" checked={archived} onChange={e => setArchived(e.target.checked)} />
+                Arkiverad
+              </label>
+            </div>
+          )}
 
           <textarea
             value={comment}

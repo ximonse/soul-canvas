@@ -128,7 +128,7 @@ describe('Omnical folder round trip', () => {
     expect(afterSoul).toContain('custom: "bevara"');
 
     const parsed = parseOmnicalMarkdown(afterSoul, 'note.md')!;
-    root.files.set('note.md', writeSharedMarkdown(parsed, 'Ändrad i Omnical', ['extern']));
+    root.files.set('note.md', writeSharedMarkdown(parsed, 'Ändrad i Omnical', ['extern'], parsed));
     await sync.syncOmnicalNotes();
     state = brain.useBrainStore.getState();
     expect(state.nodes.get(linked.id)).toMatchObject({ content: 'Ändrad i Omnical', tags: ['extern'] });
@@ -141,7 +141,7 @@ describe('Omnical folder round trip', () => {
 
     state.updateNode(linked.id, { content: 'Soul-version' });
     const remote = parseOmnicalMarkdown(root.files.get('note.md')!, 'note.md')!;
-    root.files.set('note.md', writeSharedMarkdown(remote, 'Omnical-version', remote.tags));
+    root.files.set('note.md', writeSharedMarkdown(remote, 'Omnical-version', remote.tags, remote));
     await sync.syncOmnicalNotes();
 
     state = brain.useBrainStore.getState();

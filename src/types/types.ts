@@ -8,6 +8,7 @@ export interface OmnicalLink {
   status: OmnicalLinkStatus;
   bodyHash: string;
   tagsHash: string;
+  metaHash?: string;
 }
 
 export interface PendingOmnicalFile {
@@ -29,7 +30,7 @@ export interface OmnicalConflict {
   nodeId: string;
   omnicalId: string;
   path: string;
-  fields: Array<'body' | 'tags'>;
+  fields: Array<'body' | 'tags' | 'meta'>;
   remoteBody: string;
   remoteTags: string[];
 }
@@ -38,7 +39,7 @@ export interface OmnicalConflict {
 export type ViewMode = 'canvas' | 'column';
 
 // Sorteringsalternativ för kolumn-vy
-export type SortOption = 'connections' | 'tags' | 'oldest' | 'newest' | 'modified' | 'copied' | 'value-high' | 'value-low';
+export type SortOption = 'connections' | 'tags' | 'oldest' | 'newest' | 'modified' | 'copied' | 'value-high' | 'value-low' | 'area';
 
 export interface MindNode {
   id: string;
@@ -86,6 +87,11 @@ export interface MindNode {
   value?: number;          // 1-6 (1=Highest, 6=Lowest)
   event?: string;          // Event date/time string (e.g. YYMMDD_HHMM or ISO)
   remindAt?: string;       // Reminder date/time string(s), comma separated
+
+  // Omnical shared status (synced when omnicalLink is set)
+  done?: boolean;          // Avbockad i Omnical
+  archived?: boolean;      // Arkiverad i Omnical
+  area?: string;           // "Område" i Omnical
 
   // Selection Scope (transient, ej sparad till fil)
   scopeDegree?: number;    // 0 = ej scope, 1-6 = grad av koppling från bas-selektion

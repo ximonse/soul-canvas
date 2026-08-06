@@ -24,6 +24,10 @@ const FIELD_COMPLETIONS = [
   'copied',
   'originalcreated',
   'value',
+  'area',
+  'done',
+  'archived',
+  'remindat',
 ];
 
 const DATE_OPERATOR_COMPLETIONS = [
@@ -294,6 +298,9 @@ export function SearchOverlay({
                   <div><span className="font-mono">title:</span> ord i rubriker</div>
                   <div><span className="font-mono">content:</span> ord i innehållstexten</div>
                   <div><span className="font-mono">tags:</span> taggar som kortet givits (t.ex. viktigt, todo, relationer, arbete)</div>
+                  <div><span className="font-mono">area:</span> Omnical-område (t.ex. area:jobb)</div>
+                  <div><span className="font-mono">done:</span> true/false — avbockad i Omnical</div>
+                  <div><span className="font-mono">archived:</span> true/false — arkiverad i Omnical</div>
                 </div>
               </div>
 
