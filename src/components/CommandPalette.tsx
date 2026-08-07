@@ -101,6 +101,7 @@ export const CommandPalette = ({
   const nodes = useBrainStore((state) => state.nodes);
   const synapses = useBrainStore((state) => state.synapses);
   const selectedNodeIds = useBrainStore((state) => state.selectedNodeIds);
+  const enableAutoLink = useBrainStore((state) => state.enableAutoLink);
   const selectAll = useBrainStore((state) => state.selectAll);
   const clearSelection = useBrainStore((state) => state.clearSelection);
   const intelligence = useIntelligence();
@@ -141,7 +142,7 @@ export const CommandPalette = ({
     { id: 'quote-extractor', name: 'AI Quote Extractor', shortcut: 'e', action: () => { onQuoteExtractor(); onClose(); }, category: 'ai', icon: '\u2728' },
     { id: 'ocr-prompt', name: 'Edit OCR Prompt', shortcut: 'ocr', action: () => { onOpenOcrPrompt(); onClose(); }, category: 'ai', icon: '\u270D' },
     { id: 'embed', name: 'Generate Embeddings', shortcut: 'emb', action: async () => { await intelligence.embedAllNodes(); onClose(); }, category: 'ai', icon: '\u{1F9EC}' },
-    { id: 'link', name: 'Auto-Link Similar', shortcut: 'link', action: async () => { await intelligence.autoLinkSimilarNodes(); onClose(); }, category: 'ai', icon: '\u{1F517}' },
+    ...(enableAutoLink ? [{ id: 'link', name: 'Auto-Link Similar', shortcut: 'link', action: async () => { await intelligence.autoLinkSimilarNodes(); onClose(); }, category: 'ai' as const, icon: '\u{1F517}' }] : []),
     { id: 'reflect', name: 'AI Reflection', shortcut: 'ref', action: async () => { await intelligence.reflect(); onClose(); }, category: 'ai', icon: '\u{1F914}' },
     { id: 'tags', name: 'Generate Tags', shortcut: 'tag', action: async () => { await intelligence.generateTagsForSelection(); onClose(); }, category: 'ai', icon: '\u{1F3F7}' },
 
@@ -203,6 +204,7 @@ export const CommandPalette = ({
       name: 'Delete Permanently',
       shortcut: 'ctrl+del',
       action: () => {
+        if (!confirm(`Radera ${selectedNodeIds.size} kort PERMANENT från alla sessioner?`)) return;
         const deleteNodesPermanently = useBrainStore.getState().deleteNodesPermanently;
         deleteNodesPermanently(Array.from(selectedNodeIds));
         onClose();

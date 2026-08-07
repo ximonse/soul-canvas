@@ -36,7 +36,7 @@
 | `Ctrl+Enter` | Spara |
 | `Ctrl+C/V` | Kopiera/Klistra kort |
 | `Ctrl+Z/Y` | Undo/Redo |
-| `Ctrl+A` | Markera alla (synliga) |
+| `Ctrl+A` | Markera alla |
 | `Ctrl+Ö` / `Ctrl+Backquote` | Toggle Selection Scope Panel |
 | `Delete/Backspace` | Radera (session-aware) |
 | `Ctrl+Delete/Backspace` | Radera permanent |

@@ -961,7 +961,6 @@ function App() {
           onToggleScopePanel={selectionScope.toggleVisibility}
           theme={theme}
           claudeAvailable={Boolean(claudeKey)}
-          onFocusSearch={() => search.openSearch()}
           pdfImportPrompt={pdfImportPromptProps}
         />
       )}

@@ -4,7 +4,7 @@
 import React, { Suspense, lazy } from 'react';
 import { type CanvasAPI } from '../hooks/useCanvas';
 import { type SearchAPI } from '../hooks/useSearch';
-import { type Theme } from '../themes';
+import { THEMES, type Theme } from '../themes';
 import type { ChatProvider, ChatMessage } from '../utils/chatProviders';
 import type { Conversation } from '../types/types';
 import { type ContextMenuState } from './overlays/ContextMenu';
@@ -141,8 +141,6 @@ interface ModalManagerProps {
     onCancel: () => void;
   } | null;
   
-  // Extra commands for CommandPalette
-  onFocusSearch?: () => void;
 }
 
 export const ModalManager: React.FC<ModalManagerProps> = ({
@@ -313,7 +311,7 @@ export const ModalManager: React.FC<ModalManagerProps> = ({
             setShowOcrPrompt(true);
           }}
           onSave={handleManualSave}
-          onToggleTheme={() => setThemeIndex((i) => (i + 1) % 4)} // Assumes 4 themes
+          onToggleTheme={() => setThemeIndex((i) => (i + 1) % Object.keys(THEMES).length)}
           onCenterCamera={centerCamera}
           onToggleZen={() => setZenMode((prev) => !prev)}
           onResetZoom={onResetZoom}
