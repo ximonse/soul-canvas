@@ -233,13 +233,6 @@ export const CommandPalette = ({
       }, category: 'file', icon: 'CSV'
     },
     { id: 'settings', name: 'Settings', shortcut: '', action: () => { onOpenSettings(); onClose(); }, category: 'file', icon: '\u2699' },
-    {
-      id: 'migrate-links', name: 'Migrate Links (Comment -> Link Field)', shortcut: 'migrate', action: () => {
-        const migratedCount = useBrainStore.getState().migrateLinksFromCommentToLink();
-        alert(`OK. Migrated ${migratedCount} cards`);
-        onClose();
-      }, category: 'file', icon: '\u{1F501}'
-    },
   ];
 
   const filteredCommands = commands.filter(cmd =>

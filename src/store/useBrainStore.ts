@@ -145,9 +145,6 @@ interface CoreActions {
   toggleColumnShowTags: () => void;
   toggleColumnShowMeta: () => void;
   toggleColumnShowCaptions: () => void;
-
-  // Migration helpers
-  migrateLinksFromCommentToLink: () => number;
 }
 
 const shouldTouchUpdatedAt = (updates: Partial<MindNode>): boolean => (
@@ -903,46 +900,6 @@ export const useBrainStore = create<BrainStore>()((set, get, api) => ({
   toggleColumnShowTags: () => set((state) => ({ columnShowTags: !state.columnShowTags })),
   toggleColumnShowMeta: () => set((state) => ({ columnShowMeta: !state.columnShowMeta })),
   toggleColumnShowCaptions: () => set((state) => ({ columnShowCaptions: !state.columnShowCaptions })),
-
-  // Migration: Move links from comment to link field
-  migrateLinksFromCommentToLink: () => {
-    let migratedCount = 0;
-
-    set((state) => {
-      const updatedNodes = new Map(state.nodes);
-
-      updatedNodes.forEach((node, id) => {
-        // Skip if link field already has content
-        if (node.link) return;
-
-        // Check if comment contains a markdown link
-        if (node.comment) {
-          const linkMatch = node.comment.match(/\[([^\]]+)\]\(([^)]+)\)/);
-          if (linkMatch) {
-            const linkText = linkMatch[0];
-            const linkName = linkMatch[1];
-            const linkUrl = linkMatch[2];
-
-            // Move link to link field and remove from comment
-            const updatedComment = node.comment.replace(linkText, '').trim();
-
-            updatedNodes.set(id, {
-              ...node,
-              link: `[${linkName}](${linkUrl})`,
-              comment: updatedComment || undefined
-            });
-
-            migratedCount++;
-          }
-        }
-      });
-
-      return migratedCount > 0 ? { nodes: updatedNodes, pendingSave: true } : {};
-    });
-
-    console.log(`✅ Migrated ${migratedCount} cards from comment to link field`);
-    return migratedCount;
-  },
 
   // Selection slice
   ...createSelectionSlice(set),
