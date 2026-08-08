@@ -622,7 +622,7 @@ function App() {
 
   return (
     <div
-      className={`w-screen h-screen overflow-hidden relative font-sans cursor-move transition-colors duration-700 ${theme.bg} ${theme.text}`}
+      className={`w-screen h-screen overflow-hidden relative cursor-move transition-colors duration-700 ${theme.bg} ${theme.text}`}
       onDragOver={(e) => { e.preventDefault(); if (hasFile) setIsDraggingFile(true); }}
       onDragLeave={() => setIsDraggingFile(false)}
       onDrop={(e) => { setIsDraggingFile(false); handleDrop(e); }}
