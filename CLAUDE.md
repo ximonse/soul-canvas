@@ -12,9 +12,9 @@ Detta dokument gäller alla AI-assistenter som hjälper till i repo:t. Håll det
 En lokal, canvas-baserad kunskapsyta för tusentals kort med AI-driven förståelse och organisation.
 
 ## Aktuell status (hålls kort)
-- Fokus: dokumentationssynk + UX-polish.
-- Blockers: inga kända.
-- Senast uppdaterad: 2026-01-04
+- Fokus: Omnical-integration (delade anteckningar + status-synk) + drift/deploy-hygien.
+- Blockers: inga kända. Vercels GitHub-autodeploy funkar nu (var trasig länge, se WORKLOG 2026-08-07) — undvik manuella `vercel deploy --prod` från CLI, låt push till `main` deploya.
+- Senast uppdaterad: 2026-08-07
 - Detaljer: WORKLOG.md
 
 ## Kärnprinciper

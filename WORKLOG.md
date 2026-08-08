@@ -2,6 +2,14 @@
 
 Detaljerad logg. Håll "Aktuell status" i `CLAUDE.md` kort; lägg detaljer här.
 
+## 2026-08-07
+- **Vercel GitHub-autodeploy var trasig sedan länge, nu fixad.** `useBrainStore.ts` importerade statiskt från `trailSlice.ts`/`useWandering.ts`/`trailPathfinding.ts`, men de var gitignorade som "lokala WIP-filer" och fanns aldrig i git. En ren `git clone` (som Vercels GitHub-integration gör) kunde därför inte lösa importen, vilket kollapsade typinferensen för hela `BrainStore` och gav hundratals TS-fel. Alla GitHub-triggade production-builds hade failat historiskt; bara manuella `vercel deploy --prod` från CLI (som packar det som faktiskt ligger på disk) hade lyckats — vilket är varför produktion råkade peka på en feature-branch. Fix: `trailSlice.ts` m.fl. spåras nu i git, bakom samma `enableWanderingTrails`-flagga (av som standard) som `TrailPanel.tsx` redan hade. Se `git log` commit `8d54ec6`.
+- **Verifieringsrutin för build-ändringar:** eftersom lokala byggen kan lyckas med filer som saknas i git, verifieras riskabla ändringar nu via `git clone --local` till en temp-mapp + `npm install` + `npm run build`/`test` innan push — inte bara lokalt läge.
+- **Omnical: `done`/`archived`/`område`/`remindAt` synkas nu** (utöver `body`/`tags` sedan tidigare), läs+skriv, tre-vägs-merge med bundlat `meta`-konfliktfält. `trackId`/`activityId`/`sources` rörs fortfarande inte (Omnicals interna länk-ID:n). Se `src/utils/omnicalNotes.ts`, `src/utils/omnicalSync.ts`.
+- **Bundle-splittning:** `konva`/`react-konva` fick en egen chunk (huvudchunk 756→432 kB gzip). OBS: en tidigare variant som *också* splittade `react`/`react-dom` i en `react-vendor`-chunk orsakade en chunk-cykel i produktion (commit `7211ba1` reverterade den delen) — rör inte react-splittningen utan att verifiera med `vite preview` (riktig produktionsbundle) i webbläsare, inte bara build/lint.
+- **Nytt canvas-läge:** "Dölj klara/arkiverade Omnical-kort" i Inställningar (av som standard), filtrerar bort `done`/`archived`-kort i canvas/kolumnvy/minimap.
+- Feature-branchen `codex/omnical-shared-notes` är mergad till `main` och borttagen.
+
 ## 2026-01-04
 - Dokumentation: bantade `CLAUDE.md` till principer + status, flyttade historik hit.
 - README: omskriven för vision, praktisk användning och korrekt setup.
