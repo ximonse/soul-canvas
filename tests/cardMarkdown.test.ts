@@ -49,6 +49,14 @@ describe('card markdown contract', () => {
     expect(parsed.frontmatter.title).toBe('Ny anteckning');
   });
 
+  it('parses a file with no frontmatter block at all as pure body, instead of returning null', () => {
+    const plainText = 'Bara text, ingen frontmatter alls.\nAndra raden.';
+    const parsed = parseCardMarkdown(plainText, 'cards/plain.md');
+    expect(parsed).not.toBeNull();
+    expect(parsed!.frontmatter.id).toBeNull();
+    expect(parsed!.body).toBe(plainText);
+  });
+
   it('writes owned fields while preserving unrelated frontmatter and comments byte-for-byte', () => {
     const parsed = parseCardMarkdown(source, 'cards/card-1.md')!;
     const written = writeCardMarkdown(parsed, frontmatter({

@@ -93,10 +93,22 @@ function parseValues(lines: string[]): Map<string, unknown> {
 function splitMarkdown(source: string) {
   const lineEnding = source.includes('\r\n') ? '\r\n' as const : '\n' as const;
   const match = source.match(/^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n)?([\s\S]*)$/);
-  if (!match) return null;
+  if (match) {
+    return {
+      frontmatterLines: match[1].split(/\r?\n/),
+      body: match[2].replace(/^\r?\n/, '').replace(/\r?\n$/, ''),
+      lineEnding,
+    };
+  }
+  // No frontmatter block at all — a file someone just typed plain text
+  // into, with no `---` delimiters, must still become a card rather than
+  // being silently skipped. Treat the whole file as body with empty
+  // (no-owned-fields) frontmatter; writeCardMarkdown will add a proper
+  // frontmatter block the first time Soul writes it (e.g. once an id is
+  // minted and written back during ingest).
   return {
-    frontmatterLines: match[1].split(/\r?\n/),
-    body: match[2].replace(/^\r?\n/, '').replace(/\r?\n$/, ''),
+    frontmatterLines: [],
+    body: source.replace(/\r?\n$/, ''),
     lineEnding,
   };
 }

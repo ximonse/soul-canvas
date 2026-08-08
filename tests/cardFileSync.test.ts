@@ -239,6 +239,20 @@ describe('scanCardFiles', () => {
     expect(rewritten).toContain(`id: "${newNode.id}"`);
   });
 
+  it('ingests a plain-text file with no frontmatter block at all (the actual reported case)', async () => {
+    const dir = root();
+    const cardsDir = new MockDirectoryHandle();
+    (dir as unknown as MockDirectoryHandle).dirs.set('cards', cardsDir);
+    // No `---` delimiters — just a file someone typed text into directly.
+    cardsDir.files.set('handskriven.md', new MockFileHandle('Ett kort jag skrev för hand, utan frontmatter.', Date.now()));
+
+    const result = await scanCardFiles(dir, new Map(), [], {});
+    expect(result.ingested).toBe(1);
+    const [newNode] = [...result.nodes.values()];
+    expect(newNode.content).toBe('Ett kort jag skrev för hand, utan frontmatter.');
+    expect(result.sessions.some((s: Session) => s.id === 'soul-external-cards-session')).toBe(true);
+  });
+
   it('does not re-ingest the same file on a second scan (loop-safety)', async () => {
     const dir = root();
     const cardsDir = new MockDirectoryHandle();
