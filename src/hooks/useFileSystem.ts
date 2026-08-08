@@ -239,6 +239,32 @@ export function useFileSystem() {
     void delDb('soul-folder-handle').catch(() => undefined);
   }, [setFileHandle]);
 
+  // --- ÖPPNA KORTETS .md-FIL ---
+  // Öppnar kortets egna .md-fil (från cardFiles-baseline) i en ny flik.
+  // Webbläsare kan inte öppna file:// direkt, så vi läser filen via den
+  // anslutna mappens handle och skapar en blob-URL — webbläsaren tolkar
+  // .md och erbjuder "öppna i app" (den datorn normalt öppnar .md med).
+  const openCardMarkdown = useCallback(async (nodeId: string): Promise<boolean> => {
+    const dir = useBrainStore.getState().fileHandle;
+    const entry = useBrainStore.getState().cardFiles[nodeId];
+    if (!dir || !entry?.mdPath) return false;
+    try {
+      const parts = entry.mdPath.split('/');
+      let handle: FileSystemDirectoryHandle = dir;
+      for (let i = 0; i < parts.length - 1; i += 1) {
+        handle = await handle.getDirectoryHandle(parts[i]);
+      }
+      const fileHandle = await handle.getFileHandle(parts[parts.length - 1]);
+      const file = await fileHandle.getFile();
+      const url = URL.createObjectURL(file);
+      window.open(url, '_blank');
+      return true;
+    } catch (err) {
+      console.warn('[cardFileSync] Kunde inte öppna .md:', err);
+      return false;
+    }
+  }, []);
+
   // --- SPARA DATA (JSON) ---
   // `force`: skip the conflict check and overwrite regardless. Used when the
   // user explicitly chooses "spara ändå" on the conflict dialog.
@@ -499,5 +525,5 @@ export function useFileSystem() {
     restoreSession();
   }, [readDirectory]);
 
-  return { openFile, disconnectFolder, saveFile, saveAsset, saveAIExports, hasFile: !!fileHandle, isReady, saveConflict, resolveSaveConflict };
+  return { openFile, disconnectFolder, openCardMarkdown, saveFile, saveAsset, saveAIExports, hasFile: !!fileHandle, isReady, saveConflict, resolveSaveConflict };
 }

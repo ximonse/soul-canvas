@@ -33,7 +33,7 @@ describe('syncCardFiles', () => {
     expect(entry).toBeDefined();
     expect(entry.mdPath).toMatch(/^cards\/2026-08-08-fotosyntes-/);
 
-    const { frontmatter, body } = nodeToCardFrontmatter(a);
+    const { frontmatter, body } = nodeToCardFrontmatter(a, entry.mdPath);
     expect(entry.bodyHash).toBe(bodyHash(body));
     expect(entry.frontmatterHash).toBe(frontmatterHash(frontmatter));
   });

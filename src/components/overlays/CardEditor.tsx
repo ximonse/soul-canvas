@@ -6,6 +6,7 @@ import type { MindNode } from '../../types/types';
 import { ImageCropper } from '../ImageCropper';
 import { getImageRef, resolveImageUrl } from '../../utils/imageRefs';
 import { requestOmnicalSync } from '../../utils/omnicalSync';
+import { useFileSystem } from '../../hooks/useFileSystem';
 
 interface CardEditorProps {
   cardId: string | null;
@@ -40,6 +41,21 @@ export const CardEditor = ({ cardId, onClose, theme }: CardEditorProps) => {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const card = cardId ? nodes.get(cardId) : null;
+  const cardFiles = useBrainStore((state) => state.cardFiles);
+  const { openCardMarkdown } = useFileSystem();
+  const [mdCopied, setMdCopied] = useState(false);
+
+  const copyMdPath = async () => {
+    const entry = cardId ? cardFiles[cardId] : undefined;
+    if (!entry?.mdPath) return;
+    try {
+      await navigator.clipboard.writeText(entry.mdPath);
+      setMdCopied(true);
+      setTimeout(() => setMdCopied(false), 1500);
+    } catch {
+      // Clipboard kan blockeras; ignorera tyst
+    }
+  };
 
   const accentColors = ['#ffd400', '#ff6666', '#5fb236', '#2ea8e5', '#a28ae5', '#e56eee', '#f19837', '#aaaaaa'];
 
@@ -728,6 +744,37 @@ export const CardEditor = ({ cardId, onClose, theme }: CardEditorProps) => {
             </button>
           </div>
         </footer>
+
+        {/* Markdown-fil-länk */}
+        <div
+          className="px-4 pb-3 text-xs flex items-center gap-2 flex-wrap"
+          style={{ color: theme.node.text, opacity: 0.8 }}
+        >
+          <span className="font-semibold">Markdown-fil:</span>
+          {cardId && cardFiles[cardId]?.mdPath ? (
+            <>
+              <code className="px-2 py-1 rounded bg-black/20">{cardFiles[cardId].mdPath}</code>
+              <button
+                type="button"
+                onClick={copyMdPath}
+                className="px-2 py-1 rounded"
+                style={{ border: `1px solid ${theme.node.border}` }}
+              >
+                {mdCopied ? 'Kopierad!' : 'Kopiera'}
+              </button>
+              <button
+                type="button"
+                onClick={() => void openCardMarkdown(cardId)}
+                className="px-2 py-1 rounded font-semibold"
+                style={{ backgroundColor: theme.node.selectedBorder, color: theme.node.bg }}
+              >
+                Öppna
+              </button>
+            </>
+          ) : (
+            <span className="opacity-60">ingen .md ännu (sparas vid nästa sync)</span>
+          )}
+        </div>
       </div>
 
       {/* Image Cropper Modal */}

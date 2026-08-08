@@ -16,7 +16,7 @@ export { bodyHash, normalizeTags, tagsHash };
 // passed through untouched.
 export const CARD_SCALAR_KEYS = [
   'id', 'title', 'caption', 'comment', 'link', 'value', 'event', 'remindAt',
-  'area', 'done', 'archived', 'imageRef', 'background', 'updated',
+  'area', 'done', 'archived', 'imageRef', 'background', 'updated', 'mdPath',
 ] as const;
 export const CARD_ARRAY_KEYS = ['tags', 'semanticTags'] as const;
 
@@ -38,6 +38,11 @@ export interface CardFrontmatter {
   imageRef?: string;
   background?: string;
   updated?: string;
+  // Path to this card's own .md file, relative to the connected folder
+  // (e.g. "cards/2026-08-08-....md"). Owned by Soul so the file is
+  // self-describing and the editor can link back to it. Absent until the
+  // card has been written to disk at least once.
+  mdPath?: string;
   tags: string[];
   semanticTags: string[];
 }
@@ -285,8 +290,11 @@ export function planCardMerge(
   };
 }
 
-/** Maps a MindNode to its .md representation. Pure — does no I/O. */
-export function nodeToCardFrontmatter(node: MindNode): { frontmatter: CardFrontmatter; body: string } {
+/** Maps a MindNode to its .md representation. Pure — does no I/O.
+ *  `mdPath` is the card's own .md file path (relative to the connected
+ *  folder), sourced from the sync baseline; pass undefined for a card
+ *  that hasn't been written to disk yet. */
+export function nodeToCardFrontmatter(node: MindNode, mdPath?: string): { frontmatter: CardFrontmatter; body: string } {
   // Image cards store the asset reference in `content`; the readable text
   // is the OCR pass ("baksidan"). Everything else uses `content` directly.
   const body = node.type === 'image' ? (node.ocrText ?? '') : node.content;
@@ -308,6 +316,7 @@ export function nodeToCardFrontmatter(node: MindNode): { frontmatter: CardFrontm
     // so an existing override line is left alone (see writeCardMarkdown).
     background: undefined,
     updated: node.updatedAt,
+    mdPath,
     tags: node.tags,
     semanticTags: node.semanticTags ?? [],
   };
