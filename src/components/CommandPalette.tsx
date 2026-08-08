@@ -123,7 +123,7 @@ export const CommandPalette = ({
       id: `scope-${degree}`,
       name: `Scope +${degree}`,
       description: `Expands the selection scope by ${degree} connection degree${degree > 1 ? 's' : ''}.`,
-      shortcut: `alt+${degree}`,
+      shortcut: '',
       action: () => { onExpandScopeDegree(degree); onClose(); },
       category: 'view',
     }))

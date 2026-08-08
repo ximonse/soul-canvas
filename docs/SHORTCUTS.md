@@ -58,7 +58,7 @@ Noteringar:
 - Delete i session tar bort kort från sessionen. I "Alla kort" blir det permanent (med bekräftelse).
 - `Ctrl+Backquote` fungerar även för internationella tangentbord (`IntlBackslash`/`Backquote`).
 - Wandering/trails och graph gravity/layout är inte del av stabil lokal v1-planen. De finns kvar bakom feature flags i Settings > Debug.
-- **Känd inkonsekvens:** Command Palette-posterna "Scope +1" till "Scope +6" visar kortkommandot `alt+1`–`alt+6`, men de tangenterna är redan bundna till "Kolumnvy med N kolumner" (se rad ovan) — `onExpandScopeDegree` triggas faktiskt inte av någon tangent i `useKeyboard.ts`. Scope-utökning går just nu bara att köra via paletten, inte via den visade genvägen.
+- Command Palette-posterna "Scope +1" till "Scope +6" har inget kortkommando ännu (Alt+1–6 är redan upptaget av kolumnvy-växlingen ovan) — går bara att köra via klick/Enter i paletten. En egen genväg kan läggas till senare.
 
 Tema byts via Command Palette (sök "theme").
 
@@ -102,7 +102,7 @@ Tema byts via Command Palette (sök "theme").
 | Toggle Scope Panel | `ctrl+\`` | Shows or hides the selection scope panel. |
 | Toggle Wandering Mode *(experiment, om aktivt)* | `w` | Toggles autonomous wandering through linked cards. |
 | Toggle Synapse Lines | `l` | Shows or hides connection lines between linked cards. |
-| Scope +1 … +6 *(se känd inkonsekvens ovan)* | `alt+1`…`alt+6` (fungerar ej) | Expands the selection scope by N connection degrees. |
+| Scope +1 … +6 | — *(inget kortkommando ännu)* | Expands the selection scope by N connection degrees. |
 
 ### Create / Arrange (edit-kategorin)
 | Kommando | Kortkommando | Beskrivning |
