@@ -58,6 +58,56 @@ export function useFileSystem() {
   const lastKnownRevisionRef = useRef<string | null>(null);
   const [saveConflict, setSaveConflict] = useState<SaveConflictInfo | null>(null);
 
+  // Fas 3b: mtime-scan cards/*.md in the background and merge in whatever
+  // changed externally. Called once right after a folder opens (below)
+  // and again on every window focus (see effect further down) — Simon
+  // doesn't want to have to reconnect the folder just to pick up an edit
+  // made in another app. Re-checks the flag on every call rather than
+  // once at effect-setup, so toggling it in Settings takes effect
+  // immediately without needing extra reactive plumbing.
+  const runCardFileScan = useCallback(async (dirHandle: FileSystemDirectoryHandle) => {
+    if (!FEATURE_FLAGS.enableCardMarkdownFiles) return;
+    try {
+      const current = useBrainStore.getState();
+      const result = await scanCardFiles(dirHandle, current.nodes, current.sessions, current.cardFiles);
+      const changed = result.merged > 0 || result.ingested > 0;
+      useBrainStore.setState({
+        nodes: result.nodes,
+        sessions: result.sessions,
+        cardFiles: result.baseline,
+        ...(changed ? { pendingSave: true } : {}),
+      });
+      if (changed) {
+        const parts: string[] = [];
+        if (result.merged > 0) parts.push(`${result.merged} uppdaterade`);
+        if (result.ingested > 0) parts.push(`${result.ingested} nya`);
+        if (result.conflicts > 0) parts.push(`${result.conflicts} konflikt(er) (säkerhetskopierade i cards/.conflicts/)`);
+        addNotification(`Kort-filer: ${parts.join(', ')} från disk.`, 'info', 6000);
+      }
+    } catch (err) {
+      console.warn('[cardFileSync] Bakgrundsscan misslyckades:', err);
+    }
+  }, [addNotification]);
+
+  // Re-scan on window focus (debounced), same pattern as
+  // registerOmnicalSyncListeners in omnicalSync.ts — switching back to
+  // this tab after editing a card's .md in another app is the common
+  // case, not reconnecting the folder.
+  useEffect(() => {
+    let timer: number | undefined;
+    const onFocus = () => {
+      const handle = useBrainStore.getState().fileHandle;
+      if (!handle) return;
+      window.clearTimeout(timer);
+      timer = window.setTimeout(() => { void runCardFileScan(handle); }, 250);
+    };
+    window.addEventListener('focus', onFocus);
+    return () => {
+      window.clearTimeout(timer);
+      window.removeEventListener('focus', onFocus);
+    };
+  }, [runCardFileScan]);
+
   // --- LÄSA MAPPEN ---
   const readDirectory = useCallback(async (dirHandle: FileSystemDirectoryHandle) => {
     try {
@@ -130,31 +180,9 @@ export function useFileSystem() {
 
       // Fas 3b: mtime-scan cards/*.md in the background, after the canvas
       // has already rendered from data.json's cache — never block the
-      // initial paint on this, regardless of card count.
-      if (FEATURE_FLAGS.enableCardMarkdownFiles) {
-        void (async () => {
-          try {
-            const current = useBrainStore.getState();
-            const result = await scanCardFiles(dirHandle, current.nodes, current.sessions, current.cardFiles);
-            const changed = result.merged > 0 || result.ingested > 0;
-            useBrainStore.setState({
-              nodes: result.nodes,
-              sessions: result.sessions,
-              cardFiles: result.baseline,
-              ...(changed ? { pendingSave: true } : {}),
-            });
-            if (changed) {
-              const parts: string[] = [];
-              if (result.merged > 0) parts.push(`${result.merged} uppdaterade`);
-              if (result.ingested > 0) parts.push(`${result.ingested} nya`);
-              if (result.conflicts > 0) parts.push(`${result.conflicts} konflikt(er) (säkerhetskopierade i cards/.conflicts/)`);
-              addNotification(`Kort-filer: ${parts.join(', ')} från disk.`, 'info', 6000);
-            }
-          } catch (err) {
-            console.warn('[cardFileSync] Bakgrundsscan misslyckades:', err);
-          }
-        })();
-      }
+      // initial paint on this, regardless of card count. Also re-runs on
+      // every window focus (see effect above the this callback).
+      void runCardFileScan(dirHandle);
     } catch (err) {
       console.error('Kunde inte läsa mapp:', err);
       setFileHandle(null!);
@@ -171,7 +199,7 @@ export function useFileSystem() {
     loadSequences,
     setSelectedTrailIds,
     setShowActiveTrailLine,
-    addNotification,
+    runCardFileScan,
   ]);
 
   // Cleanup blob URLs on unmount
