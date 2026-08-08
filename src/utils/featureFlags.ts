@@ -10,7 +10,8 @@ export type FeatureFlags = {
   enableGraphGravityControls: boolean;
   enableOmnicalSharedNotes: boolean;
   // Write each card as its own cards/<id>.md file (hash-diffed at save
-  // time, write-only for now — see plan: kort som .md-filer, Fas 3a).
+  // time) and read external edits back in via a background scan — see
+  // plan: kort som .md-filer, Fas 3a/3b.
   enableCardMarkdownFiles: boolean;
 };
 
@@ -31,9 +32,9 @@ const DEFAULT_FEATURE_FLAGS: FeatureFlags = {
   enableGraphGravityControls: false,
   // Experimental local-folder interoperability with Omnical.
   enableOmnicalSharedNotes: false,
-  // Off by default: writes potentially thousands of new files into the
-  // user's live working folder. Enable deliberately, not on first run.
-  enableCardMarkdownFiles: false,
+  // Default on: single-user app right now, no reason to make Simon opt in
+  // by hand. Revisit if this ever has other users on a shared deploy.
+  enableCardMarkdownFiles: true,
 };
 
 const readStoredFlags = (): Partial<FeatureFlags> => {
