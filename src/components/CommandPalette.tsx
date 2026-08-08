@@ -319,7 +319,7 @@ export const CommandPalette = ({
                 }
               >
                 <div className="flex flex-col gap-0.5 min-w-0">
-                  <span className="font-bold">{cmd.name}</span>
+                  <span className="font-bold font-heading">{cmd.name}</span>
                   <span className="text-xs opacity-60">{cmd.description}</span>
                 </div>
                 <span

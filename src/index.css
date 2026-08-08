@@ -12,9 +12,11 @@ body {
   font-family: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
 }
 
-/* Typographic rule: headings sans-serif, body copy serif. Direct font-* utility
-   classes on an element still win (utilities layer beats this base rule). */
-h1, h2, h3, h4, h5, h6 {
+/* Typographic rule: headings and buttons sans-serif, body copy serif. Direct
+   font-* utility classes on an element still win (utilities layer beats this
+   base rule). Use .font-heading on non-semantic "title" elements (bold
+   labels acting as headings) that aren't actual <h1>-<h6> tags. */
+h1, h2, h3, h4, h5, h6, button, .font-heading {
   font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 }
 /* ... din tidigare kod ... */

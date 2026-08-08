@@ -82,7 +82,7 @@ export const NotificationSystem: React.FC<NotificationSystemProps> = ({
                     title="Single-click to select your folder, don't double-click"
                     aria-label="Connect to folder"
                 >
-                    Connect Soul
+                    Choose folder
                 </button>
             ) : (
                 <div className="flex items-center gap-2">

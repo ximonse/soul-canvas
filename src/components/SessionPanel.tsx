@@ -395,7 +395,7 @@ export const SessionPanel: React.FC<SessionPanelProps> = ({
           className="sticky top-0 backdrop-blur-sm p-4 border-b flex items-center justify-between"
           style={{ backgroundColor: theme.node.bg, borderColor: theme.node.border }}
         >
-          <span className="font-semibold">Session <span className="text-xs opacity-50 font-normal">(S)</span></span>
+          <span className="font-semibold font-heading">Session <span className="text-xs opacity-50 font-normal">(S)</span></span>
           <button
             onClick={onToggleExpanded}
             className="opacity-60 hover:opacity-100 text-xl w-8 h-8 flex items-center justify-center rounded hover:bg-black/10 dark:hover:bg-white/10"

@@ -29,7 +29,7 @@ export const AppMenu = ({
           title="Single-click to select your folder, don't double-click"
           aria-label="Connect to folder"
         >
-          Connect Soul
+          Choose folder
         </button>
       ) : (
         <button
