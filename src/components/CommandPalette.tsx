@@ -9,9 +9,9 @@ import type { MindNode } from '../types/types';
 interface Command {
   id: string;
   name: string;
+  description: string;
   shortcut: string;
   action: () => void | Promise<void>;
-  icon: string;
   category: 'ai' | 'view' | 'edit' | 'file';
 }
 
@@ -122,71 +122,72 @@ export const CommandPalette = ({
     ? [1, 2, 3, 4, 5, 6].map((degree) => ({
       id: `scope-${degree}`,
       name: `Scope +${degree}`,
+      description: `Expands the selection scope by ${degree} connection degree${degree > 1 ? 's' : ''}.`,
       shortcut: `alt+${degree}`,
       action: () => { onExpandScopeDegree(degree); onClose(); },
       category: 'view',
-      icon: '\u25CE',
     }))
     : [];
 
   const wanderingCommands: Command[] = enableWanderingTrails
     ? [
-      { id: 'wandering', name: 'Toggle Wandering Mode', shortcut: 'w', action: () => { onToggleWandering(); onClose(); }, category: 'view', icon: '\u{1F6B6}' },
+      { id: 'wandering', name: 'Toggle Wandering Mode', description: 'Toggles autonomous wandering through linked cards.', shortcut: 'w', action: () => { onToggleWandering(); onClose(); }, category: 'view' },
     ]
     : [];
 
   const commands: Command[] = [
     // AI Commands
-    { id: 'ai-panel', name: 'Open AI Panel', shortcut: 'b', action: () => { onOpenAIPanel(); onClose(); }, category: 'ai', icon: '\u{1F9E0}' },
-    { id: 'ai-chat', name: 'AI Chat (manual provider)', shortcut: 'a', action: () => { onOpenAIChat(); onClose(); }, category: 'ai', icon: '\u{1F4AC}' },
-    { id: 'quote-extractor', name: 'AI Quote Extractor', shortcut: 'e', action: () => { onQuoteExtractor(); onClose(); }, category: 'ai', icon: '\u2728' },
-    { id: 'ocr-prompt', name: 'Edit OCR Prompt', shortcut: 'ocr', action: () => { onOpenOcrPrompt(); onClose(); }, category: 'ai', icon: '\u270D' },
-    { id: 'embed', name: 'Generate Embeddings', shortcut: 'emb', action: async () => { await intelligence.embedAllNodes(); onClose(); }, category: 'ai', icon: '\u{1F9EC}' },
-    ...(enableAutoLink ? [{ id: 'link', name: 'Auto-Link Similar', shortcut: 'link', action: async () => { await intelligence.autoLinkSimilarNodes(); onClose(); }, category: 'ai' as const, icon: '\u{1F517}' }] : []),
-    { id: 'reflect', name: 'AI Reflection', shortcut: 'ref', action: async () => { await intelligence.reflect(); onClose(); }, category: 'ai', icon: '\u{1F914}' },
-    { id: 'tags', name: 'Generate Tags', shortcut: 'tag', action: async () => { await intelligence.generateTagsForSelection(); onClose(); }, category: 'ai', icon: '\u{1F3F7}' },
+    { id: 'ai-panel', name: 'Open AI Panel', description: 'Opens the AI panel for embeddings, tagging, and reflection tools.', shortcut: 'b', action: () => { onOpenAIPanel(); onClose(); }, category: 'ai' },
+    { id: 'ai-chat', name: 'AI Chat (manual provider)', description: 'Starts a manual AI chat session using your chosen provider.', shortcut: 'a', action: () => { onOpenAIChat(); onClose(); }, category: 'ai' },
+    { id: 'quote-extractor', name: 'AI Quote Extractor', description: 'Extracts quotable passages from selected notes using AI.', shortcut: 'e', action: () => { onQuoteExtractor(); onClose(); }, category: 'ai' },
+    { id: 'ocr-prompt', name: 'Edit OCR Prompt', description: 'Edits the prompt used for OCR text extraction from images.', shortcut: 'ocr', action: () => { onOpenOcrPrompt(); onClose(); }, category: 'ai' },
+    { id: 'embed', name: 'Generate Embeddings', description: 'Generates AI embeddings for all cards to enable similarity search.', shortcut: 'emb', action: async () => { await intelligence.embedAllNodes(); onClose(); }, category: 'ai' },
+    ...(enableAutoLink ? [{ id: 'link', name: 'Auto-Link Similar', description: 'Automatically creates links between semantically similar cards.', shortcut: 'link', action: async () => { await intelligence.autoLinkSimilarNodes(); onClose(); }, category: 'ai' as const }] : []),
+    { id: 'reflect', name: 'AI Reflection', description: 'Runs an AI reflection pass over your notes to surface insights.', shortcut: 'ref', action: async () => { await intelligence.reflect(); onClose(); }, category: 'ai' },
+    { id: 'tags', name: 'Generate Tags', description: 'Generates AI tags for the selected cards.', shortcut: 'tag', action: async () => { await intelligence.generateTagsForSelection(); onClose(); }, category: 'ai' },
 
     // View Commands
-    { id: 'canvas-eternal', name: 'Evig canvasvy', shortcut: 'alt+e', action: () => { handleToggleEternalView(); }, category: 'view', icon: '\u221E' },
-    { id: 'center', name: 'Center Camera (0,0)', shortcut: '', action: () => { onCenterCamera(); onClose(); }, category: 'view', icon: '\u{1F3AF}' },
-    { id: 'fit-all', name: 'Fit All Nodes', shortcut: '-', action: () => { onFitAllNodes(); onClose(); }, category: 'view', icon: '\u2922' },
-    { id: 'zen', name: 'Toggle Zen Mode', shortcut: 'z', action: () => { onToggleZen(); onClose(); }, category: 'view', icon: '\u{1F9D8}' },
-    { id: 'theme', name: 'Change Theme', shortcut: 'theme', action: () => { onToggleTheme(); onClose(); }, category: 'view', icon: '\u{1F3A8}' },
-    { id: 'reset-zoom', name: 'Reset Zoom', shortcut: '0', action: () => { onResetZoom(); onClose(); }, category: 'view', icon: '100%' },
-    { id: 'view-mode', name: 'Toggle View Mode (Canvas/Column)', shortcut: 'k', action: () => { onToggleViewMode(); onClose(); }, category: 'view', icon: '\u{1F5FA}' },
-    { id: 'session-panel', name: 'Toggle Session Panel', shortcut: 's', action: () => { onToggleSessionPanel(); onClose(); }, category: 'view', icon: '\u{1F5C2}' },
-    { id: 'scope-panel', name: 'Toggle Scope Panel', shortcut: 'ctrl+`', action: () => { onToggleScopePanel(); onClose(); }, category: 'view', icon: '\u{1F9ED}' },
+    { id: 'canvas-eternal', name: 'Eternal Canvas View', description: 'Switches to a continuous, session-independent canvas view.', shortcut: 'alt+e', action: () => { handleToggleEternalView(); }, category: 'view' },
+    { id: 'center', name: 'Center Camera (0,0)', description: 'Moves the camera back to the canvas origin.', shortcut: '', action: () => { onCenterCamera(); onClose(); }, category: 'view' },
+    { id: 'fit-all', name: 'Fit All Nodes', description: 'Zooms and pans to fit every card on screen.', shortcut: '-', action: () => { onFitAllNodes(); onClose(); }, category: 'view' },
+    { id: 'zen', name: 'Toggle Zen Mode', description: 'Hides UI chrome for a distraction-free view.', shortcut: 'z', action: () => { onToggleZen(); onClose(); }, category: 'view' },
+    { id: 'theme', name: 'Change Theme', description: 'Cycles to the next visual theme.', shortcut: 'theme', action: () => { onToggleTheme(); onClose(); }, category: 'view' },
+    { id: 'reset-zoom', name: 'Reset Zoom', description: 'Resets the zoom level to 100%.', shortcut: '0', action: () => { onResetZoom(); onClose(); }, category: 'view' },
+    { id: 'view-mode', name: 'Toggle View Mode (Canvas/Column)', description: 'Switches between the canvas and column layouts.', shortcut: 'k', action: () => { onToggleViewMode(); onClose(); }, category: 'view' },
+    { id: 'session-panel', name: 'Toggle Session Panel', description: 'Shows or hides the session panel.', shortcut: 's', action: () => { onToggleSessionPanel(); onClose(); }, category: 'view' },
+    { id: 'scope-panel', name: 'Toggle Scope Panel', description: 'Shows or hides the selection scope panel.', shortcut: 'ctrl+`', action: () => { onToggleScopePanel(); onClose(); }, category: 'view' },
     ...wanderingCommands,
-    { id: 'synapse-lines', name: 'Toggle Synapse Lines', shortcut: 'l', action: () => { onToggleSynapseLines(); onClose(); }, category: 'view', icon: '\u{1F500}' },
+    { id: 'synapse-lines', name: 'Toggle Synapse Lines', description: 'Shows or hides connection lines between linked cards.', shortcut: 'l', action: () => { onToggleSynapseLines(); onClose(); }, category: 'view' },
 
     // Create Commands
-    { id: 'new-card', name: 'New Card', shortcut: 'n', action: () => { onNewCard(); onClose(); }, category: 'edit', icon: '\u2795' },
-    { id: 'import', name: 'Import (Images, JSON, Zotero, Markdown)', shortcut: 'i', action: () => { onImport(); onClose(); }, category: 'edit', icon: '\u2B06' },
-    { id: 'mass-import', name: 'Mass Import (Text)', shortcut: 'm', action: () => { onMassImport(); onClose(); }, category: 'edit', icon: '\u{1F4E5}' },
-    { id: 'focus-search', name: 'Focus Search', shortcut: 'f', action: () => { onFocusSearch(); onClose(); }, category: 'edit', icon: '\u{1F50D}' },
+    { id: 'new-card', name: 'New Card', description: 'Creates a new empty card on the canvas.', shortcut: 'n', action: () => { onNewCard(); onClose(); }, category: 'edit' },
+    { id: 'import', name: 'Import (Images, JSON, Zotero, Markdown)', description: 'Imports cards from images, JSON, Zotero, or Markdown files.', shortcut: 'i', action: () => { onImport(); onClose(); }, category: 'edit' },
+    { id: 'mass-import', name: 'Mass Import (Text)', description: 'Bulk-creates cards from pasted text.', shortcut: 'm', action: () => { onMassImport(); onClose(); }, category: 'edit' },
+    { id: 'focus-search', name: 'Focus Search', description: 'Moves keyboard focus to the search field.', shortcut: 'f', action: () => { onFocusSearch(); onClose(); }, category: 'edit' },
 
     // Arrangement Commands
-    { id: 'arrange-vertical', name: 'Arrange Vertical', shortcut: 'v', action: () => { onArrangeVertical(); onClose(); }, category: 'edit', icon: '\u2195' },
-    { id: 'arrange-horizontal', name: 'Arrange Horizontal', shortcut: 'h', action: () => { onArrangeHorizontal(); onClose(); }, category: 'edit', icon: '\u2194' },
-    { id: 'arrange-circle', name: 'Arrange Stack', shortcut: 'q', action: () => { onArrangeCircle(); onClose(); }, category: 'edit', icon: '\u2B55' },
-    { id: 'arrange-grid-vertical', name: 'Arrange Grid Vertical', shortcut: 'g+v', action: () => { onArrangeGridVertical(); onClose(); }, category: 'edit', icon: '\u25A6' },
-    { id: 'arrange-grid-horizontal', name: 'Arrange Grid Horizontal', shortcut: 'g+h', action: () => { onArrangeGridHorizontal(); onClose(); }, category: 'edit', icon: '\u25A4' },
-    { id: 'arrange-kanban', name: 'Arrange Overlapping Rows', shortcut: 'g+t', action: () => { onArrangeKanban(); onClose(); }, category: 'edit', icon: '\u{1F9F1}' },
-    { id: 'arrange-centrality', name: 'Arrange Grid Centrality', shortcut: 'g+c', action: () => { onArrangeCentrality(); onClose(); }, category: 'edit', icon: '\u25CE' },
+    { id: 'arrange-vertical', name: 'Arrange Vertical', description: 'Lines up the selected cards in a vertical column.', shortcut: 'v', action: () => { onArrangeVertical(); onClose(); }, category: 'edit' },
+    { id: 'arrange-horizontal', name: 'Arrange Horizontal', description: 'Lines up the selected cards in a horizontal row.', shortcut: 'h', action: () => { onArrangeHorizontal(); onClose(); }, category: 'edit' },
+    { id: 'arrange-circle', name: 'Arrange Stack', description: 'Stacks the selected cards on top of each other.', shortcut: 'q', action: () => { onArrangeCircle(); onClose(); }, category: 'edit' },
+    { id: 'arrange-grid-vertical', name: 'Arrange Grid Vertical', description: 'Arranges the selected cards in a vertical grid.', shortcut: 'g+v', action: () => { onArrangeGridVertical(); onClose(); }, category: 'edit' },
+    { id: 'arrange-grid-horizontal', name: 'Arrange Grid Horizontal', description: 'Arranges the selected cards in a horizontal grid.', shortcut: 'g+h', action: () => { onArrangeGridHorizontal(); onClose(); }, category: 'edit' },
+    { id: 'arrange-kanban', name: 'Arrange Overlapping Rows', description: 'Arranges cards in overlapping rows, kanban-style.', shortcut: 'g+t', action: () => { onArrangeKanban(); onClose(); }, category: 'edit' },
+    { id: 'arrange-centrality', name: 'Arrange Grid Centrality', description: 'Arranges cards in a grid ordered by network centrality.', shortcut: 'g+c', action: () => { onArrangeCentrality(); onClose(); }, category: 'edit' },
 
     ...scopeCommands,
 
     // Edit Commands
-    { id: 'copy', name: 'Copy Selected', shortcut: 'ctrl+c', action: () => { onCopy(); onClose(); }, category: 'edit', icon: '\u29C9' },
-    { id: 'duplicate', name: 'Duplicate Selected', shortcut: 'c', action: () => { onDuplicate(); onClose(); }, category: 'edit', icon: '\u{1F4D1}' },
-    { id: 'paste', name: 'Paste', shortcut: 'ctrl+v', action: () => { onPaste(); onClose(); }, category: 'edit', icon: '\u{1F4CB}' },
-    { id: 'undo', name: 'Undo', shortcut: 'ctrl+z', action: () => { onUndo(); onClose(); }, category: 'edit', icon: '\u21B6' },
-    { id: 'redo', name: 'Redo', shortcut: 'ctrl+y', action: () => { onRedo(); onClose(); }, category: 'edit', icon: '\u21B7' },
-    { id: 'select-all', name: 'Select All', shortcut: 'ctrl+a', action: () => { selectAll(); onClose(); }, category: 'edit', icon: '\u2611' },
-    { id: 'clear', name: 'Clear Selection', shortcut: 'esc', action: () => { clearSelection(); onClose(); }, category: 'edit', icon: '\u2716' },
+    { id: 'copy', name: 'Copy Selected', description: 'Copies the selected cards to the clipboard.', shortcut: 'ctrl+c', action: () => { onCopy(); onClose(); }, category: 'edit' },
+    { id: 'duplicate', name: 'Duplicate Selected', description: 'Creates a duplicate of the selected cards.', shortcut: 'c', action: () => { onDuplicate(); onClose(); }, category: 'edit' },
+    { id: 'paste', name: 'Paste', description: 'Pastes cards from the clipboard onto the canvas.', shortcut: 'ctrl+v', action: () => { onPaste(); onClose(); }, category: 'edit' },
+    { id: 'undo', name: 'Undo', description: 'Reverts the last action.', shortcut: 'ctrl+z', action: () => { onUndo(); onClose(); }, category: 'edit' },
+    { id: 'redo', name: 'Redo', description: 'Re-applies the last undone action.', shortcut: 'ctrl+y', action: () => { onRedo(); onClose(); }, category: 'edit' },
+    { id: 'select-all', name: 'Select All', description: 'Selects every card on the canvas.', shortcut: 'ctrl+a', action: () => { selectAll(); onClose(); }, category: 'edit' },
+    { id: 'clear', name: 'Clear Selection', description: 'Deselects all currently selected cards.', shortcut: 'esc', action: () => { clearSelection(); onClose(); }, category: 'edit' },
     {
       id: 'remove-from-session',
       name: 'Remove from Session',
+      description: 'Removes the selected cards from the active session without deleting them.',
       shortcut: 'del',
       action: () => {
         const activeSessionId = useBrainStore.getState().activeSessionId;
@@ -197,42 +198,41 @@ export const CommandPalette = ({
         onClose();
       },
       category: 'edit',
-      icon: '\u21A9'
     },
     {
       id: 'delete-permanent',
       name: 'Delete Permanently',
+      description: 'Permanently deletes the selected cards from all sessions. Cannot be undone.',
       shortcut: 'ctrl+del',
       action: () => {
-        if (!confirm(`Radera ${selectedNodeIds.size} kort PERMANENT från alla sessioner?`)) return;
+        if (!confirm(`Permanently delete ${selectedNodeIds.size} card(s) from all sessions?`)) return;
         const deleteNodesPermanently = useBrainStore.getState().deleteNodesPermanently;
         deleteNodesPermanently(Array.from(selectedNodeIds));
         onClose();
       },
       category: 'edit',
-      icon: '\u{1F5D1}'
     },
-    { id: 'pin', name: 'Pin/Unpin Selected', shortcut: 'p', action: () => { onTogglePin(); onClose(); }, category: 'edit', icon: '\u{1F4CC}' },
-    { id: 'flip-text', name: 'Flip Images to Text (Selected/All)', shortcut: 'o+o', action: () => { onFlipToText(); onClose(); }, category: 'edit', icon: '\u{1F4DD}' },
-    { id: 'flip-image', name: 'Flip Images to Image (Selected/All)', shortcut: 'o', action: () => { onFlipToImage(); onClose(); }, category: 'edit', icon: '\u{1F5BC}' },
+    { id: 'pin', name: 'Pin/Unpin Selected', description: 'Toggles the pinned state of the selected cards.', shortcut: 'p', action: () => { onTogglePin(); onClose(); }, category: 'edit' },
+    { id: 'flip-text', name: 'Flip Images to Text (Selected/All)', description: 'Converts image cards to text cards.', shortcut: 'o+o', action: () => { onFlipToText(); onClose(); }, category: 'edit' },
+    { id: 'flip-image', name: 'Flip Images to Image (Selected/All)', description: 'Converts text cards to image cards.', shortcut: 'o', action: () => { onFlipToImage(); onClose(); }, category: 'edit' },
 
     // File Commands
-    { id: 'save', name: 'Save', shortcut: 'ctrl+enter', action: () => { onSave(); onClose(); }, category: 'file', icon: '\u{1F4BE}' },
+    { id: 'save', name: 'Save', description: 'Saves the current state to disk.', shortcut: 'ctrl+enter', action: () => { onSave(); onClose(); }, category: 'file' },
     {
-      id: 'export-sif', name: 'Export to Cytoscape (SIF)', shortcut: 'sif', action: () => {
+      id: 'export-sif', name: 'Export to Cytoscape (SIF)', description: 'Exports the graph as a Cytoscape SIF file.', shortcut: 'sif', action: () => {
         const nodesArray = Array.from(nodes.values()) as MindNode[];
         exportToCytoscape(nodesArray, synapses);
         onClose();
-      }, category: 'file', icon: 'SIF'
+      }, category: 'file'
     },
     {
-      id: 'export-csv', name: 'Export to Cytoscape (CSV)', shortcut: 'csv', action: () => {
+      id: 'export-csv', name: 'Export to Cytoscape (CSV)', description: 'Exports the graph as a Cytoscape CSV file.', shortcut: 'csv', action: () => {
         const nodesArray = Array.from(nodes.values()) as MindNode[];
         exportToCSV(nodesArray, synapses);
         onClose();
-      }, category: 'file', icon: 'CSV'
+      }, category: 'file'
     },
-    { id: 'settings', name: 'Settings', shortcut: '', action: () => { onOpenSettings(); onClose(); }, category: 'file', icon: '\u2699' },
+    { id: 'settings', name: 'Settings', description: 'Opens the app settings.', shortcut: '', action: () => { onOpenSettings(); onClose(); }, category: 'file' },
   ];
 
   const filteredCommands = commands.filter(cmd =>
@@ -308,7 +308,7 @@ export const CommandPalette = ({
               <button
                 key={cmd.id}
                 onClick={() => cmd.action()}
-                className={`w-full px-4 py-3 flex items-center justify-between text-left transition-colors ${index === selectedIndex
+                className={`w-full px-4 py-3 flex items-center justify-between gap-4 text-left transition-colors ${index === selectedIndex
                   ? 'bg-purple-600/30 border-l-2 border-purple-500'
                   : 'hover:bg-gray-800/50'
                   }`}
@@ -318,12 +318,12 @@ export const CommandPalette = ({
                     : {}
                 }
               >
-                <div className="flex items-center gap-3">
-                  <span className="text-xl">{cmd.icon}</span>
-                  <span>{cmd.name}</span>
+                <div className="flex flex-col gap-0.5 min-w-0">
+                  <span className="font-bold">{cmd.name}</span>
+                  <span className="text-xs opacity-60">{cmd.description}</span>
                 </div>
                 <span
-                  className="text-xs font-mono px-2 py-1 rounded"
+                  className="shrink-0 text-xs font-mono px-2 py-1 rounded"
                   style={{ backgroundColor: `${theme.node.border}1A`, color: theme.node.text }}
                 >
                   {cmd.shortcut}
