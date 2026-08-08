@@ -4,7 +4,7 @@ import { useBrainStore } from '../store/useBrainStore';
 import { set as setDb, get as getDb } from 'idb-keyval';
 import { exportSessionForAI, sanitizeFilename } from '../utils/aiExport';
 import { createEmptyCanvasDocument, parseCanvasDocument, serializeCanvasDocument } from '../utils/canvasDocument';
-import { syncCardFiles } from '../utils/cardFileSync';
+import { scanCardFiles, syncCardFiles } from '../utils/cardFileSync';
 import { FEATURE_FLAGS } from '../utils/featureFlags';
 
 // Helper to revoke all blob URLs in an assets map
@@ -46,6 +46,7 @@ export function useFileSystem() {
   const loadSequences = useBrainStore((state) => state.loadSequences);
   const setSelectedTrailIds = useBrainStore((state) => state.setSelectedTrailIds);
   const setShowActiveTrailLine = useBrainStore((state) => state.setShowActiveTrailLine);
+  const addNotification = useBrainStore((state) => state.addNotification);
   const fileHandle = useBrainStore((state) => state.fileHandle);
   // Track current blob URLs for cleanup
   const currentAssetsRef = useRef<Record<string, string>>({});
@@ -126,6 +127,34 @@ export function useFileSystem() {
       if (data.activeSessionId) {
         useBrainStore.getState().switchSession(data.activeSessionId);
       }
+
+      // Fas 3b: mtime-scan cards/*.md in the background, after the canvas
+      // has already rendered from data.json's cache — never block the
+      // initial paint on this, regardless of card count.
+      if (FEATURE_FLAGS.enableCardMarkdownFiles) {
+        void (async () => {
+          try {
+            const current = useBrainStore.getState();
+            const result = await scanCardFiles(dirHandle, current.nodes, current.sessions, current.cardFiles);
+            const changed = result.merged > 0 || result.ingested > 0;
+            useBrainStore.setState({
+              nodes: result.nodes,
+              sessions: result.sessions,
+              cardFiles: result.baseline,
+              ...(changed ? { pendingSave: true } : {}),
+            });
+            if (changed) {
+              const parts: string[] = [];
+              if (result.merged > 0) parts.push(`${result.merged} uppdaterade`);
+              if (result.ingested > 0) parts.push(`${result.ingested} nya`);
+              if (result.conflicts > 0) parts.push(`${result.conflicts} konflikt(er) (säkerhetskopierade i cards/.conflicts/)`);
+              addNotification(`Kort-filer: ${parts.join(', ')} från disk.`, 'info', 6000);
+            }
+          } catch (err) {
+            console.warn('[cardFileSync] Bakgrundsscan misslyckades:', err);
+          }
+        })();
+      }
     } catch (err) {
       console.error('Kunde inte läsa mapp:', err);
       setFileHandle(null!);
@@ -142,6 +171,7 @@ export function useFileSystem() {
     loadSequences,
     setSelectedTrailIds,
     setShowActiveTrailLine,
+    addNotification,
   ]);
 
   // Cleanup blob URLs on unmount
@@ -215,16 +245,23 @@ export function useFileSystem() {
         }
       }
 
-      const state = useBrainStore.getState();
-
       // Write-only card .md sync (Fas 3a): hash-diffed against the stored
       // baseline, so this is cheap when nothing actually changed. Runs
       // after the conflict check so a "reload from disk" choice can't
       // still have written cards/*.md for state we're about to discard.
-      let cardFiles = state.cardFiles;
+      //
+      // Deliberately re-reading useBrainStore.getState() at every step
+      // below instead of snapshotting it once: syncCardFiles() awaits a
+      // lock shared with the background scan (Fas 3b, cardFileSync.ts). If
+      // a scan finishes while this call is queued behind it, the store
+      // already holds merged nodes/baseline by the time we resume — a
+      // stale snapshot here would either overwrite the scan's merged file
+      // with pre-scan content, or discard the merge from data.json below.
+      let cardFiles = useBrainStore.getState().cardFiles;
       if (FEATURE_FLAGS.enableCardMarkdownFiles) {
         try {
-          const result = await syncCardFiles(fileHandle, state.nodes, state.cardFiles);
+          const freshState = useBrainStore.getState();
+          const result = await syncCardFiles(fileHandle, freshState.nodes, freshState.cardFiles);
           cardFiles = result.baseline;
           if (result.written > 0 || result.trashed > 0) {
             console.log(`[cardFileSync] ${result.written} kort skrivna, ${result.trashed} flyttade till papperskorgen.`);
@@ -239,6 +276,7 @@ export function useFileSystem() {
 
       const writable = await fileRef.createWritable();
 
+      const state = useBrainStore.getState();
       const dataToSave = serializeCanvasDocument({
         nodes: Array.from(state.nodes.values()),
         synapses: state.synapses,

@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { syncCardFiles } from '../src/utils/cardFileSync';
-import { bodyHash, frontmatterHash, nodeToCardFrontmatter, parseCardMarkdown } from '../src/utils/cardMarkdown';
-import type { MindNode } from '../src/types/types';
-import { MockDirectoryHandle } from './helpers/mockFileSystem';
+import { scanCardFiles, syncCardFiles } from '../src/utils/cardFileSync';
+import { bodyHash, frontmatterHash, nodeToCardFrontmatter, parseCardMarkdown, writeCardMarkdown, type CardFrontmatter } from '../src/utils/cardMarkdown';
+import type { MindNode, Session } from '../src/types/types';
+import { MockDirectoryHandle, MockFileHandle } from './helpers/mockFileSystem';
+
+const emptyFrontmatter: CardFrontmatter = { id: null, tags: [], semanticTags: [] };
 
 function node(overrides: Partial<MindNode> = {}): MindNode {
   return {
@@ -129,5 +131,156 @@ describe('syncCardFiles', () => {
     expect(parsed.frontmatter.title).toBe('Rundtur');
     expect(parsed.frontmatter.tags).toEqual(['skola']);
     expect(parsed.frontmatter.done).toBe(true);
+  });
+});
+
+async function editFileDirectly(cardsDir: MockDirectoryHandle, filename: string, frontmatter: CardFrontmatter, body: string) {
+  const handle = cardsDir.files.get(filename)!;
+  const raw = (await handle.getFile()).text_;
+  const parsed = parseCardMarkdown(raw, `cards/${filename}`);
+  const rewritten = writeCardMarkdown(parsed, frontmatter, body);
+  const writable = await handle.createWritable();
+  await writable.write(rewritten);
+  await writable.close();
+}
+
+describe('scanCardFiles', () => {
+  it('merges an externally edited file into the node when only the file changed', async () => {
+    const dir = root();
+    const a = node({ title: 'Original' });
+    const first = await syncCardFiles(dir, new Map([[a.id, a]]), {});
+    const filename = first.baseline[a.id].mdPath.split('/').pop()!;
+    const cardsDir = (dir as unknown as MockDirectoryHandle).dirs.get('cards')!;
+
+    await editFileDirectly(cardsDir, filename, { ...emptyFrontmatter, id: a.id, title: 'Ändrad utanför appen' }, a.content);
+
+    const result = await scanCardFiles(dir, new Map([[a.id, a]]), [], first.baseline);
+    expect(result.merged).toBe(1);
+    expect(result.conflicts).toBe(0);
+    expect(result.nodes.get(a.id)!.title).toBe('Ändrad utanför appen');
+  });
+
+  it('leaves the node untouched when the file mtime has not changed since the baseline', async () => {
+    const dir = root();
+    const a = node({ title: 'Oförändrad' });
+    const first = await syncCardFiles(dir, new Map([[a.id, a]]), {});
+
+    const editedInMemory = { ...a, content: 'Redigerat i appen men inte sparat till fil än' };
+    const result = await scanCardFiles(dir, new Map([[a.id, editedInMemory]]), [], first.baseline);
+
+    expect(result.merged).toBe(0);
+    expect(result.nodes.get(a.id)!.content).toBe(editedInMemory.content);
+  });
+
+  it('backs up the losing side and keeps Soul when both sides changed the same field differently', async () => {
+    const dir = root();
+    const a = node({ content: 'Original' });
+    const first = await syncCardFiles(dir, new Map([[a.id, a]]), {});
+    const filename = first.baseline[a.id].mdPath.split('/').pop()!;
+    const cardsDir = (dir as unknown as MockDirectoryHandle).dirs.get('cards')!;
+
+    // The file changes externally...
+    await editFileDirectly(cardsDir, filename, { ...emptyFrontmatter, id: a.id }, 'Disktext');
+    // ...while Soul also changed the same field, without having synced yet
+    // (baseline still reflects the pre-edit 'Original' content).
+    const soulEdited = { ...a, content: 'Souls text' };
+
+    const result = await scanCardFiles(dir, new Map([[a.id, soulEdited]]), [], first.baseline);
+    expect(result.conflicts).toBe(1);
+    expect(result.nodes.get(a.id)!.content).toBe('Souls text');
+
+    const conflictsDir = cardsDir.dirs.get('.conflicts')!;
+    const backedUp = [...conflictsDir.files.values()][0];
+    expect((await backedUp.getFile()).text_).toContain('Disktext');
+  });
+
+  it('re-links a node to its file when the baseline entry is missing, instead of duplicating it', async () => {
+    const dir = root();
+    const a = node({ title: 'Ska inte dubbleras' });
+    await syncCardFiles(dir, new Map([[a.id, a]]), {});
+
+    // Simulate a lost/cleared baseline: the file and node both still carry
+    // the same id, but nothing on Soul's side remembers the link.
+    const result = await scanCardFiles(dir, new Map([[a.id, a]]), [], {});
+    expect(result.nodes.size).toBe(1);
+    expect(result.ingested).toBe(0);
+    expect(result.merged).toBe(1);
+  });
+
+  it('does not bump updatedAt on a re-link merge when both sides already agree', async () => {
+    const dir = root();
+    const a = node({ title: 'Identisk', updatedAt: '2020-01-01T00:00:00.000Z' });
+    await syncCardFiles(dir, new Map([[a.id, a]]), {});
+
+    // Baseline lost, but the file on disk is byte-identical to the node —
+    // re-link must not manufacture a change out of nothing.
+    const result = await scanCardFiles(dir, new Map([[a.id, a]]), [], {});
+    expect(result.nodes.get(a.id)!.updatedAt).toBe('2020-01-01T00:00:00.000Z');
+  });
+
+  it('ingests a brand new external file with no id, minting one and writing it back', async () => {
+    const dir = root();
+    const cardsDir = new MockDirectoryHandle();
+    (dir as unknown as MockDirectoryHandle).dirs.set('cards', cardsDir);
+    const content = writeCardMarkdown(null, { ...emptyFrontmatter, title: 'Extern anteckning' }, 'Text skriven i Obsidian');
+    cardsDir.files.set('extern.md', new MockFileHandle(content, Date.now()));
+
+    const result = await scanCardFiles(dir, new Map(), [], {});
+    expect(result.ingested).toBe(1);
+    expect(result.nodes.size).toBe(1);
+    const [newNode] = [...result.nodes.values()];
+    expect(newNode.title).toBe('Extern anteckning');
+    expect(newNode.content).toBe('Text skriven i Obsidian');
+
+    const session = result.sessions.find((s: Session) => s.id === 'soul-external-cards-session');
+    expect(session?.cardIds).toContain(newNode.id);
+
+    const rewritten = (await cardsDir.files.get('extern.md')!.getFile()).text_;
+    expect(rewritten).toContain(`id: "${newNode.id}"`);
+  });
+
+  it('does not re-ingest the same file on a second scan (loop-safety)', async () => {
+    const dir = root();
+    const cardsDir = new MockDirectoryHandle();
+    (dir as unknown as MockDirectoryHandle).dirs.set('cards', cardsDir);
+    const content = writeCardMarkdown(null, { ...emptyFrontmatter, title: 'En gång' }, 'Text');
+    cardsDir.files.set('en-gang.md', new MockFileHandle(content, Date.now()));
+
+    const first = await scanCardFiles(dir, new Map(), [], {});
+    expect(first.ingested).toBe(1);
+
+    const second = await scanCardFiles(dir, first.nodes, first.sessions, first.baseline);
+    expect(second.ingested).toBe(0);
+    expect(second.merged).toBe(0);
+    expect(second.nodes.size).toBe(1);
+  });
+
+  it('adopts an id already present in an unrecognized file instead of minting a new one', async () => {
+    const dir = root();
+    const cardsDir = new MockDirectoryHandle();
+    (dir as unknown as MockDirectoryHandle).dirs.set('cards', cardsDir);
+    const content = writeCardMarkdown(null, { ...emptyFrontmatter, id: 'copied-id', title: 'Kopierad fil' }, 'Text');
+    cardsDir.files.set('kopierad.md', new MockFileHandle(content, Date.now()));
+
+    const result = await scanCardFiles(dir, new Map(), [], {});
+    expect(result.ingested).toBe(1);
+    expect(result.nodes.has('copied-id')).toBe(true);
+  });
+
+  it('excludes cards/.trash and cards/.conflicts from being ingested as new cards', async () => {
+    const dir = root();
+    const cardsDir = new MockDirectoryHandle();
+    (dir as unknown as MockDirectoryHandle).dirs.set('cards', cardsDir);
+    const trashDir = new MockDirectoryHandle();
+    const conflictsDir = new MockDirectoryHandle();
+    cardsDir.dirs.set('.trash', trashDir);
+    cardsDir.dirs.set('.conflicts', conflictsDir);
+    const strayContent = writeCardMarkdown(null, { ...emptyFrontmatter, title: 'Ska inte plockas in' }, 'Text');
+    trashDir.files.set('gammal.md', new MockFileHandle(strayContent, Date.now()));
+    conflictsDir.files.set('konflikt.md', new MockFileHandle(strayContent, Date.now()));
+
+    const result = await scanCardFiles(dir, new Map(), [], {});
+    expect(result.ingested).toBe(0);
+    expect(result.nodes.size).toBe(0);
   });
 });

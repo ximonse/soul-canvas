@@ -16,6 +16,7 @@ class MockWritable {
 }
 
 export class MockFileHandle {
+  kind = 'file' as const;
   private content: string;
   private modifiedAt: number;
   constructor(content = '', modifiedAt = Date.now()) {
@@ -32,6 +33,7 @@ export class MockFileHandle {
 }
 
 export class MockDirectoryHandle {
+  kind = 'directory' as const;
   files = new Map<string, MockFileHandle>();
   dirs = new Map<string, MockDirectoryHandle>();
 
@@ -55,5 +57,10 @@ export class MockDirectoryHandle {
 
   async removeEntry(name: string) {
     this.files.delete(name);
+  }
+
+  async *entries(): AsyncGenerator<[string, MockFileHandle | MockDirectoryHandle]> {
+    for (const [name, handle] of this.files) yield [name, handle];
+    for (const [name, handle] of this.dirs) yield [name, handle];
   }
 }

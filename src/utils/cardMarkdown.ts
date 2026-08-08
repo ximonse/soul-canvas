@@ -302,6 +302,30 @@ export function nodeToCardFrontmatter(node: MindNode): { frontmatter: CardFrontm
   return { frontmatter, body };
 }
 
+/**
+ * Inverse of nodeToCardFrontmatter, scoped to what an *ingested* external
+ * file actually needs — not a perfect mirror. A file created outside the
+ * app has no meaningful `imageRef`/image type to reconstruct (nobody
+ * hand-writes an image card), so ingested cards are always type: 'text'.
+ */
+export function cardFrontmatterToNodeFields(frontmatter: CardFrontmatter, body: string) {
+  return {
+    content: body,
+    title: frontmatter.title,
+    caption: frontmatter.caption,
+    comment: frontmatter.comment,
+    link: frontmatter.link,
+    value: frontmatter.value,
+    event: frontmatter.event,
+    remindAt: frontmatter.remindAt,
+    area: frontmatter.area,
+    done: frontmatter.done,
+    archived: frontmatter.archived,
+    tags: frontmatter.tags,
+    semanticTags: frontmatter.semanticTags,
+  };
+}
+
 function slugify(text: string): string {
   const cleaned = text
     .trim()
