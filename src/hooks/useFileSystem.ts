@@ -4,6 +4,8 @@ import { useBrainStore } from '../store/useBrainStore';
 import { set as setDb, get as getDb } from 'idb-keyval';
 import { exportSessionForAI, sanitizeFilename } from '../utils/aiExport';
 import { createEmptyCanvasDocument, parseCanvasDocument, serializeCanvasDocument } from '../utils/canvasDocument';
+import { syncCardFiles } from '../utils/cardFileSync';
+import { FEATURE_FLAGS } from '../utils/featureFlags';
 
 // Helper to revoke all blob URLs in an assets map
 function revokeAssetUrls(assets: Record<string, string>) {
@@ -37,6 +39,7 @@ export function useFileSystem() {
   const loadNodes = useBrainStore((state) => state.loadNodes);
   const loadAssets = useBrainStore((state) => state.loadAssets);
   const loadOmnicalState = useBrainStore((state) => state.loadOmnicalState);
+  const loadCardFiles = useBrainStore((state) => state.loadCardFiles);
   const loadConversations = useBrainStore((state) => state.loadConversations);
   const loadSessions = useBrainStore((state) => state.loadSessions);
   const loadTrails = useBrainStore((state) => state.loadTrails);
@@ -107,6 +110,7 @@ export function useFileSystem() {
       loadNodes(data.nodes || [], data.synapses || []);
       loadAssets(assetsMap);
       loadOmnicalState(data.omnical);
+      loadCardFiles(data.cardFiles);
       loadConversations(data.conversations || []);
       loadSessions(data.sessions || []);
       loadTrails(data.trails || []);
@@ -131,6 +135,7 @@ export function useFileSystem() {
     loadNodes,
     loadAssets,
     loadOmnicalState,
+    loadCardFiles,
     loadConversations,
     loadSessions,
     loadTrails,
@@ -210,9 +215,30 @@ export function useFileSystem() {
         }
       }
 
+      const state = useBrainStore.getState();
+
+      // Write-only card .md sync (Fas 3a): hash-diffed against the stored
+      // baseline, so this is cheap when nothing actually changed. Runs
+      // after the conflict check so a "reload from disk" choice can't
+      // still have written cards/*.md for state we're about to discard.
+      let cardFiles = state.cardFiles;
+      if (FEATURE_FLAGS.enableCardMarkdownFiles) {
+        try {
+          const result = await syncCardFiles(fileHandle, state.nodes, state.cardFiles);
+          cardFiles = result.baseline;
+          if (result.written > 0 || result.trashed > 0) {
+            console.log(`[cardFileSync] ${result.written} kort skrivna, ${result.trashed} flyttade till papperskorgen.`);
+          }
+        } catch (cardErr) {
+          // A card-file write failure must not block the data.json save
+          // that everything else depends on.
+          console.warn('[cardFileSync] Kunde inte synka kort-filer:', cardErr);
+        }
+      }
+      useBrainStore.getState().loadCardFiles(cardFiles);
+
       const writable = await fileRef.createWritable();
 
-      const state = useBrainStore.getState();
       const dataToSave = serializeCanvasDocument({
         nodes: Array.from(state.nodes.values()),
         synapses: state.synapses,
@@ -226,6 +252,7 @@ export function useFileSystem() {
           showActiveTrailLine: state.showActiveTrailLine,
         },
         omnical: state.omnical,
+        cardFiles,
       });
 
       await writable.write(JSON.stringify(dataToSave, null, 2));

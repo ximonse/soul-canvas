@@ -9,6 +9,9 @@ export type FeatureFlags = {
   enableWanderingTrails: boolean;
   enableGraphGravityControls: boolean;
   enableOmnicalSharedNotes: boolean;
+  // Write each card as its own cards/<id>.md file (hash-diffed at save
+  // time, write-only for now — see plan: kort som .md-filer, Fas 3a).
+  enableCardMarkdownFiles: boolean;
 };
 
 const STORAGE_KEY = 'soul-canvas-feature-flags';
@@ -28,6 +31,9 @@ const DEFAULT_FEATURE_FLAGS: FeatureFlags = {
   enableGraphGravityControls: false,
   // Experimental local-folder interoperability with Omnical.
   enableOmnicalSharedNotes: false,
+  // Off by default: writes potentially thousands of new files into the
+  // user's live working folder. Enable deliberately, not on first run.
+  enableCardMarkdownFiles: false,
 };
 
 const readStoredFlags = (): Partial<FeatureFlags> => {

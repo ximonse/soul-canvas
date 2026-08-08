@@ -1,4 +1,4 @@
-import type { Conversation, MindNode, OmnicalDocumentState, PendingOmnicalFile, Sequence, Session, Synapse, Trail } from '../types/types';
+import type { CardFileBaselineEntry, Conversation, MindNode, OmnicalDocumentState, PendingOmnicalFile, Sequence, Session, Synapse, Trail } from '../types/types';
 
 export const CANVAS_DOCUMENT_VERSION = 2;
 
@@ -22,6 +22,10 @@ export interface CanvasDocumentV2 {
     showActiveTrailLine: boolean;
   };
   omnical: OmnicalDocumentState;
+  // Per-card write baseline for the cards/*.md feature, keyed by node id.
+  // Empty/absent for documents saved before that feature existed or while
+  // it's disabled (see featureFlags.enableCardMarkdownFiles).
+  cardFiles: Record<string, CardFileBaselineEntry>;
 }
 
 type LegacyDocument = Partial<Omit<CanvasDocumentV2, 'schemaVersion' | 'exportedAt' | 'omnical'>> & {
@@ -41,6 +45,31 @@ const asNodes = (value: unknown): MindNode[] => {
   if (Array.isArray(value)) return value as MindNode[];
   if (isRecord(value)) return Object.values(value).filter(isRecord) as unknown as MindNode[];
   return [];
+};
+
+const asCardFiles = (value: unknown): Record<string, CardFileBaselineEntry> => {
+  if (!isRecord(value)) return {};
+  const result: Record<string, CardFileBaselineEntry> = {};
+  for (const [id, entry] of Object.entries(value)) {
+    if (
+      isRecord(entry)
+      && typeof entry.mdPath === 'string'
+      && typeof entry.mdMtime === 'number'
+      && typeof entry.bodyHash === 'string'
+      && typeof entry.frontmatterHash === 'string'
+    ) {
+      result[id] = {
+        mdPath: entry.mdPath,
+        mdMtime: entry.mdMtime,
+        bodyHash: entry.bodyHash,
+        frontmatterHash: entry.frontmatterHash,
+      };
+    }
+    // Silently drop malformed entries rather than rejecting the whole
+    // document — a stale/corrupt baseline for one card just means that
+    // card's .md gets rewritten once more than strictly necessary.
+  }
+  return result;
 };
 
 const asOmnical = (value: unknown): OmnicalDocumentState => {
@@ -80,6 +109,7 @@ export function createEmptyCanvasDocument(): CanvasDocumentV2 {
     activeSessionId: null,
     trailUi: { selectedTrailIds: [], showActiveTrailLine: true },
     omnical: { pendingFiles: [], ignoredNoteIds: [] },
+    cardFiles: {},
   };
 }
 
@@ -121,6 +151,7 @@ export function parseCanvasDocument(raw: unknown): CanvasDocumentV2 {
     activeSessionId: typeof legacy.activeSessionId === 'string' ? legacy.activeSessionId : null,
     trailUi: { selectedTrailIds, showActiveTrailLine },
     omnical: asOmnical(legacy.omnical),
+    cardFiles: asCardFiles(legacy.cardFiles),
   };
 }
 
@@ -149,5 +180,6 @@ export function serializeCanvasDocument(document: Omit<CanvasDocumentV2, 'schema
       pendingFiles: document.omnical.pendingFiles.map((file) => ({ ...file })),
       ignoredNoteIds: [...document.omnical.ignoredNoteIds],
     },
+    cardFiles: { ...document.cardFiles },
   };
 }

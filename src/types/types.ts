@@ -25,6 +25,16 @@ export interface OmnicalDocumentState {
   ignoredNoteIds: string[];
 }
 
+// Per-card baseline for the cards/*.md write path (see plan: kort som
+// .md-filer). Lets saveFile() hash-diff which cards actually changed
+// since the last write instead of instrumenting every node mutation.
+export interface CardFileBaselineEntry {
+  mdPath: string;
+  mdMtime: number;
+  bodyHash: string;
+  frontmatterHash: string;
+}
+
 export interface OmnicalConflict {
   id: string;
   nodeId: string;

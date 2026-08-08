@@ -1,6 +1,6 @@
 // src/store/useBrainStore.ts
 import { create } from 'zustand';
-import type { AIProvider, MindNode, OmnicalConflict, OmnicalDocumentState, Synapse, Sequence, Conversation, ConversationMessage, Session, ViewMode, SortOption } from '../types/types';
+import type { AIProvider, CardFileBaselineEntry, MindNode, OmnicalConflict, OmnicalDocumentState, Synapse, Sequence, Conversation, ConversationMessage, Session, ViewMode, SortOption } from '../types/types';
 import { createSelectionSlice, type SelectionActions, type SelectionState } from './slices/selectionSlice';
 import { createHistorySlice, historyInitialState, type HistoryState, type HistoryActions } from './slices/historySlice';
 import { createTrailSlice, initialTrailState, type TrailState, type TrailActions } from './slices/trailSlice';
@@ -16,6 +16,9 @@ interface CoreState {
   lastSaved: string | null;
   assets: Record<string, string>;
   omnical: OmnicalDocumentState;
+  // Per-card write baseline for the cards/*.md feature (see plan: kort som
+  // .md-filer). Not touched at all unless featureFlags.enableCardMarkdownFiles.
+  cardFiles: Record<string, CardFileBaselineEntry>;
   omnicalSyncStatus: 'disconnected' | 'idle' | 'syncing' | 'synced' | 'error';
   omnicalSyncMessage: string | null;
   omnicalConflicts: OmnicalConflict[];
@@ -84,6 +87,7 @@ interface CoreActions {
   loadNodes: (nodes: MindNode[], synapses?: Synapse[]) => void;
   loadAssets: (assets: Record<string, string>) => void;
   loadOmnicalState: (state: OmnicalDocumentState) => void;
+  loadCardFiles: (cardFiles: Record<string, CardFileBaselineEntry>) => void;
   createNodesMap: (nodesArray: MindNode[]) => Map<string, MindNode>;
 
   addNode: (content: string, x: number, y: number, type?: 'text' | 'image' | 'zotero') => void;
@@ -200,6 +204,7 @@ export const useBrainStore = create<BrainStore>()((set, get, api) => ({
   lastSaved: null,
   assets: {},
   omnical: { pendingFiles: [], ignoredNoteIds: [] },
+  cardFiles: {},
   omnicalSyncStatus: 'disconnected',
   omnicalSyncMessage: null,
   omnicalConflicts: [],
@@ -320,6 +325,7 @@ export const useBrainStore = create<BrainStore>()((set, get, api) => ({
       ignoredNoteIds: [...omnical.ignoredNoteIds],
     },
   }),
+  loadCardFiles: (cardFiles) => set({ cardFiles: { ...cardFiles } }),
 
   // Node CRUD
   addNode: (content, x, y, type = 'text') => set((state) => {

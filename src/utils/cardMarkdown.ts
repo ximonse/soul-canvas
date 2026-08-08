@@ -6,6 +6,7 @@
 // subsystem in production use for Omnical-linked notes specifically) to
 // cover any card and any owned field, while still leaving foreign
 // frontmatter keys and comments byte-for-byte untouched on write.
+import type { MindNode } from '../types/types';
 import { bodyHash, normalizeTags, stableTextHash, tagsHash } from './omnicalNotes';
 
 export { bodyHash, normalizeTags, tagsHash };
@@ -270,4 +271,58 @@ export function planCardMerge(
     writeBody: bodyHash(body) !== diskBodyHash,
     writeFrontmatter: frontmatterHash(frontmatter) !== diskFmHash,
   };
+}
+
+/** Maps a MindNode to its .md representation. Pure — does no I/O. */
+export function nodeToCardFrontmatter(node: MindNode): { frontmatter: CardFrontmatter; body: string } {
+  // Image cards store the asset reference in `content`; the readable text
+  // is the OCR pass ("baksidan"). Everything else uses `content` directly.
+  const body = node.type === 'image' ? (node.ocrText ?? '') : node.content;
+  const frontmatter: CardFrontmatter = {
+    id: node.id,
+    title: node.title,
+    caption: node.caption,
+    comment: node.comment,
+    link: node.link,
+    value: node.value,
+    event: node.event,
+    remindAt: node.remindAt,
+    area: node.area,
+    done: node.done,
+    archived: node.archived,
+    imageRef: node.imageRef,
+    // `background` is a human/foreign-app override slot, never populated
+    // from the node's own backgroundColor — Soul never writes this key,
+    // so an existing override line is left alone (see writeCardMarkdown).
+    background: undefined,
+    updated: node.updatedAt,
+    tags: node.tags,
+    semanticTags: node.semanticTags ?? [],
+  };
+  return { frontmatter, body };
+}
+
+function slugify(text: string): string {
+  const cleaned = text
+    .trim()
+    .toLowerCase()
+    .replace(/[\\/:*?"<>|]/g, '')
+    .replace(/[^a-z0-9åäö]+/gi, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '');
+  return cleaned.slice(0, 50) || 'kort';
+}
+
+/**
+ * Stable filename for a card's .md file: YYYY-MM-DD-<slug>-<kortid>.md,
+ * matching the Hermes Vault convention. Only called once, for a card that
+ * doesn't have a baseline entry yet — callers must reuse the stored
+ * mdPath afterwards rather than recomputing this, since a title edit must
+ * not rename (and thereby orphan/duplicate) an already-synced file.
+ */
+export function cardFilename(node: MindNode): string {
+  const date = (node.createdAt || new Date().toISOString()).slice(0, 10);
+  const base = node.title?.trim() || node.content?.trim() || 'kort';
+  const shortId = node.id.replace(/-/g, '').slice(0, 6);
+  return `${date}-${slugify(base)}-${shortId}.md`;
 }

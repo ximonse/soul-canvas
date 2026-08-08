@@ -25,6 +25,7 @@ export function SettingsModal({ onClose, theme }: SettingsModalProps) {
   const [logChatPayload, setLogChatPayload] = useState(FEATURE_FLAGS.logChatPayload);
   const [enableWanderingTrails, setEnableWanderingTrails] = useState(FEATURE_FLAGS.enableWanderingTrails);
   const [enableGraphGravityControls, setEnableGraphGravityControls] = useState(FEATURE_FLAGS.enableGraphGravityControls);
+  const [enableCardMarkdownFiles, setEnableCardMarkdownFiles] = useState(FEATURE_FLAGS.enableCardMarkdownFiles);
   const [enableOmnicalSharedNotes, setEnableOmnicalSharedNotes] = useState(FEATURE_FLAGS.enableOmnicalSharedNotes);
   const omnicalSyncStatus = useBrainStore((state) => state.omnicalSyncStatus);
   const omnicalSyncMessage = useBrainStore((state) => state.omnicalSyncMessage);
@@ -237,6 +238,18 @@ export function SettingsModal({ onClose, theme }: SettingsModalProps) {
                   const next = e.target.checked;
                   setEnableGraphGravityControls(next);
                   setFeatureFlag('enableGraphGravityControls', next);
+                }}
+              />
+            </label>
+            <label className="flex items-center justify-between gap-4 text-sm">
+              <span>Kort som .md-filer (experiment)</span>
+              <input
+                type="checkbox"
+                checked={enableCardMarkdownFiles}
+                onChange={(e) => {
+                  const next = e.target.checked;
+                  setEnableCardMarkdownFiles(next);
+                  setFeatureFlag('enableCardMarkdownFiles', next);
                 }}
               />
             </label>
