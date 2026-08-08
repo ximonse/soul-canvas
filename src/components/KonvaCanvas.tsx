@@ -465,7 +465,7 @@ const KonvaCanvas: React.FC<KonvaCanvasProps> = ({
           {nodes.length === 0 && (
             <Group>
               <Text
-                text="🌌 Soul Canvas"
+                text="🌌 Canvas"
                 x={window.innerWidth / 2}
                 y={window.innerHeight / 2 - 100}
                 offsetX={300} // Approximate half width

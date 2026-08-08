@@ -29,7 +29,7 @@ export function OmnicalConflictModal({ theme }: OmnicalConflictModalProps) {
       >
         <h2 className="text-xl font-bold">Konflikt med Omnical</h2>
         <p className="mt-2 text-sm opacity-80">
-          Både Soul Canvas och Omnical har ändrat {[
+          Både Canvas och Omnical har ändrat {[
             conflict.fields.includes('body') ? 'texten' : null,
             conflict.fields.includes('tags') ? 'taggarna' : null,
             conflict.fields.includes('meta') ? 'status (klar/arkiverad/område/påminnelse)' : null,

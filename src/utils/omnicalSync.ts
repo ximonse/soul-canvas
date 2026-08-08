@@ -190,7 +190,7 @@ export async function connectOmnicalFolder() {
     const handle = await window.showDirectoryPicker({ mode: 'readwrite' });
     if (!await ensurePermission(handle, true)) return;
     const scan = await scanFolder(handle);
-    if (!window.confirm('Soul Canvas hittade ' + scan.notes.size + ' Omnical-anteckningar. Anslut och importera dem?')) return;
+    if (!window.confirm('Canvas hittade ' + scan.notes.size + ' Omnical-anteckningar. Anslut och importera dem?')) return;
     activeHandle = handle;
     await setDb(HANDLE_KEY, handle);
     useBrainStore.setState({ omnicalSyncStatus: 'idle', omnicalSyncMessage: 'Omnical-mappen är ansluten.' });
