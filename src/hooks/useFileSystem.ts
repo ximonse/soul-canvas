@@ -4,7 +4,7 @@ import { useBrainStore } from '../store/useBrainStore';
 import { set as setDb, get as getDb, del as delDb } from 'idb-keyval';
 import { exportSessionForAI, sanitizeFilename } from '../utils/aiExport';
 import { createEmptyCanvasDocument, parseCanvasDocument, serializeCanvasDocument } from '../utils/canvasDocument';
-import { scanCardFiles, syncCardFiles } from '../utils/cardFileSync';
+import { scanCardFiles, syncCardFiles, withCardFileLock } from '../utils/cardFileSync';
 import { FEATURE_FLAGS } from '../utils/featureFlags';
 
 // Helper to revoke all blob URLs in an assets map
@@ -68,15 +68,24 @@ export function useFileSystem() {
   const runCardFileScan = useCallback(async (dirHandle: FileSystemDirectoryHandle) => {
     if (!FEATURE_FLAGS.enableCardMarkdownFiles) return;
     try {
-      const current = useBrainStore.getState();
-      const result = await scanCardFiles(dirHandle, current.nodes, current.sessions, current.cardFiles);
-      const changed = result.merged > 0 || result.ingested > 0;
-      useBrainStore.setState({
-        nodes: result.nodes,
-        sessions: result.sessions,
-        cardFiles: result.baseline,
-        ...(changed ? { pendingSave: true } : {}),
+      // Read the store, scan, and write the result back all inside the
+      // lock. Snapshotting outside it would let omnicalSync's runSync (or
+      // a save) land in between and have its merged nodes overwritten by
+      // this pre-scan snapshot — the "an Omnical edit flashes up in the
+      // canvas and then disappears" case.
+      const result = await withCardFileLock(async () => {
+        const current = useBrainStore.getState();
+        const scanned = await scanCardFiles(dirHandle, current.nodes, current.sessions, current.cardFiles);
+        const didChange = scanned.merged > 0 || scanned.ingested > 0;
+        useBrainStore.setState({
+          nodes: scanned.nodes,
+          sessions: scanned.sessions,
+          cardFiles: scanned.baseline,
+          ...(didChange ? { pendingSave: true } : {}),
+        });
+        return scanned;
       });
+      const changed = result.merged > 0 || result.ingested > 0;
       if (changed) {
         const parts: string[] = [];
         if (result.merged > 0) parts.push(`${result.merged} uppdaterade`);
@@ -314,17 +323,20 @@ export function useFileSystem() {
       // still have written cards/*.md for state we're about to discard.
       //
       // Deliberately re-reading useBrainStore.getState() at every step
-      // below instead of snapshotting it once: syncCardFiles() awaits a
-      // lock shared with the background scan (Fas 3b, cardFileSync.ts). If
-      // a scan finishes while this call is queued behind it, the store
-      // already holds merged nodes/baseline by the time we resume — a
-      // stale snapshot here would either overwrite the scan's merged file
-      // with pre-scan content, or discard the merge from data.json below.
+      // below instead of snapshotting it once, and reading it *inside* the
+      // shared lock: the background scan (Fas 3b) and omnicalSync's
+      // runSync write the same node set. If either finishes while this
+      // call is queued behind the lock, the store already holds their
+      // merged nodes/baseline by the time we resume — a stale snapshot
+      // here would either overwrite the merged file with pre-merge
+      // content, or discard the merge from data.json below.
       let cardFiles = useBrainStore.getState().cardFiles;
       if (FEATURE_FLAGS.enableCardMarkdownFiles) {
         try {
-          const freshState = useBrainStore.getState();
-          const result = await syncCardFiles(fileHandle, freshState.nodes, freshState.cardFiles);
+          const result = await withCardFileLock(async () => {
+            const freshState = useBrainStore.getState();
+            return syncCardFiles(fileHandle, freshState.nodes, freshState.cardFiles);
+          });
           cardFiles = result.baseline;
           if (result.written > 0 || result.trashed > 0) {
             console.log(`[cardFileSync] ${result.written} kort skrivna, ${result.trashed} flyttade till papperskorgen.`);

@@ -1,6 +1,7 @@
 import { del as delDb, get as getDb, set as setDb } from 'idb-keyval';
 import { useBrainStore } from '../store/useBrainStore';
 import type { MindNode, OmnicalConflict, PendingOmnicalFile, Session } from '../types/types';
+import { withCardFileLock } from './cardFileSync';
 import {
   bodyHash,
   fingerprintForPending,
@@ -223,16 +224,13 @@ export async function restoreOmnicalFolder() {
   }
 }
 
-async function runSync() {
-  if (!activeHandle) {
-    useBrainStore.setState({ omnicalSyncStatus: 'disconnected', omnicalSyncMessage: 'Ingen Omnical-mapp är ansluten.' });
-    return;
-  }
-  if (!await ensurePermission(activeHandle, false)) {
-    useBrainStore.setState({ omnicalSyncStatus: 'disconnected', omnicalSyncMessage: 'Omnical-mappen behöver anslutas igen.' });
-    return;
-  }
-
+// The body of runSync, minus the connection checks. Always called while
+// holding withCardFileLock: it reads the whole node set, does folder I/O,
+// and writes the node set back — exactly the cycle cardFileSync's scan
+// and save also perform. Without the shared lock the two interleave, and
+// whichever finishes last silently reverts the other's merge (an Omnical
+// edit that flashes up in the canvas and then disappears).
+async function runSyncLocked(activeHandle: FileSystemDirectoryHandle) {
   useBrainStore.setState({ omnicalSyncStatus: 'syncing', omnicalSyncMessage: 'Synkar Omnical…' });
   const state = useBrainStore.getState();
   const nodes = new Map(state.nodes);
@@ -256,13 +254,23 @@ async function runSync() {
     linkedIds.add(adopted.id);
     nodes.set(node.id, {
       ...node,
-      // Keep Soul's shared fields so explicit tags/meta can flow into the
-      // newly adopted Omnical file during the same three-way sync.
       omnicalLink: {
         omnicalId: adopted.id,
         path: adopted.path,
         status: 'linked',
-        bodyHash: bodyHash(adopted.body),
+        // The body baseline must be the text Soul actually published to
+        // the file, not the text that's there now. Using the remote hash
+        // made planSharedMerge read Soul's untouched content as "changed"
+        // and the remote as unchanged — so an edit made in Omnical while
+        // the card was still pending lost silently, and got overwritten
+        // with Soul's stale text in this very same sync. With the
+        // published hash as the base it's a real three-way merge: an
+        // Omnical-only edit wins, edits on both sides conflict.
+        bodyHash: pending.bodyHash,
+        // Tags/meta have no such shared base — publishShareRequests writes
+        // the raw body with no frontmatter, so they were never on disk.
+        // Keeping the remote hashes here is what makes Soul's explicit
+        // tags/meta count as changed and flow into the adopted file.
         tagsHash: tagsHash(adopted.tags),
         metaHash: metaHash(metaOf(adopted)),
       },
@@ -392,6 +400,19 @@ async function runSync() {
       : 'Omnical synkad: ' + existingLinkedIds.size + ' länkade, ' + pendingFiles.length + ' väntar.',
     pendingSave: true,
   });
+}
+
+async function runSync() {
+  const handle = activeHandle;
+  if (!handle) {
+    useBrainStore.setState({ omnicalSyncStatus: 'disconnected', omnicalSyncMessage: 'Ingen Omnical-mapp är ansluten.' });
+    return;
+  }
+  if (!await ensurePermission(handle, false)) {
+    useBrainStore.setState({ omnicalSyncStatus: 'disconnected', omnicalSyncMessage: 'Omnical-mappen behöver anslutas igen.' });
+    return;
+  }
+  await withCardFileLock(() => runSyncLocked(handle));
 }
 
 export function syncOmnicalNotes() {

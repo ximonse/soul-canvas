@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { parseOmnicalMarkdown, writeSharedMarkdown } from '../src/utils/omnicalNotes';
+import type { MindNode } from '../src/types/types';
 
 const idb = new Map<string, unknown>();
 vi.mock('idb-keyval', () => ({
@@ -157,6 +158,54 @@ describe('Omnical folder round trip', () => {
     expect(root.files.has('note.md')).toBe(true);
     await sync.syncOmnicalNotes();
     expect([...brain.useBrainStore.getState().nodes.values()].some((node) => node.omnicalLink?.omnicalId === 'note-1')).toBe(false);
+  });
+
+  it('lets an Omnical edit made while the card is still pending survive adoption', async () => {
+    await sync.connectOmnicalFolder();
+
+    const shared: MindNode = {
+      id: 'soul-card-1',
+      content: 'Souls text',
+      x: 0,
+      y: 0,
+      z: 0,
+      tags: [],
+      type: 'text',
+      createdAt: '2026-08-08T09:00:00.000Z',
+      omnicalLink: { status: 'share-requested', bodyHash: '', tagsHash: '' },
+    };
+    const nodes = new Map(brain.useBrainStore.getState().nodes);
+    nodes.set(shared.id, shared);
+    brain.useBrainStore.setState({ nodes });
+
+    // First sync publishes the raw body — no frontmatter, so Omnical has
+    // to stamp an omnicalId before the card can ever be adopted.
+    await sync.syncOmnicalNotes();
+    let state = brain.useBrainStore.getState();
+    expect(state.nodes.get(shared.id)?.omnicalLink?.status).toBe('pending');
+    const pendingPath = state.omnical.pendingFiles.find((file) => file.nodeId === shared.id)!.path;
+    expect(root.files.get(pendingPath)).toBe('Souls text');
+
+    // Omnical adopts the file and the user edits the note there, before
+    // Soul has ever seen it as linked.
+    root.files.set(pendingPath, [
+      '---',
+      'omnicalId: "note-2"',
+      'done: false',
+      'tags: []',
+      '---',
+      '',
+      'Ändrad i Omnical',
+      '',
+    ].join('\n'));
+
+    await sync.syncOmnicalNotes();
+    state = brain.useBrainStore.getState();
+    expect(state.nodes.get(shared.id)?.omnicalLink?.status).toBe('linked');
+    expect(state.nodes.get(shared.id)?.content).toBe('Ändrad i Omnical');
+    expect(state.omnicalConflicts).toHaveLength(0);
+    expect(root.files.get(pendingPath)).toContain('Ändrad i Omnical');
+    expect(root.files.get(pendingPath)).not.toContain('Souls text');
   });
 
   it('keeps a linked card detached when its Omnical file disappears', async () => {
