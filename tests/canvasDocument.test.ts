@@ -53,4 +53,25 @@ describe('CanvasDocumentV2', () => {
     expect(serialized).not.toBe(empty);
     expect(serialized.nodes).not.toBe(empty.nodes);
   });
+
+  it('mints a fresh revision on every serialize, so a later write can detect a stale on-disk copy', () => {
+    const empty = createEmptyCanvasDocument();
+    const first = serializeCanvasDocument(empty);
+    const second = serializeCanvasDocument(empty);
+
+    expect(typeof first.revision).toBe('string');
+    expect(first.revision).not.toBe('');
+    expect(second.revision).not.toBe(first.revision);
+  });
+
+  it('preserves a known revision when parsing, so re-saving without an external change is not mistaken for a conflict', () => {
+    const document = parseCanvasDocument({ nodes: [], revision: 'known-revision' });
+    expect(document.revision).toBe('known-revision');
+  });
+
+  it('mints a revision for legacy documents saved before the field existed', () => {
+    const document = parseCanvasDocument({ nodes: [] });
+    expect(typeof document.revision).toBe('string');
+    expect(document.revision).not.toBe('');
+  });
 });

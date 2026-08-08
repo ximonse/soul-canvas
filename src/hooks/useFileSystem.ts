@@ -14,6 +14,24 @@ function revokeAssetUrls(assets: Record<string, string>) {
   });
 }
 
+export interface SaveConflictInfo {
+  backupFilename: string;
+  detectedAt: string;
+}
+
+export interface SaveResult {
+  ok: boolean;
+  // True when `ok` is false specifically because a save conflict was
+  // detected (see saveConflict/resolveSaveConflict) — the conflict dialog
+  // is already handling it, so callers should not also show a generic
+  // "could not save" error toast for this case.
+  conflict: boolean;
+}
+
+function backupFilenameFor(date: Date) {
+  return `data.backup-${date.toISOString().replace(/[:.]/g, '-')}.json`;
+}
+
 export function useFileSystem() {
   const setFileHandle = useBrainStore((state) => state.setFileHandle);
   const loadNodes = useBrainStore((state) => state.loadNodes);
@@ -29,6 +47,12 @@ export function useFileSystem() {
   // Track current blob URLs for cleanup
   const currentAssetsRef = useRef<Record<string, string>>({});
   const [isReady, setIsReady] = useState(false);
+  // The data.json `revision` we last read from disk (on open, or after our
+  // own successful save). If a save is about to overwrite a file whose
+  // on-disk revision no longer matches this, someone else (another device
+  // syncing via OneDrive/Drive) wrote it since — see saveFile() below.
+  const lastKnownRevisionRef = useRef<string | null>(null);
+  const [saveConflict, setSaveConflict] = useState<SaveConflictInfo | null>(null);
 
   // --- LÄSA MAPPEN ---
   const readDirectory = useCallback(async (dirHandle: FileSystemDirectoryHandle) => {
@@ -76,6 +100,9 @@ export function useFileSystem() {
       // Revoke old blob URLs before loading new ones
       revokeAssetUrls(currentAssetsRef.current);
       currentAssetsRef.current = assetsMap;
+
+      lastKnownRevisionRef.current = data.revision;
+      setSaveConflict(null);
 
       loadNodes(data.nodes || [], data.synapses || []);
       loadAssets(assetsMap);
@@ -141,11 +168,48 @@ export function useFileSystem() {
   }, [readDirectory]);
 
   // --- SPARA DATA (JSON) ---
-  const saveFile = useCallback(async (): Promise<boolean> => {
-    if (!fileHandle) return false;
+  // `force`: skip the conflict check and overwrite regardless. Used when the
+  // user explicitly chooses "spara ändå" on the conflict dialog.
+  // Returns a result object (not just boolean) so callers can tell "failed
+  // to write" apart from "blocked by a conflict, waiting on the user" —
+  // those need different UI (a generic error toast vs. letting the
+  // conflict dialog speak for itself).
+  const saveFile = useCallback(async (force = false): Promise<SaveResult> => {
+    if (!fileHandle) return { ok: false, conflict: false };
     try {
       // Skapa/Öppna data.json i roten av mappen
       const fileRef = await fileHandle.getFileHandle('data.json', { create: true });
+
+      if (!force) {
+        try {
+          const existingFile = await fileRef.getFile();
+          if (existingFile.size > 0) {
+            const existingText = await existingFile.text();
+            const existingJson = JSON.parse(existingText) as { revision?: unknown };
+            const diskRevision = typeof existingJson.revision === 'string' ? existingJson.revision : null;
+            const knownRevision = lastKnownRevisionRef.current;
+            if (diskRevision && knownRevision && diskRevision !== knownRevision) {
+              // Someone else wrote data.json since we last read it. Don't
+              // clobber their write silently — back it up and let the user
+              // decide (see resolveSaveConflict below).
+              const detectedAt = new Date();
+              const backupFilename = backupFilenameFor(detectedAt);
+              const backupRef = await fileHandle.getFileHandle(backupFilename, { create: true });
+              const backupWritable = await backupRef.createWritable();
+              await backupWritable.write(existingText);
+              await backupWritable.close();
+              console.warn(`[saveFile] Konflikt: data.json ändrades av någon annan sen senast. Backup: ${backupFilename}`);
+              setSaveConflict({ backupFilename, detectedAt: detectedAt.toISOString() });
+              return { ok: false, conflict: true };
+            }
+          }
+        } catch (checkErr) {
+          // Existing file unreadable/malformed — don't block the save on a
+          // soft check that itself failed; fall through and write normally.
+          console.warn('[saveFile] Kunde inte läsa befintlig data.json för konfliktkoll:', checkErr);
+        }
+      }
+
       const writable = await fileRef.createWritable();
 
       const state = useBrainStore.getState();
@@ -166,12 +230,35 @@ export function useFileSystem() {
 
       await writable.write(JSON.stringify(dataToSave, null, 2));
       await writable.close();
-      return true;
+      lastKnownRevisionRef.current = dataToSave.revision;
+      setSaveConflict(null);
+      return { ok: true, conflict: false };
     } catch (err) {
       console.error('Kunde inte spara data.json:', err);
-      return false;
+      return { ok: false, conflict: false };
     }
   }, [fileHandle]);
+
+  // --- LÖS SPARKONFLIKT ---
+  // 'overwrite': keep our in-memory version, write it over the (now backed
+  //   up) disk version.
+  // 'reload': discard our unsaved in-memory changes and load the other
+  //   device's version from disk instead.
+  const resolveSaveConflict = useCallback(async (action: 'overwrite' | 'reload'): Promise<boolean> => {
+    if (action === 'overwrite') {
+      const result = await saveFile(true);
+      // saveFile(true) already clears saveConflict on success. If it failed
+      // for some other reason (disk error etc.), clear it here too — the
+      // backup is already safely on disk, so leaving the dialog up with no
+      // dismiss path would just trap the user behind the error toast.
+      if (!result.ok) setSaveConflict(null);
+      return result.ok;
+    }
+    setSaveConflict(null);
+    if (!fileHandle) return false;
+    await readDirectory(fileHandle);
+    return true;
+  }, [saveFile, fileHandle, readDirectory]);
 
   // --- SPARA AI-EXPORT (Alla sessioner som .txt) ---
   const saveAIExports = useCallback(async () => {
@@ -310,5 +397,5 @@ export function useFileSystem() {
     restoreSession();
   }, [readDirectory]);
 
-  return { openFile, saveFile, saveAsset, saveAIExports, hasFile: !!fileHandle, isReady };
+  return { openFile, saveFile, saveAsset, saveAIExports, hasFile: !!fileHandle, isReady, saveConflict, resolveSaveConflict };
 }

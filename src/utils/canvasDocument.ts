@@ -5,6 +5,11 @@ export const CANVAS_DOCUMENT_VERSION = 2;
 export interface CanvasDocumentV2 {
   schemaVersion: typeof CANVAS_DOCUMENT_VERSION;
   exportedAt: string;
+  // Opaque stamp minted fresh on every serialize. Used to detect when
+  // data.json on disk was written by someone else (another device syncing
+  // in via OneDrive/Drive) since we last read it. Optional on parse for
+  // backwards compatibility with files saved before this field existed.
+  revision: string;
   nodes: MindNode[];
   synapses: Synapse[];
   conversations: Conversation[];
@@ -65,6 +70,7 @@ export function createEmptyCanvasDocument(): CanvasDocumentV2 {
   return {
     schemaVersion: CANVAS_DOCUMENT_VERSION,
     exportedAt: new Date().toISOString(),
+    revision: crypto.randomUUID(),
     nodes: [],
     synapses: [],
     conversations: [],
@@ -102,6 +108,10 @@ export function parseCanvasDocument(raw: unknown): CanvasDocumentV2 {
       : typeof raw.lastSaved === 'string'
         ? raw.lastSaved
         : new Date().toISOString(),
+    // Legacy files saved before this field existed get a fresh revision
+    // minted on load; that's fine, it just means the very first save after
+    // opening an old file can't be mistaken for a conflict.
+    revision: typeof raw.revision === 'string' && raw.revision ? raw.revision : crypto.randomUUID(),
     nodes: asNodes(legacy.nodes),
     synapses: asArray<Synapse>(legacy.synapses),
     conversations: asArray<Conversation>(legacy.conversations),
@@ -114,11 +124,17 @@ export function parseCanvasDocument(raw: unknown): CanvasDocumentV2 {
   };
 }
 
-export function serializeCanvasDocument(document: Omit<CanvasDocumentV2, 'schemaVersion' | 'exportedAt'>): CanvasDocumentV2 {
+export function serializeCanvasDocument(document: Omit<CanvasDocumentV2, 'schemaVersion' | 'exportedAt' | 'revision'>): CanvasDocumentV2 {
   return {
     schemaVersion: CANVAS_DOCUMENT_VERSION,
     exportedAt: new Date().toISOString(),
     ...document,
+    // Minted after the ...document spread so it always wins, even if a
+    // caller passes in a full CanvasDocumentV2 (which structurally still
+    // carries its own stale `revision` — TS doesn't strip it from a
+    // non-literal value). Every serialize must produce a fresh stamp; see
+    // saveFile() in useFileSystem.ts for why that matters.
+    revision: crypto.randomUUID(),
     nodes: [...document.nodes],
     synapses: [...document.synapses],
     conversations: [...document.conversations],

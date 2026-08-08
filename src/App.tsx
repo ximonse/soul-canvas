@@ -30,6 +30,7 @@ import { CanvasWeekView } from './components/CanvasWeekView';
 import { CanvasEternalView } from './components/CanvasEternalView';
 import { MiniMap } from './components/overlays/MiniMap';
 import { OmnicalConflictModal } from './components/overlays/OmnicalConflictModal';
+import { SaveConflictDialog } from './components/overlays/SaveConflictDialog';
 import { SessionPanel } from './components/SessionPanel';
 import { AIBatchStatus } from './components/overlays/AIBatchStatus';
 import type { ContextMenuState } from './components/overlays/ContextMenu';
@@ -47,7 +48,7 @@ const THEME_KEYS = Object.keys(THEMES);
 
 function App() {
   // Core hooks
-  const { openFile, saveFile, saveAsset, saveAIExports, hasFile, isReady } = useFileSystem();
+  const { openFile, saveFile, saveAsset, saveAIExports, hasFile, isReady, saveConflict, resolveSaveConflict } = useFileSystem();
   const { exportBackup, restoreBackup } = usePortableBackup();
   const handleExportBackup = useCallback(() => { void exportBackup(); }, [exportBackup]);
   const handleRestoreBackup = useCallback(() => { void restoreBackup(); }, [restoreBackup]);
@@ -412,10 +413,12 @@ function App() {
     if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
     setTimeout(async () => {
       setSaveStatus('saving');
-      const saved = await saveFile();
-      if (!saved) {
+      const result = await saveFile();
+      if (!result.ok) {
         setSaveStatus('error');
-        addNotification('Kunde inte spara. Dina ändringar finns kvar i appen.', 'error', 6000);
+        if (!result.conflict) {
+          addNotification('Kunde inte spara. Dina ändringar finns kvar i appen.', 'error', 6000);
+        }
         return;
       }
       saveAIExports();
@@ -588,10 +591,12 @@ function App() {
     setSaveStatus('waiting');
     const timer = setTimeout(async () => {
       setSaveStatus('saving');
-      const saved = await saveFile();
-      if (!saved) {
+      const result = await saveFile();
+      if (!result.ok) {
         setSaveStatus('error');
-        addNotification('Autosparning misslyckades. Försök spara manuellt.', 'error', 6000);
+        if (!result.conflict) {
+          addNotification('Autosparning misslyckades. Försök spara manuellt.', 'error', 6000);
+        }
         return;
       }
       setPendingSave(false);
@@ -712,6 +717,40 @@ function App() {
       )}
 
       {enableOmnicalSharedNotes && <OmnicalConflictModal theme={theme} />}
+
+      {saveConflict && (
+        <SaveConflictDialog
+          conflict={saveConflict}
+          theme={theme}
+          onResolve={(action) => {
+            void (async () => {
+              const ok = await resolveSaveConflict(action);
+              if (action === 'overwrite') {
+                setSaveStatus(ok ? 'saved' : 'error');
+                addNotification(
+                  ok ? 'Sparat över den andra enhetens ändringar.' : 'Kunde inte spara.',
+                  ok ? 'success' : 'error',
+                  4000
+                );
+                if (ok) {
+                  // Our in-memory state now matches what's on disk — clear
+                  // pendingSave so the autosave effect can re-arm on the
+                  // next edit. Without this it stays true forever (setting
+                  // an already-true boolean doesn't retrigger the effect),
+                  // silently disabling autosave for the rest of the session.
+                  setPendingSave(false);
+                  setTimeout(() => setSaveStatus('idle'), 2000);
+                }
+              } else {
+                // Reload discards our unsaved changes in favor of disk —
+                // nothing left pending, same reasoning as above.
+                setPendingSave(false);
+                addNotification('Laddade in den andra enhetens version.', 'success', 4000);
+              }
+            })();
+          }}
+        />
+      )}
 
       {showChrome && (
         <SessionPanel
