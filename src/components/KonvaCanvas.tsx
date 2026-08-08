@@ -33,7 +33,11 @@ interface KonvaCanvasProps {
   onZoomChange?: (zoom: number) => void;
   onLinkHover?: (linkInfo: { name: string; url: string; x: number; y: number } | null) => void;
   onCommentHover?: (nodeId: string | null) => void;
+  onOpenCommandPalette?: () => void;
 }
+
+const LONG_PRESS_MS = 500;
+const LONG_PRESS_MOVE_TOLERANCE = 10;
 
 const toWorldPosition = (stage: Konva.Stage, pointer: { x: number; y: number }) => {
   const scale = stage.scaleX();
@@ -67,6 +71,7 @@ const KonvaCanvas: React.FC<KonvaCanvasProps> = ({
   onZoomChange,
   onLinkHover,
   onCommentHover,
+  onOpenCommandPalette,
 }) => {
   const addNode = useBrainStore((state) => state.addNode);
   const clearSelection = useBrainStore((state) => state.clearSelection);
@@ -381,6 +386,53 @@ const KonvaCanvas: React.FC<KonvaCanvasProps> = ({
     }
   };
 
+  const handleStageContextMenu = (e: KonvaEventObject<PointerEvent>) => {
+    if (e.target !== e.target.getStage()) return;
+    e.evt.preventDefault();
+    onOpenCommandPalette?.();
+  };
+
+  // Long-press (touch) öppnar command palette, precis som högerklick
+  const longPressTimerRef = useRef<number | null>(null);
+  const longPressStartPosRef = useRef<{ x: number; y: number } | null>(null);
+
+  const clearLongPressTimer = () => {
+    if (longPressTimerRef.current !== null) {
+      window.clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+    longPressStartPosRef.current = null;
+  };
+
+  const handleStageTouchStart = (e: KonvaEventObject<TouchEvent>) => {
+    if (e.target !== e.target.getStage()) return;
+    if (e.evt.touches.length !== 1) {
+      clearLongPressTimer();
+      return;
+    }
+
+    const touch = e.evt.touches[0];
+    longPressStartPosRef.current = { x: touch.clientX, y: touch.clientY };
+    longPressTimerRef.current = window.setTimeout(() => {
+      longPressTimerRef.current = null;
+      onOpenCommandPalette?.();
+    }, LONG_PRESS_MS);
+  };
+
+  const handleStageTouchMove = (e: KonvaEventObject<TouchEvent>) => {
+    const start = longPressStartPosRef.current;
+    if (!start || longPressTimerRef.current === null) return;
+
+    const touch = e.evt.touches[0];
+    if (!touch) return;
+
+    const dx = touch.clientX - start.x;
+    const dy = touch.clientY - start.y;
+    if (Math.hypot(dx, dy) > LONG_PRESS_MOVE_TOLERANCE) {
+      clearLongPressTimer();
+    }
+  };
+
   // Drag-select handlers
   const handleStageMouseDown = (e: KonvaEventObject<MouseEvent>) => {
     if (e.target !== e.target.getStage()) return;
@@ -459,13 +511,17 @@ const KonvaCanvas: React.FC<KonvaCanvasProps> = ({
         onMouseDown={handleStageMouseDown}
         onMouseMove={handleStageMouseMove}
         onMouseUp={handleStageMouseUp}
+        onContextMenu={handleStageContextMenu}
+        onTouchStart={handleStageTouchStart}
+        onTouchMove={handleStageTouchMove}
+        onTouchEnd={clearLongPressTimer}
         style={{ backgroundColor: theme.canvasColor }}
       >
         <Layer>
           {nodes.length === 0 && (
             <Group>
               <Text
-                text="🌌 Canvas"
+                text="canvas.ximon.se"
                 x={window.innerWidth / 2}
                 y={window.innerHeight / 2 - 100}
                 offsetX={300} // Approximate half width
@@ -478,30 +534,18 @@ const KonvaCanvas: React.FC<KonvaCanvasProps> = ({
                 listening={false}
               />
               <Text
-                text="Från 'Second Brain' till 'Zen Master'. En oändlig duk för kontemplation."
-                x={window.innerWidth / 2}
-                y={window.innerHeight / 2 - 30}
-                offsetX={400}
-                fontSize={18}
-                fontFamily="sans-serif"
-                fill={theme.node.text}
-                opacity={0.5}
-                align="center"
-                width={800}
-                listening={false}
-              />
-              <Text
-                text={`Kom igång:\n• Tryck 'Space' för kommandon\n• Dubbelklicka för nytt kort\n• Dra & Släpp filer här`}
+                text={`• Tryck 'Space' för kommandon\n• Dubbelklicka för nytt kort\n• Dra & Släpp filer här`}
                 x={window.innerWidth / 2}
                 y={window.innerHeight / 2 + 40}
                 offsetX={300}
-                fontSize={16}
+                fontSize={17}
                 fontFamily="monospace"
-                fill={theme.node.border}
-                opacity={0.6}
+                fontStyle="bold"
+                fill={theme.node.text}
+                opacity={0.75}
                 align="center"
                 width={600}
-                lineHeight={1.6}
+                lineHeight={2}
                 listening={false}
               />
             </Group>

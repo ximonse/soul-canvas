@@ -647,6 +647,7 @@ function App() {
             onContextMenu={handleContextMenu}
             onZoomChange={setCurrentZoom}
             onLinkHover={setHoveredLink}
+            onOpenCommandPalette={() => setShowCommandPalette(true)}
           />
           {canvasWeekView && !canvasEternalView && (
             <CanvasWeekView
