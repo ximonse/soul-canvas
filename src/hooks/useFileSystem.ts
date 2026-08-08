@@ -1,7 +1,7 @@
 // src/hooks/useFileSystem.ts
 import { useCallback, useEffect, useState, useRef } from 'react';
 import { useBrainStore } from '../store/useBrainStore';
-import { set as setDb, get as getDb } from 'idb-keyval';
+import { set as setDb, get as getDb, del as delDb } from 'idb-keyval';
 import { exportSessionForAI, sanitizeFilename } from '../utils/aiExport';
 import { createEmptyCanvasDocument, parseCanvasDocument, serializeCanvasDocument } from '../utils/canvasDocument';
 import { scanCardFiles, syncCardFiles } from '../utils/cardFileSync';
@@ -229,6 +229,15 @@ export function useFileSystem() {
       console.error('Kunde inte öppna mappen:', err);
     }
   }, [readDirectory]);
+
+  // --- KOPPLA FRÅN (rensar vald mapp) ---
+  // Tar bort den sparade mappreferensen (IndexedDB) och nollställer
+  // handle i minnet. Appen visar då "Choose folder" igen vid nästa
+  // render. Själva mappen på disk lämnas orörd.
+  const disconnectFolder = useCallback(() => {
+    setFileHandle(null);
+    void delDb('soul-folder-handle').catch(() => undefined);
+  }, [setFileHandle]);
 
   // --- SPARA DATA (JSON) ---
   // `force`: skip the conflict check and overwrite regardless. Used when the
@@ -490,5 +499,5 @@ export function useFileSystem() {
     restoreSession();
   }, [readDirectory]);
 
-  return { openFile, saveFile, saveAsset, saveAIExports, hasFile: !!fileHandle, isReady, saveConflict, resolveSaveConflict };
+  return { openFile, disconnectFolder, saveFile, saveAsset, saveAIExports, hasFile: !!fileHandle, isReady, saveConflict, resolveSaveConflict };
 }

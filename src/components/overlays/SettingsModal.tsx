@@ -11,9 +11,12 @@ import { connectOmnicalFolder, disconnectOmnicalFolder, syncOmnicalNotes } from 
 interface SettingsModalProps {
   onClose: () => void;
   theme: Theme;
+  hasFile: boolean;
+  onConnectFolder: () => void;
+  onDisconnectFolder: () => void;
 }
 
-export function SettingsModal({ onClose, theme }: SettingsModalProps) {
+export function SettingsModal({ onClose, theme, hasFile, onConnectFolder, onDisconnectFolder }: SettingsModalProps) {
   const geminiKey = useBrainStore((state) => state.geminiKey);
   const geminiOcrModel = useBrainStore((state) => state.geminiOcrModel);
   const openaiKey = useBrainStore((state) => state.openaiKey);
@@ -189,6 +192,48 @@ export function SettingsModal({ onClose, theme }: SettingsModalProps) {
                 </label>
               </>
             )}
+          </div>
+
+          <div className="space-y-3 p-4 rounded bg-black/5">
+            <div className="text-sm font-semibold">Soul Canvas-mapp</div>
+            <p className="text-xs opacity-70">
+              Välj vilken mapp på disken som sparar data.json, assets och kort (.md).
+              Koppla från för att byta mapp eller rensa valet.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {hasFile ? (
+                <>
+                  <span className="px-3 py-2 rounded text-sm" style={{ border: `1px solid ${theme.node.border}` }}>
+                    Ansluten
+                  </span>
+                  <button
+                    type="button"
+                    onClick={onConnectFolder}
+                    className="px-3 py-2 rounded text-sm font-semibold"
+                    style={{ backgroundColor: theme.node.selectedBorder, color: theme.node.bg }}
+                  >
+                    Välj annan mapp
+                  </button>
+                  <button
+                    type="button"
+                    onClick={onDisconnectFolder}
+                    className="px-3 py-2 rounded text-sm"
+                    style={{ border: `1px solid ${theme.node.border}` }}
+                  >
+                    Koppla från
+                  </button>
+                </>
+              ) : (
+                <button
+                  type="button"
+                  onClick={onConnectFolder}
+                  className="px-3 py-2 rounded text-sm font-semibold"
+                  style={{ backgroundColor: theme.node.selectedBorder, color: theme.node.bg }}
+                >
+                  Välj mapp
+                </button>
+              )}
+            </div>
           </div>
 
           <div className="space-y-3 p-4 rounded bg-black/5">

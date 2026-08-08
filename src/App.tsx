@@ -48,7 +48,7 @@ const THEME_KEYS = Object.keys(THEMES);
 
 function App() {
   // Core hooks
-  const { openFile, saveFile, saveAsset, saveAIExports, hasFile, isReady, saveConflict, resolveSaveConflict } = useFileSystem();
+  const { openFile, disconnectFolder, saveFile, saveAsset, saveAIExports, hasFile, isReady, saveConflict, resolveSaveConflict } = useFileSystem();
   const { exportBackup, restoreBackup } = usePortableBackup();
   const handleExportBackup = useCallback(() => { void exportBackup(); }, [exportBackup]);
   const handleRestoreBackup = useCallback(() => { void restoreBackup(); }, [restoreBackup]);
@@ -982,6 +982,8 @@ function App() {
           setThemeIndex={setThemeIndex}
           setZenMode={setZenMode}
           hasFile={hasFile}
+          onConnectFolder={openFile}
+          onDisconnectFolder={disconnectFolder}
           pasteNodes={pasteNodes}
           saveStateForUndo={saveStateForUndo}
           addNode={addNode}

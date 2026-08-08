@@ -112,6 +112,8 @@ interface ModalManagerProps {
 
   // Helpers
   hasFile: boolean;
+  onConnectFolder: () => void;
+  onDisconnectFolder: () => void;
   pasteNodes: (x: number, y: number) => void;
   saveStateForUndo: () => void;
   addNode: (content: string, x: number, y: number, type: 'text' | 'image' | 'zotero') => void;
@@ -215,6 +217,8 @@ export const ModalManager: React.FC<ModalManagerProps> = ({
   setThemeIndex,
   setZenMode,
   hasFile,
+  onConnectFolder,
+  onDisconnectFolder,
   pasteNodes,
   saveStateForUndo,
   addNode,
@@ -259,7 +263,7 @@ export const ModalManager: React.FC<ModalManagerProps> = ({
         />
       )}
 
-      {showSettings && <SettingsModal onClose={() => setShowSettings(false)} theme={theme} />}
+      {showSettings && <SettingsModal onClose={() => setShowSettings(false)} theme={theme} hasFile={hasFile} onConnectFolder={onConnectFolder} onDisconnectFolder={onDisconnectFolder} />}
       {showOcrPrompt && <OcrPromptModal onClose={() => setShowOcrPrompt(false)} theme={theme} />}
 
       {contextMenu && (
