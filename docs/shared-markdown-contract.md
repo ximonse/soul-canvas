@@ -101,6 +101,14 @@ Souls `normalizeTags`):
 Utjämning av dessa kräver ett uttryckligt beslut från Simon, och ska göras en i
 taget med ett eget test — aldrig i förbifarten under annat arbete.
 
+**Citattecken-skillnaden är låst i test** i båda repona (`delat kontrakt:
+handskrivna citattecken`). Testerna påstår inte att beteendet är rätt — de
+tvingar fram att en utjämning blir ett medvetet val, med båda repons test
+ändrade i samma commit. De visar också priset: samma not skrivs tillbaka som
+`remindAt: "'2026-09-01'"` av Omnical och `remindAt: "2026-09-01"` av Soul.
+
+De övriga tre skillnaderna är dokumenterade men inte låsta i test ännu.
+
 ## Vad som skyddar det
 
 1. **Kommentarer i koden.** Varje funktion i tabellen ovan har en kommentar som
@@ -110,7 +118,21 @@ taget med ett eget test — aldrig i förbifarten under annat arbete.
    - Soul Canvas: `tests/sharedMarkdownContract.test.ts`
    Ändrar du parsningen i den ena appen failar den appens egna tester direkt.
    Fixturblocket överst i filerna ska vara byte-identiskt mellan repona.
-3. **Skillen `markdown-protector`** (`~/.claude/skills/markdown-protector/`) med
+3. **Driftdetektorn `scripts/markdown-drift.mjs`**, identisk i båda repona:
+
+   ```
+   node scripts/markdown-drift.mjs "C:/Users/ximon/Hermes Vault"
+   ```
+
+   Kör de tre parsningskopiorna mot varandra över riktiga `.md`-filer och
+   exitar non-zero på allt som skiljer sig utanför listan ovan. Testerna kollar
+   handfulla konstruerade exempel; det här kollar årens verkliga filer, med
+   kantfall ingen kommer på att hitta på. Kör före och efter en ändring i
+   parsningen. Läget 2026-08-10: 4251 filer, noll drift.
+
+   Kopiorna i skriptet är ordagranna och måste uppdateras när en app ändras —
+   annars mäter det ett beteende som inte finns längre.
+4. **Skillen `markdown-protector`** (`~/.claude/skills/markdown-protector/`) med
    en kodkarta över hela kontraktet. Kallas på vid namn när kontraktet ska
    granskas på djupet.
 

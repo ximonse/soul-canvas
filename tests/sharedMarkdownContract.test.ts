@@ -92,6 +92,25 @@ const BLOCK_LIST_NOTE = [
   "",
 ].join("\n");
 
+/** Handskrivna enkla citattecken — så ser det ut när någon redigerat
+ *  properties för hand i Obsidian i stället för via dess UI. Här skiljer sig
+ *  apparna åt med flit, och varje repo låser sitt eget beteende nedan. */
+const HAND_QUOTED_NOTE = [
+  "---",
+  'omnicalId: "note-3"',
+  'date: "2026-08-10"',
+  'created: "2026-08-10T08:00:00.000Z"',
+  'updated: "2026-08-10T08:00:00.000Z"',
+  "område: 'Skola'",
+  "remindAt: '2026-09-01'",
+  "done: false",
+  "archived: false",
+  "---",
+  "",
+  "Brödtext",
+  "",
+].join("\n");
+
 // ─────────── SLUT PÅ DELAT FIXTURBLOCK ───────────
 
 /** Frontmatter-rader som en nyckel→rad-karta, för att se vad en skrivning rörde. */
@@ -179,6 +198,35 @@ describe('delat kontrakt: främmande frontmatter', () => {
     });
     expect(written).toContain('soulCardId: card-1');
     expect(written).toContain('egenNyckel: behåll mig');
+  });
+});
+
+describe('delat kontrakt: handskrivna citattecken', () => {
+  // Låser Souls nuvarande beteende, inte ett önskat. Soul strippar
+  // citattecknen, Omnical behåller dem — en dokumenterad skillnad som INTE är
+  // beslutad. Failar det här testet efter en ändring är det förmodligen rätt
+  // sak att göra, men den ändringen skriver om befintliga filer vid nästa
+  // synk. Kräver Simons uttryckliga beslut, och Omnicals spegeltest
+  // (src/lib/shared-markdown-contract.test.ts) ska ändras i samma commit.
+
+  it('strippar citattecknen ur värdet', () => {
+    const note = parseOmnicalMarkdown(HAND_QUOTED_NOTE, 'note-3.md')!;
+    expect(note.area).toBe('Skola');
+    expect(note.remindAt).toBe('2026-09-01');
+  });
+
+  it('skriver tillbaka värdet utan de handskrivna citattecknen', () => {
+    // Det här är kostnaden åt andra hållet: Soul normaliserar redan bort dem,
+    // så filen ändras vid nästa skrivning oavsett vad Omnical gör.
+    const note = parseOmnicalMarkdown(HAND_QUOTED_NOTE, 'note-3.md')!;
+    const written = writeSharedMarkdown(note, note.body, note.tags, {
+      done: note.done,
+      archived: note.archived,
+      area: note.area,
+      remindAt: note.remindAt,
+    });
+    expect(written).toContain('område: "Skola"');
+    expect(written).toContain('remindAt: "2026-09-01"');
   });
 });
 
