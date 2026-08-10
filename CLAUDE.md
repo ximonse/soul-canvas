@@ -23,6 +23,10 @@ En lokal, canvas-baserad kunskapsyta för tusentals kort med AI-driven förståe
 3. Local-first: respektera data.json + assets/ och spara ofta.
 4. Snabb navigering: kortkommandon är centrala - fråga innan nya läggs till.
 5. En fil = ett ansvar. Håll filer under ~300 rader; föreslå uppdelning om större.
+6. Markdown-lagret delas med Omnical. Parsning, hashning och frontmatter-
+   kontraktet i `src/utils/omnicalNotes.ts` och `src/utils/cardMarkdown.ts` har
+   motsvarigheter i Omnical som måste bete sig likadant — båda apparna skriver
+   i samma `.md`-filer. Läs `docs/shared-markdown-contract.md` innan du rör dem.
 
 ## Arkitektur
 - React + TypeScript + Vite
@@ -44,6 +48,7 @@ En lokal, canvas-baserad kunskapsyta för tusentals kort med AI-driven förståe
 5. Fråga innan git push.
 
 ## Referenser
+- Delat Markdown-kontrakt med Omnical: docs/shared-markdown-contract.md
 - Historik och detaljer: WORKLOG.md
 - Full lista av kortkommandon: docs/SHORTCUTS.md
 - Legacy-manifest: Vision and guidelines.md
