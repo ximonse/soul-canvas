@@ -29,6 +29,15 @@ export interface SharedMergePlan {
 
 const INLINE_TAG = /#([^\s#]+)/g;
 
+/** DELAT MED OMNICAL — se docs/shared-markdown-contract.md.
+ *
+ * FNV-1a. Motsvarighet: `stableContentHash` i Omnical
+ * `src/lib/folder-notes.ts` — byte-identisk, och måste förbli det.
+ *
+ * Ändra aldrig algoritmen. Båda apparna sparar hashen som synkbaslinje på
+ * disk: en ändring gör varje sparad baslinje ogiltig, oförändrade anteckningar
+ * ser ändrade ut och trevägsmergen kan välja fel sida. Det finns ingen
+ * migrationsväg. Kontrollvärden ligger i tests/sharedMarkdownContract.test.ts. */
 export function stableTextHash(value: string) {
   let hash = 2166136261;
   for (let index = 0; index < value.length; index += 1) {
@@ -42,6 +51,16 @@ export function bodyHash(body: string) {
   return stableTextHash(body.replace(/\r\n?/g, '\n').normalize('NFC'));
 }
 
+/** DELAT MED OMNICAL — se docs/shared-markdown-contract.md.
+ *
+ * Motsvarighet: `mergeDayNoteTags` + `extractInlineTags` i Omnical
+ * `src/lib/daynote.ts`. Samma taggar i samma fil ska ge samma lista i båda
+ * apparna.
+ *
+ * Två kända skillnader, avsiktligt obeslutade: Omnical NFC-normaliserar inte
+ * (ett `ä` skrivet på iPad kan därför räknas som två olika taggar beroende på
+ * vilken app som läser), och Omnicals regex `#(\S+)` ger en tagg för `#a#b`
+ * där `INLINE_TAG` här ger två. Utjämning kräver ett uttryckligt beslut. */
 export function normalizeTags(tags: readonly string[], body = '') {
   const result: string[] = [];
   const seen = new Set<string>();
@@ -73,6 +92,15 @@ export function metaHash(meta: OmnicalMeta) {
   }));
 }
 
+/** DELAT MED OMNICAL — se docs/shared-markdown-contract.md.
+ *
+ * Motsvarighet: `parseScalar` i Omnical `src/lib/folder-notes.ts` (och en
+ * tredje kopia i `cardMarkdown.ts` här bredvid).
+ *
+ * Känd skillnad, avsiktligt obeslutad: Omnical strippar inte citattecken, så
+ * handskrivet `område: 'Skola'` blir `Skola` här och `'Skola'` där. Att jämna
+ * ut det skriver tyst om befintliga filer — eget beslut, inte en ändring att
+ * göra i förbifarten. */
 function parseScalar(value: string): unknown {
   const trimmed = value.trim();
   if (!trimmed) return undefined;
@@ -83,6 +111,12 @@ function parseScalar(value: string): unknown {
   }
 }
 
+/** DELAT MED OMNICAL — se docs/shared-markdown-contract.md.
+ *
+ * Motsvarighet: `frontmatterValues` i Omnical `src/lib/folder-notes.ts`
+ * (identisk). Båda YAML-formerna för listor måste stödjas: inline `[a, b]`
+ * och blocket med `  - rad` under nyckeln — Obsidian skriver den senare,
+ * apparna den förra, och samma fil kan innehålla båda över tid. */
 function parseValues(lines: string[]) {
   const values = new Map<string, unknown>();
   for (let index = 0; index < lines.length; index += 1) {
@@ -111,6 +145,15 @@ function parseValues(lines: string[]) {
   return values;
 }
 
+/** DELAT MED OMNICAL — se docs/shared-markdown-contract.md.
+ *
+ * Motsvarighet: `splitMarkdown` i Omnical `src/lib/folder-notes.ts` (som
+ * returnerar hela filen som body när `---`-block saknas, så att godtycklig .md
+ * kan adopteras) och i `cardMarkdown.ts` här bredvid (tom frontmatter + body).
+ * Den här returnerar `null` — en fil utan frontmatter är osynlig för synken.
+ *
+ * Trimning av body sker här inne, hos Omnical vid anropsplatserna. Samma
+ * resultat, olika ställe — flytta inte utan att läsa kontraktet. */
 function splitMarkdown(source: string) {
   const lineEnding = source.includes('\r\n') ? '\r\n' as const : '\n' as const;
   const match = source.match(/^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n)?([\s\S]*)$/);
@@ -170,6 +213,18 @@ function replaceFrontmatterField(lines: string[], key: string, value: string) {
   return result;
 }
 
+/** DELAT MED OMNICAL — se docs/shared-markdown-contract.md.
+ *
+ * De sex nycklarna nedan är de enda Soul skriver i en delad anteckning, och
+ * alla sex ägs även av Omnical (`RESERVED_FRONTMATTER_KEYS` i
+ * `src/lib/folder-notes.ts`) — avsiktligt delade fält. Lägg aldrig till en
+ * nyckel här utan att den finns i Omnicals lista, och skriv aldrig
+ * `omnicalId`, `date`, `created`, `trackId`, `activityId`, `sources` eller
+ * `omnicalDraft`: de är Omnicals att minta och underhålla. Skriver Soul
+ * `omnicalId` hoppar adoptionen över filen som redan adopterad.
+ *
+ * `soulCardId` skrivs av `publishedShareMarkdown` och ligger utanför Omnicals
+ * lista med flit — den bärs vidare som främmande frontmatter. */
 export function writeSharedMarkdown(
   note: OmnicalMarkdownNote,
   body: string,

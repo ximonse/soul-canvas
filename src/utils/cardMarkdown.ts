@@ -55,6 +55,14 @@ export interface CardMarkdownFile {
   lineEnding: '\n' | '\r\n';
 }
 
+// TREDJE KOPIAN av parsningen — se docs/shared-markdown-contract.md.
+//
+// `parseScalar`, `parseValues` och `splitMarkdown` här nedan är samma funktioner
+// som i omnicalNotes.ts (och som i Omnicals src/lib/folder-notes.ts). De gäller
+// Souls egna kortfiler i en annan mapp som Omnical aldrig läser, så en ändring
+// här förstör ingen delad fil direkt — men den gör nästa persons bild av "hur
+// vi parsar" fel, och det är så tidigare synkbuggar började. Ändrar du
+// beteendet här: läs kontraktet och gör samma bedömning för de andra två.
 function parseScalar(value: string): unknown {
   const trimmed = value.trim();
   if (!trimmed) return undefined;
