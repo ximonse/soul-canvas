@@ -11,7 +11,9 @@ class MockFile {
 class MockWritable {
   private buffer = '';
   constructor(private onClose: (text: string) => void) {}
-  async write(data: string) { this.buffer += data; }
+  async write(data: string | Blob) {
+    this.buffer += typeof data === 'string' ? data : await data.text();
+  }
   async close() { this.onClose(this.buffer); }
 }
 

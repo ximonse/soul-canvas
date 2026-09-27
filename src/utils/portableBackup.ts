@@ -1,4 +1,5 @@
 import type { CanvasDocumentV2 } from './canvasDocument';
+import { dataUrlToBlob } from './backupAssets';
 
 export const PORTABLE_BACKUP_VERSION = 1;
 
@@ -35,4 +36,27 @@ export function parsePortableBackup(raw: unknown): PortableBackupV1 {
     throw new Error('Backupen saknar dokument eller bilagor.');
   }
   return backup as PortableBackupV1;
+}
+
+// Writes a parsed backup's assets and data.json into a target directory —
+// the disk side of restore, factored out of usePortableBackup so it can be
+// exercised in a real roundtrip test (see tests/portableBackup.test.ts)
+// without needing a browser file picker or window.confirm.
+export async function writePortableBackupToDirectory(
+  directory: FileSystemDirectoryHandle,
+  backup: PortableBackupV1,
+): Promise<void> {
+  const assetsDir = await directory.getDirectoryHandle('assets', { create: true });
+  for (const [assetPath, dataUrl] of Object.entries(backup.assets)) {
+    const name = assetPath.replace(/^assets\//, '');
+    if (!name || name.includes('/') || name.includes('\\')) throw new Error(`Ogiltig bilageväg: ${assetPath}`);
+    const target = await assetsDir.getFileHandle(name, { create: true });
+    const writable = await target.createWritable();
+    await writable.write(dataUrlToBlob(dataUrl));
+    await writable.close();
+  }
+  const dataFile = await directory.getFileHandle('data.json', { create: true });
+  const writable = await dataFile.createWritable();
+  await writable.write(JSON.stringify(backup.document, null, 2));
+  await writable.close();
 }
