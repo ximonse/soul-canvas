@@ -21,6 +21,15 @@ import type { MindNode, AIReflection, Synapse } from '../types/types';
 
 const isCopyNode = (node?: MindNode | null) => Boolean(node?.copyRef);
 
+// Missing-key cases short-circuit before ever calling the provider (see the
+// `if (!key) return ...` guards below) and are surfaced elsewhere; this is
+// only for provider/network failures once a call was actually attempted,
+// which previously only reached the console — the user saw the spinner
+// stop with no explanation.
+const describeAIError = (error: unknown): string => (
+  error instanceof Error ? error.message : 'Okänt fel från AI-tjänsten.'
+);
+
 export type AIBatchType = 'tags' | 'summary' | 'title';
 export type AIBatchItemStatus = 'queued' | 'processing' | 'done' | 'error' | 'skipped';
 export interface AIBatchItem {
@@ -45,6 +54,7 @@ export const useIntelligence = () => {
   const updateNodesBulk = useBrainStore((state) => state.updateNodesBulk);
   const setNodeTagging = useBrainStore((state) => state.setNodeTagging);
   const setNodeAIProcessing = useBrainStore((state) => state.setNodeAIProcessing);
+  const addNotification = useBrainStore((state) => state.addNotification);
   const [isProcessing, setIsProcessing] = useState(false);
   const [progress, setProgress] = useState({ current: 0, total: 0 });
   const [lastReflection, setLastReflection] = useState<AIReflection | null>(null);
@@ -221,11 +231,12 @@ export const useIntelligence = () => {
       return true;
     } catch (error) {
       console.error('Embedding error:', error);
+      addNotification(`Kunde inte skapa embedding: ${describeAIError(error)}`, 'error');
       return false;
     } finally {
       setIsProcessing(false);
     }
-  }, [nodes, openaiKey, updateNode]);
+  }, [nodes, openaiKey, updateNode, addNotification]);
 
   /**
    * Generate embeddings for all nodes that don't have them
@@ -264,12 +275,13 @@ export const useIntelligence = () => {
       return embeddings.size;
     } catch (error) {
       console.error('Batch embedding error:', error);
+      addNotification(`Kunde inte skapa embeddings: ${describeAIError(error)}`, 'error');
       return 0;
     } finally {
       setIsProcessing(false);
       setProgress({ current: 0, total: 0 });
     }
-  }, [getScopeNodeIdSet, openaiKey, updateNodesBulk]);
+  }, [getScopeNodeIdSet, openaiKey, updateNodesBulk, addNotification]);
 
   /**
    * Find and create links between semantically similar nodes
@@ -383,6 +395,12 @@ export const useIntelligence = () => {
           return true;
         }
         return false;
+      } catch (error) {
+        // Must not throw here: an uncaught rejection would abort runBatch's
+        // for-loop entirely, leaving this item stuck on "processing" and
+        // every remaining item in the batch un-processed.
+        console.error('Summary error:', error);
+        return false;
       } finally {
         currentState.setNodeAIProcessing(node.id, null);
       }
@@ -410,6 +428,11 @@ export const useIntelligence = () => {
           currentState.updateNode(node.id, { title });
           return true;
         }
+        return false;
+      } catch (error) {
+        // See summarizeToComment above: must not throw, or the rest of the
+        // batch never runs and this item hangs on "processing" forever.
+        console.error('Title suggestion error:', error);
         return false;
       } finally {
         currentState.setNodeAIProcessing(node.id, null);
@@ -443,11 +466,12 @@ export const useIntelligence = () => {
       return reflection;
     } catch (error) {
       console.error('Reflection error:', error);
+      addNotification(`Kunde inte generera reflektion: ${describeAIError(error)}`, 'error');
       return null;
     } finally {
       setIsProcessing(false);
     }
-  }, [claudeKey, getScopeNodeIdSet, getScopedNodes]);
+  }, [claudeKey, getScopeNodeIdSet, getScopedNodes, addNotification]);
 
   /**
    * Analyze a cluster of connected nodes
@@ -469,11 +493,12 @@ export const useIntelligence = () => {
       return insight;
     } catch (error) {
       console.error('Cluster analysis error:', error);
+      addNotification(`Kunde inte analysera kluster: ${describeAIError(error)}`, 'error');
       return null;
     } finally {
       setIsProcessing(false);
     }
-  }, [claudeKey, getScopeNodeIdSet]);
+  }, [claudeKey, getScopeNodeIdSet, addNotification]);
 
   /**
    * Search nodes by semantic similarity to a query
@@ -517,11 +542,12 @@ export const useIntelligence = () => {
 
     } catch (error) {
       console.error('Semantic search error:', error);
+      addNotification(`Kunde inte söka semantiskt: ${describeAIError(error)}`, 'error');
       return [];
     } finally {
       setIsProcessing(false);
     }
-  }, [getScopeNodeIdSet, openaiKey]);
+  }, [getScopeNodeIdSet, openaiKey, addNotification]);
 
   /**
    * Attract similar nodes to the selected nodes
