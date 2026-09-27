@@ -6,6 +6,7 @@ import { exportSessionForAI, sanitizeFilename } from '../utils/aiExport';
 import { createEmptyCanvasDocument, parseCanvasDocument, serializeCanvasDocument } from '../utils/canvasDocument';
 import { scanCardFiles, syncCardFiles, withCardFileLock } from '../utils/cardFileSync';
 import { FEATURE_FLAGS } from '../utils/featureFlags';
+import { findMissingLocalAssets } from '../utils/imageRefs';
 
 // Helper to revoke all blob URLs in an assets map
 function revokeAssetUrls(assets: Record<string, string>) {
@@ -167,6 +168,16 @@ export function useFileSystem() {
       lastKnownRevisionRef.current = data.revision;
       setSaveConflict(null);
 
+      const missingAssets = findMissingLocalAssets(data.nodes || [], assetsMap);
+      if (missingAssets.length > 0) {
+        console.warn('[assets] Saknade bildfiler vid inläsning:', missingAssets);
+        addNotification(
+          `${missingAssets.length} kort saknar sin bildfil (borttagen/döpt om utanför appen). Se webbläsarkonsolen för vilka.`,
+          'error',
+          10000
+        );
+      }
+
       loadNodes(data.nodes || [], data.synapses || []);
       loadAssets(assetsMap);
       loadOmnicalState(data.omnical);
@@ -208,6 +219,7 @@ export function useFileSystem() {
     loadSequences,
     setSelectedTrailIds,
     setShowActiveTrailLine,
+    addNotification,
     runCardFileScan,
   ]);
 

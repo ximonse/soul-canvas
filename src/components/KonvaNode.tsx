@@ -13,6 +13,10 @@ import { loadCachedImage } from '../utils/imageCache';
 import type { GravitatingColorMode } from '../types/types';
 import MarkdownText from './MarkdownText';
 
+// Height of the "Bild saknas" banner shown instead of the image when an
+// image-type card's asset can't be resolved from disk.
+const MISSING_IMAGE_BANNER_HEIGHT = 32;
+
 interface KonvaNodeProps {
   nodeId: string;
   theme: Theme;
@@ -305,6 +309,10 @@ const KonvaNodeInner: React.FC<KonvaNodeInnerProps> = ({
     [node, assets]
   );
   const hasImage = isImage && Boolean(imageAssetUrl);
+  // Image-type card whose asset couldn't be resolved (deleted/renamed on
+  // disk outside the app) — falls through to the text-card layout below,
+  // but needs a visible signal so it doesn't look like a silent blank card.
+  const missingImage = isImage && !hasImage;
   const isFlipped = node.isFlipped;
   const isScopeSelected = node.scopeDegree && node.scopeDegree > 0;
   const contentX = node.accentColor ? CARD.PADDING + 8 : CARD.PADDING;
@@ -366,7 +374,7 @@ const KonvaNodeInner: React.FC<KonvaNodeInnerProps> = ({
   }, [hasImage, node.title, backTextWidth, backTitleFontFamily, backTitleLineHeight]);
 
   const titleGap = hasTitle ? CARD.TITLE_GAP : 0;
-  const contentOffsetY = CARD.PADDING + (hasTitle ? titleHeight + titleGap : 0);
+  const contentOffsetY = (missingImage ? MISSING_IMAGE_BANNER_HEIGHT : 0) + CARD.PADDING + (hasTitle ? titleHeight + titleGap : 0);
 
   const imageText = useMemo(
     () => getImageText(node),
@@ -433,7 +441,8 @@ const KonvaNodeInner: React.FC<KonvaNodeInnerProps> = ({
       // Calculate total height including all elements
       // Add small buffer (4px) to prevent text from clipping at edges
       const HEIGHT_BUFFER = 4;
-      let baseHeight = CARD.PADDING * 2 + contentLayout.height + HEIGHT_BUFFER;
+      let baseHeight = CARD.PADDING * 2 + contentLayout.height + HEIGHT_BUFFER
+        + (missingImage ? MISSING_IMAGE_BANNER_HEIGHT : 0);
 
       // Add title height and gap if present
       if (hasTitle) {
@@ -453,6 +462,7 @@ const KonvaNodeInner: React.FC<KonvaNodeInnerProps> = ({
     node.content,
     node.imageRef,
     hasImage,
+    missingImage,
     isFlipped,
     captionHeight,
     contentLayout.height,
@@ -756,6 +766,17 @@ const KonvaNodeInner: React.FC<KonvaNodeInnerProps> = ({
           height={CARD.WIDTH * (imageObj.height / imageObj.width)}
           cornerRadius={[CARD.CORNER_RADIUS, CARD.CORNER_RADIUS, 0, 0]}
         />
+      )}
+
+      {missingImage && !isFlipped && (
+        <Group listening={false}>
+          <Rect x={0} y={0} width={CARD.WIDTH} height={MISSING_IMAGE_BANNER_HEIGHT}
+            fill="#7a2e2e" cornerRadius={[CARD.CORNER_RADIUS, CARD.CORNER_RADIUS, 0, 0]}
+          />
+          <Text text="⚠ Bild saknas" x={0} y={0} width={CARD.WIDTH} height={MISSING_IMAGE_BANNER_HEIGHT}
+            align="center" verticalAlign="middle" fontSize={CARD.FONT_SIZE_TINY} fill="#ffffff" fontStyle="bold"
+          />
+        </Group>
       )}
 
       {!hasImage && !isFlipped && (

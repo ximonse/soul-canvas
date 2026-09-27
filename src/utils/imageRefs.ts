@@ -48,6 +48,32 @@ export const resolveImageUrl = (
   return null;
 };
 
+export interface MissingAssetInfo {
+  nodeId: string;
+  ref: string;
+  label: string;
+}
+
+// Checked on folder load: an image-type node whose imageRef points at
+// assets/<name> but that key isn't in the loaded assets map means the file
+// on disk is gone (deleted, renamed outside the app, or never synced).
+// http(s)/blob/data refs are external or ephemeral and can't be verified
+// this way, so only assets/-prefixed refs are checked.
+export const findMissingLocalAssets = (
+  nodes: MindNode[],
+  assets: Record<string, string>
+): MissingAssetInfo[] => {
+  const missing: MissingAssetInfo[] = [];
+  for (const node of nodes) {
+    const ref = getImageRef(node);
+    if (!ref || !ref.startsWith('assets/')) continue;
+    if (!assets[ref]) {
+      missing.push({ nodeId: node.id, ref, label: node.title?.trim() || node.caption?.trim() || node.id });
+    }
+  }
+  return missing;
+};
+
 export const getImageText = (node: MindNode): string => {
   if (node.type !== 'image') return node.content || '';
   const content = node.content?.trim() || '';
