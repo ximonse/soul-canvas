@@ -78,7 +78,7 @@ describe('syncCardFiles', () => {
 
     // Simulate a human hand-editing the file to add a foreign property.
     const handle = cardsDir.files.get(filename)!;
-    const raw = (await handle.getFile()).text_;
+    const raw = await (await handle.getFile()).text();
     const withForeignKey = raw.replace('---\n', '---\ncustom: "räksmörgås"\n');
     const writable = await handle.createWritable();
     await writable.write(withForeignKey);
@@ -87,7 +87,7 @@ describe('syncCardFiles', () => {
     const changedA = { ...a, title: 'Ändrad' };
     await syncCardFiles(dir, new Map([[changedA.id, changedA]]), first.baseline);
 
-    const finalText = (await cardsDir.files.get(filename)!.getFile()).text_;
+    const finalText = await (await cardsDir.files.get(filename)!.getFile()).text();
     expect(finalText).toContain('custom: "räksmörgås"');
     expect(finalText).toContain('title: "Ändrad"');
   });
@@ -124,7 +124,7 @@ describe('syncCardFiles', () => {
     const { baseline } = await syncCardFiles(dir, new Map([[a.id, a]]), {});
     const filename = baseline[a.id].mdPath.split('/').pop()!;
     const cardsDir = (dir as unknown as MockDirectoryHandle).dirs.get('cards')!;
-    const raw = (await cardsDir.files.get(filename)!.getFile()).text_;
+    const raw = await (await cardsDir.files.get(filename)!.getFile()).text();
 
     const parsed = parseCardMarkdown(raw, baseline[a.id].mdPath)!;
     expect(parsed.frontmatter.id).toBe(a.id);
@@ -136,7 +136,7 @@ describe('syncCardFiles', () => {
 
 async function editFileDirectly(cardsDir: MockDirectoryHandle, filename: string, frontmatter: CardFrontmatter, body: string) {
   const handle = cardsDir.files.get(filename)!;
-  const raw = (await handle.getFile()).text_;
+  const raw = await (await handle.getFile()).text();
   const parsed = parseCardMarkdown(raw, `cards/${filename}`);
   const rewritten = writeCardMarkdown(parsed, frontmatter, body);
   const writable = await handle.createWritable();
@@ -191,7 +191,7 @@ describe('scanCardFiles', () => {
 
     const conflictsDir = cardsDir.dirs.get('.conflicts')!;
     const backedUp = [...conflictsDir.files.values()][0];
-    expect((await backedUp.getFile()).text_).toContain('Disktext');
+    expect(await (await backedUp.getFile()).text()).toContain('Disktext');
   });
 
   it('re-links a node to its file when the baseline entry is missing, instead of duplicating it', async () => {
@@ -235,7 +235,7 @@ describe('scanCardFiles', () => {
     const session = result.sessions.find((s: Session) => s.id === 'soul-external-cards-session');
     expect(session?.cardIds).toContain(newNode.id);
 
-    const rewritten = (await cardsDir.files.get('extern.md')!.getFile()).text_;
+    const rewritten = await (await cardsDir.files.get('extern.md')!.getFile()).text();
     expect(rewritten).toContain(`id: "${newNode.id}"`);
   });
 

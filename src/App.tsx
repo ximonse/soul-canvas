@@ -49,7 +49,7 @@ const THEME_KEYS = Object.keys(THEMES);
 function App() {
   // Core hooks
   const { openFile, disconnectFolder, saveFile, saveAsset, saveAIExports, hasFile, isReady, saveConflict, resolveSaveConflict } = useFileSystem();
-  const { exportBackup, restoreBackup } = usePortableBackup();
+  const { exportBackup, restoreBackup, pendingRestore, restoring, completeRestore, cancelRestore } = usePortableBackup();
   const handleExportBackup = useCallback(() => { void exportBackup(); }, [exportBackup]);
   const handleRestoreBackup = useCallback(() => { void restoreBackup(); }, [restoreBackup]);
   const nodes = useBrainStore((state) => state.nodes);
@@ -720,6 +720,20 @@ function App() {
       )}
 
       {enableOmnicalSharedNotes && <OmnicalConflictModal theme={theme} />}
+
+      {pendingRestore && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60">
+          <div role="dialog" aria-modal="true" aria-labelledby="restore-title" className="max-w-md rounded-lg bg-white p-6 text-gray-900 shadow-xl">
+            <h2 id="restore-title" className="text-lg font-semibold">Återställ kontrollerad backup</h2>
+            <p className="mt-3">{pendingRestore.document.nodes.length} kort och {Object.keys(pendingRestore.assets).length} bilagor återställs till en ny tom mapp. Den befintliga mappen lämnas orörd.</p>
+            <p className="mt-2">Spara först om du vill behålla osparade ändringar i den nuvarande arbetsytan. Appen laddas om efter återställningen.</p>
+            <div className="mt-4 flex justify-end gap-3">
+              <button disabled={restoring} onClick={cancelRestore}>Avbryt</button>
+              <button disabled={restoring} onClick={() => { void completeRestore(); }} className="rounded bg-blue-700 px-3 py-2 text-white">{restoring ? 'Återställer…' : 'Välj tom mapp och återställ'}</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {saveConflict && (
         <SaveConflictDialog

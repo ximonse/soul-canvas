@@ -205,12 +205,13 @@ export const useIntelligence = () => {
       return { practical: result.practicalTags, hidden: result.hiddenTags };
     } catch (error) {
       console.error('Tag generation error:', error);
+      addNotification(`Kunde inte skapa taggar: ${describeAIError(error)}`, 'error', 8000);
       return { practical: [], hidden: [] };
     } finally {
       setNodeTagging(node.id, false);
       setNodeAIProcessing(node.id, null);
     }
-  }, [setNodeAIProcessing, setNodeTagging, updateNode]);
+  }, [setNodeAIProcessing, setNodeTagging, updateNode, addNotification]);
 
   /**
    * Generate embedding for a single node
@@ -255,10 +256,12 @@ export const useIntelligence = () => {
       setIsProcessing(true);
       setProgress({ current: 0, total: nodesToEmbed.length });
 
+      const failures: unknown[] = [];
       const embeddings = await batchGenerateEmbeddings(
         nodesToEmbed as MindNode[],
         openaiKey,
-        (current, total) => setProgress({ current, total })
+        (current, total) => setProgress({ current, total }),
+        (_nodeId, error) => { failures.push(error); },
       );
 
       const now = new Date().toISOString();
@@ -271,6 +274,10 @@ export const useIntelligence = () => {
         },
       }));
       updateNodesBulk(updates);
+
+      if (failures.length) {
+        addNotification(`Embeddings: ${embeddings.size} lyckades, ${failures.length} misslyckades. ${describeAIError(failures[0])}`, 'error', 10000);
+      }
 
       return embeddings.size;
     } catch (error) {
@@ -400,6 +407,7 @@ export const useIntelligence = () => {
         // for-loop entirely, leaving this item stuck on "processing" and
         // every remaining item in the batch un-processed.
         console.error('Summary error:', error);
+        currentState.addNotification(`Kunde inte sammanfatta kort: ${describeAIError(error)}`, 'error', 8000);
         return false;
       } finally {
         currentState.setNodeAIProcessing(node.id, null);
@@ -433,6 +441,7 @@ export const useIntelligence = () => {
         // See summarizeToComment above: must not throw, or the rest of the
         // batch never runs and this item hangs on "processing" forever.
         console.error('Title suggestion error:', error);
+        currentState.addNotification(`Kunde inte föreslå titel: ${describeAIError(error)}`, 'error', 8000);
         return false;
       } finally {
         currentState.setNodeAIProcessing(node.id, null);

@@ -69,6 +69,20 @@ Lägg in nycklar via Settings i appen (lagras i webbläsaren).
 `assets/originals/` är backup för importer. `ai-exports/` innehåller textfiler per session.
 `data.json` innehåller noder, synapser, sessioner, trails och konversationer.
 
+### Backup och återställning
+
+`Backup` exporterar dokumentet och hela `assets/`, även undermappar och
+importerade original. En bilageförteckning anger filstorlek, filtyp och
+SHA-256-kontrollsumma. Externa bildlänkar fortsätter vara externa länkar.
+
+`Återställ` validerar backupen och låter dig välja en **ny tom mapp**.
+Den befintliga arbetsmappen lämnas orörd. Spara dess eventuella osparade
+ändringar innan du byter. Äldre v1-backuper kan fortfarande läsas, men saknar
+kontrollsummor och kan sakna originalfiler som aldrig exporterades.
+Kortens `.md`-filer återskapas från dokumentet vid nästa sparning; backupen
+kopierar inte den externa Omnical-mappen. Ett diskfel kan lämna den nya
+återställningsmappen delvis fylld; välj då en annan tom mapp när du försöker igen.
+
 ## Data tools
 `clean_json.py` rensar `data.json` genom att ta bort embeddings, de-dupa noder och nollställa `updatedAt`.
 Windows-hjälpare: `clean_json.bat`.

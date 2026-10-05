@@ -2,27 +2,27 @@
 // surface for cardFileSync.ts: getDirectoryHandle/getFileHandle(create),
 // createWritable().write/close, getFile().text()/size/lastModified,
 // removeEntry. Not a full spec implementation.
-class MockFile {
-  constructor(public text_: string, public lastModified: number) {}
-  get size() { return this.text_.length; }
-  async text() { return this.text_; }
+class MockFile extends Blob {
+  constructor(content: Blob, public lastModified: number) {
+    super([content], { type: content.type });
+  }
 }
 
 class MockWritable {
-  private buffer = '';
-  constructor(private onClose: (text: string) => void) {}
+  private buffer: Blob = new Blob();
+  constructor(private onClose: (blob: Blob) => void) {}
   async write(data: string | Blob) {
-    this.buffer += typeof data === 'string' ? data : await data.text();
+    this.buffer = new Blob([this.buffer, data], { type: typeof data === 'string' ? 'text/plain' : data.type });
   }
   async close() { this.onClose(this.buffer); }
 }
 
 export class MockFileHandle {
   kind = 'file' as const;
-  private content: string;
+  private content: Blob;
   private modifiedAt: number;
-  constructor(content = '', modifiedAt = Date.now()) {
-    this.content = content;
+  constructor(content: string | Blob = '', modifiedAt = Date.now()) {
+    this.content = typeof content === 'string' ? new Blob([content], { type: 'text/plain' }) : content;
     this.modifiedAt = modifiedAt;
   }
   async getFile() { return new MockFile(this.content, this.modifiedAt); }

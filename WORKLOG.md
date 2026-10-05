@@ -3,6 +3,11 @@
 Detaljerad logg. Håll "Aktuell status" i `CLAUDE.md` kort; lägg detaljer här.
 
 ## 2026-10-05
+- Portable backup now reads all disk assets recursively, including original PDFs, and includes a SHA-256 manifest. Restore validates the complete payload before writing, rejects unsafe paths and requires a new empty destination. Card-file disk baselines are reset for regeneration; Omnical links and merge baselines are retained, and the external Omnical directory is never copied or written by restore.
+- Restore confirmation uses a separate button to retain browser user activation for the directory picker. Asset reload supports nested paths and reports read failures.
+- Binary filesystem mocks and backup regressions cover exact image/PDF bytes, checksums, malformed payloads and occupied destinations. A store/filesystem core-flow test covers create, organize, save, reload, export and restore; it is not browser import/PDF QA.
+- AI embedding batches now report final per-card failures while retaining successes; tag, summary and title failures produce visible notifications. Provider fallback tests use mocks, not live API calls.
+- Updated backup instructions and the disposable-folder stability checklist. Automated sanity passed with 108 tests, lint and production build. Browser automation was unavailable (native bridge connection failed); real picker, touch, PDF import, live AI and two-app sync QA remain unverified. No live user folders were tested and nothing was pushed or deployed.
 - Save completion now acknowledges only the persisted store snapshot that was actually written. Edits during JSON writes remain dirty; edits during card-file writes also schedule another save so Markdown catches up.
 - The complete save cycle shares `withCardFileLock` with card scans and Omnical merges, including baseline publication and revision updates. Concurrent saves are serialized. Markdown parsing, hashes, frontmatter ownership and Omnical merge rules are unchanged.
 - Manual save, autosave and conflict overwrite no longer blindly clear dirty state. Successful saves re-arm autosave when newer changes remain and show `waiting` rather than `saved`.

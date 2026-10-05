@@ -241,7 +241,8 @@ export const findNodesSimilarToGroup = (
 export const batchGenerateEmbeddings = async (
   nodes: MindNode[],
   apiKey: string,
-  onProgress?: (current: number, total: number) => void
+  onProgress?: (current: number, total: number) => void,
+  onFailure?: (nodeId: string, error: unknown) => void,
 ): Promise<Map<string, number[]>> => {
   const embeddings = new Map<string, number[]>();
   const total = nodes.length;
@@ -257,6 +258,7 @@ export const batchGenerateEmbeddings = async (
       batchInputs.push({ nodeId: node.id, text: textToEmbed });
     } catch (error) {
       console.warn(`Kunde inte skapa embedding for nod ${node.id}:`, error);
+      onFailure?.(node.id, error);
       processedCount += 1;
       if (onProgress) {
         onProgress(processedCount, total);
@@ -287,6 +289,7 @@ export const batchGenerateEmbeddings = async (
           embeddings.set(item.nodeId, embedding);
         } catch (innerError) {
           console.warn(`Kunde inte skapa embedding for nod ${item.nodeId}:`, innerError);
+          onFailure?.(item.nodeId, innerError);
         }
       }
     }

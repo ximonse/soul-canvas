@@ -150,16 +150,23 @@ export function useFileSystem() {
       const assetsMap: Record<string, string> = {};
       try {
         const assetsHandle = await dirHandle.getDirectoryHandle('assets');
-        // Loopa igenom alla filer i assets
-        for await (const [name, handle] of assetsHandle.entries()) {
-          if (handle.kind === 'file') {
-            const file = await handle.getFile();
-            // Skapa en URL som webbläsaren kan visa (blob:...)
-            assetsMap[`assets/${name}`] = URL.createObjectURL(file);
+        async function loadAssetDirectory(directory: FileSystemDirectoryHandle, prefix: string) {
+          for await (const [name, handle] of directory.entries()) {
+            const path = `${prefix}/${name}`;
+            if (handle.kind === 'directory') {
+              // Original imports are backed up, not decoded/rendered as images.
+              if (path !== 'assets/originals') await loadAssetDirectory(handle, path);
+            } else {
+              assetsMap[path] = URL.createObjectURL(await handle.getFile());
+            }
           }
         }
-      } catch {
-        // No assets folder yet
+        await loadAssetDirectory(assetsHandle, 'assets');
+      } catch (error) {
+        if (!(error instanceof DOMException && error.name === 'NotFoundError')) {
+          addNotification('Kunde inte läsa alla bilagor. Kontrollera mappens behörighet.', 'error', 8000);
+          console.warn('[assets] Failed to load assets:', error);
+        }
       }
 
       // Revoke old blob URLs before loading new ones
