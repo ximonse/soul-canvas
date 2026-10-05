@@ -2,6 +2,12 @@
 
 Detaljerad logg. Håll "Aktuell status" i `CLAUDE.md` kort; lägg detaljer här.
 
+## 2026-10-05
+- Save completion now acknowledges only the persisted store snapshot that was actually written. Edits during JSON writes remain dirty; edits during card-file writes also schedule another save so Markdown catches up.
+- The complete save cycle shares `withCardFileLock` with card scans and Omnical merges, including baseline publication and revision updates. Concurrent saves are serialized. Markdown parsing, hashes, frontmatter ownership and Omnical merge rules are unchanged.
+- Manual save, autosave and conflict overwrite no longer blindly clear dirty state. Successful saves re-arm autosave when newer changes remain and show `waiting` rather than `saved`.
+- Five regression tests cover delayed writes, changed Omnical state, queued sync, write failures/folder switching and transient selection. Automated sanity passed (95 tests, lint, production build). No browser/live-folder QA or publication performed.
+
 ## 2026-08-08
 - **Omnical-ändringar tappades bort — två separata buggar, båda fixade** (commit `627936e`). Symptom: en redigering gjord i Omnical kunde blinka till i canvas och sedan försvinna, ibland med Souls gamla text tillbakaskriven över anteckningen på disk. Riktningen Soul→Omnical var opåverkad.
   1. **Adoptionens merge-baslinje var fel.** När en pending-fil adopterades (`omnicalSync.ts`, adoptionsloopen i `runSyncLocked`) sattes `omnicalLink.bodyHash` till hashen av *filens nuvarande* body, medan `node.content` medvetet behölls som Souls text. `planSharedMerge` läste då Souls orörda text som "ändrad" och remote som oförändrad → Soul vann body och skrev sin gamla text över filen, i samma `runSync` som adopterade den. Baslinjen är nu `pending.bodyHash` (texten Soul faktiskt publicerade), vilket ger en verklig trevägsmerge. Tags/meta behåller remote-hasharna med flit: `publishShareRequests` skriver rå body utan frontmatter, så de fanns aldrig på disk och Soul äger dem fortfarande.

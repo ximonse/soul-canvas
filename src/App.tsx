@@ -66,7 +66,7 @@ function App() {
   const canvasWeekView = useBrainStore((state) => state.canvasWeekView);
   const canvasEternalView = useBrainStore((state) => state.canvasEternalView);
   const pendingSave = useBrainStore((state) => state.pendingSave);
-  const setPendingSave = useBrainStore((state) => state.setPendingSave);
+  const [completedSaves, setCompletedSaves] = useState(0);
   const addNotification = useBrainStore((state) => state.addNotification);
   const saveStateForUndo = useBrainStore((state) => state.saveStateForUndo);
   const addTagToSelected = useBrainStore((state) => state.addTagToSelected);
@@ -244,6 +244,13 @@ function App() {
   const [showTrailPanel, setShowTrailPanel] = useState(false);
   const [editingCardId, setEditingCardId] = useState<string | null>(null);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'waiting' | 'saving' | 'saved' | 'error'>('idle');
+  const finishSave = useCallback(() => {
+    const pending = useBrainStore.getState().pendingSave;
+    setSaveStatus(pending ? 'waiting' : 'saved');
+    // Re-arm autosave even when pendingSave stayed true throughout the write.
+    setCompletedSaves((count) => count + 1);
+    if (!pending) setTimeout(() => setSaveStatus((status) => status === 'saved' ? 'idle' : status), 2000);
+  }, []);
   const [zenMode, setZenMode] = useState(false);
   const [currentZoom, setCurrentZoom] = useState(1);
   const [isSavingChat, setIsSavingChat] = useState(false);
@@ -422,11 +429,9 @@ function App() {
         return;
       }
       saveAIExports();
-      setPendingSave(false);
-      setSaveStatus('saved');
-      setTimeout(() => setSaveStatus('idle'), 2000);
+      finishSave();
     }, 100);
-  }, [addNotification, saveFile, saveAIExports, setPendingSave]);
+  }, [addNotification, saveFile, saveAIExports, finishSave]);
 
   const handleSearchConfirm = useCallback(() => {
     const ids = search.confirmSearch();
@@ -599,12 +604,10 @@ function App() {
         }
         return;
       }
-      setPendingSave(false);
-      setSaveStatus('saved');
-      setTimeout(() => setSaveStatus('idle'), 2000);
+      finishSave();
     }, AUTOSAVE_DELAY_MS);
     return () => clearTimeout(timer);
-  }, [pendingSave, hasFile, saveFile, setPendingSave, addNotification]);
+  }, [pendingSave, hasFile, saveFile, finishSave, addNotification, completedSaves]);
 
   // AI Export auto-save (var 30:e minut)
   useEffect(() => {
@@ -733,18 +736,11 @@ function App() {
                   4000
                 );
                 if (ok) {
-                  // Our in-memory state now matches what's on disk — clear
-                  // pendingSave so the autosave effect can re-arm on the
-                  // next edit. Without this it stays true forever (setting
-                  // an already-true boolean doesn't retrigger the effect),
-                  // silently disabling autosave for the rest of the session.
-                  setPendingSave(false);
-                  setTimeout(() => setSaveStatus('idle'), 2000);
+                  finishSave();
                 }
               } else {
                 // Reload discards our unsaved changes in favor of disk —
                 // nothing left pending, same reasoning as above.
-                setPendingSave(false);
                 addNotification('Laddade in den andra enhetens version.', 'success', 4000);
               }
             })();

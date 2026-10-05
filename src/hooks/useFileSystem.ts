@@ -7,6 +7,7 @@ import { createEmptyCanvasDocument, parseCanvasDocument, serializeCanvasDocument
 import { scanCardFiles, syncCardFiles, withCardFileLock } from '../utils/cardFileSync';
 import { FEATURE_FLAGS } from '../utils/featureFlags';
 import { findMissingLocalAssets } from '../utils/imageRefs';
+import { writeSaveSnapshot } from '../utils/saveSnapshot';
 
 // Helper to revoke all blob URLs in an assets map
 function revokeAssetUrls(assets: Record<string, string>) {
@@ -295,100 +296,107 @@ export function useFileSystem() {
   // conflict dialog speak for itself).
   const saveFile = useCallback(async (force = false): Promise<SaveResult> => {
     if (!fileHandle) return { ok: false, conflict: false };
-    try {
-      // Skapa/Öppna data.json i roten av mappen
-      const fileRef = await fileHandle.getFileHandle('data.json', { create: true });
+    return withCardFileLock(async () => {
+      if (useBrainStore.getState().fileHandle !== fileHandle) return { ok: false, conflict: false };
+      try {
+        // Serialize the entire save with card scans and Omnical merges,
+        // including baseline publication and data.json completion.
+        // Skapa/Öppna data.json i roten av mappen
+        const fileRef = await fileHandle.getFileHandle('data.json', { create: true });
 
-      if (!force) {
-        try {
-          const existingFile = await fileRef.getFile();
-          if (existingFile.size > 0) {
-            const existingText = await existingFile.text();
-            const existingJson = JSON.parse(existingText) as { revision?: unknown };
-            const diskRevision = typeof existingJson.revision === 'string' ? existingJson.revision : null;
-            const knownRevision = lastKnownRevisionRef.current;
-            if (diskRevision && knownRevision && diskRevision !== knownRevision) {
-              // Someone else wrote data.json since we last read it. Don't
-              // clobber their write silently — back it up and let the user
-              // decide (see resolveSaveConflict below).
-              const detectedAt = new Date();
-              const backupFilename = backupFilenameFor(detectedAt);
-              const backupRef = await fileHandle.getFileHandle(backupFilename, { create: true });
-              const backupWritable = await backupRef.createWritable();
-              await backupWritable.write(existingText);
-              await backupWritable.close();
-              console.warn(`[saveFile] Konflikt: data.json ändrades av någon annan sen senast. Backup: ${backupFilename}`);
-              setSaveConflict({ backupFilename, detectedAt: detectedAt.toISOString() });
-              return { ok: false, conflict: true };
+        if (!force) {
+          try {
+            const existingFile = await fileRef.getFile();
+            if (existingFile.size > 0) {
+              const existingText = await existingFile.text();
+              const existingJson = JSON.parse(existingText) as { revision?: unknown };
+              const diskRevision = typeof existingJson.revision === 'string' ? existingJson.revision : null;
+              const knownRevision = lastKnownRevisionRef.current;
+              if (diskRevision && knownRevision && diskRevision !== knownRevision) {
+                // Someone else wrote data.json since we last read it. Don't
+                // clobber their write silently — back it up and let the user
+                // decide (see resolveSaveConflict below).
+                const detectedAt = new Date();
+                const backupFilename = backupFilenameFor(detectedAt);
+                const backupRef = await fileHandle.getFileHandle(backupFilename, { create: true });
+                const backupWritable = await backupRef.createWritable();
+                await backupWritable.write(existingText);
+                await backupWritable.close();
+                console.warn(`[saveFile] Konflikt: data.json ändrades av någon annan sen senast. Backup: ${backupFilename}`);
+                setSaveConflict({ backupFilename, detectedAt: detectedAt.toISOString() });
+                return { ok: false, conflict: true };
+              }
             }
+          } catch (checkErr) {
+            // Existing file unreadable/malformed — don't block the save on a
+            // soft check that itself failed; fall through and write normally.
+            console.warn('[saveFile] Kunde inte läsa befintlig data.json för konfliktkoll:', checkErr);
           }
-        } catch (checkErr) {
-          // Existing file unreadable/malformed — don't block the save on a
-          // soft check that itself failed; fall through and write normally.
-          console.warn('[saveFile] Kunde inte läsa befintlig data.json för konfliktkoll:', checkErr);
         }
-      }
 
-      // Write-only card .md sync (Fas 3a): hash-diffed against the stored
-      // baseline, so this is cheap when nothing actually changed. Runs
-      // after the conflict check so a "reload from disk" choice can't
-      // still have written cards/*.md for state we're about to discard.
-      //
-      // Deliberately re-reading useBrainStore.getState() at every step
-      // below instead of snapshotting it once, and reading it *inside* the
-      // shared lock: the background scan (Fas 3b) and omnicalSync's
-      // runSync write the same node set. If either finishes while this
-      // call is queued behind the lock, the store already holds their
-      // merged nodes/baseline by the time we resume — a stale snapshot
-      // here would either overwrite the merged file with pre-merge
-      // content, or discard the merge from data.json below.
-      let cardFiles = useBrainStore.getState().cardFiles;
-      if (FEATURE_FLAGS.enableCardMarkdownFiles) {
-        try {
-          const result = await withCardFileLock(async () => {
+        // Write-only card .md sync (Fas 3a): hash-diffed against the stored
+        // baseline, so this is cheap when nothing actually changed. Runs
+        // after the conflict check so a "reload from disk" choice can't
+        // still have written cards/*.md for state we're about to discard.
+        //
+        // Deliberately re-reading useBrainStore.getState() at every step
+        // below instead of snapshotting it once, and reading it *inside* the
+        // shared lock: the background scan (Fas 3b) and omnicalSync's
+        // runSync write the same node set. If either finishes while this
+        // call is queued behind the lock, the store already holds their
+        // merged nodes/baseline by the time we resume — a stale snapshot
+        // here would either overwrite the merged file with pre-merge
+        // content, or discard the merge from data.json below.
+        let cardFiles = useBrainStore.getState().cardFiles;
+        let cardChangesPending = false;
+        if (FEATURE_FLAGS.enableCardMarkdownFiles) {
+          try {
             const freshState = useBrainStore.getState();
-            return syncCardFiles(fileHandle, freshState.nodes, freshState.cardFiles);
-          });
-          cardFiles = result.baseline;
-          if (result.written > 0 || result.trashed > 0) {
-            console.log(`[cardFileSync] ${result.written} kort skrivna, ${result.trashed} flyttade till papperskorgen.`);
+            const result = await syncCardFiles(fileHandle, freshState.nodes, freshState.cardFiles);
+            cardChangesPending = useBrainStore.getState().nodes !== freshState.nodes;
+            cardFiles = result.baseline;
+            if (result.written > 0 || result.trashed > 0) {
+              console.log(`[cardFileSync] ${result.written} kort skrivna, ${result.trashed} flyttade till papperskorgen.`);
+            }
+          } catch (cardErr) {
+            // A card-file write failure must not block the data.json save
+            // that everything else depends on.
+            console.warn('[cardFileSync] Kunde inte synka kort-filer:', cardErr);
           }
-        } catch (cardErr) {
-          // A card-file write failure must not block the data.json save
-          // that everything else depends on.
-          console.warn('[cardFileSync] Kunde inte synka kort-filer:', cardErr);
         }
+        useBrainStore.getState().loadCardFiles(cardFiles);
+
+        const writable = await fileRef.createWritable();
+
+        const state = useBrainStore.getState();
+        const dataToSave = serializeCanvasDocument({
+          nodes: Array.from(state.nodes.values()),
+          synapses: state.synapses,
+          conversations: state.conversations,
+          sessions: state.sessions,
+          trails: state.trails,
+          sequences: state.sequences,
+          activeSessionId: state.activeSessionId,
+          trailUi: {
+            selectedTrailIds: state.selectedTrailIds,
+            showActiveTrailLine: state.showActiveTrailLine,
+          },
+          omnical: state.omnical,
+          cardFiles,
+        });
+
+        await writeSaveSnapshot(state, useBrainStore.getState, async () => {
+          await writable.write(JSON.stringify(dataToSave, null, 2));
+          await writable.close();
+        }, (pending) => useBrainStore.getState().setPendingSave(pending || cardChangesPending));
+        lastKnownRevisionRef.current = dataToSave.revision;
+        setSaveConflict(null);
+        return { ok: true, conflict: false };
+      } catch (err) {
+        console.error('Kunde inte spara data.json:', err);
+        return { ok: false, conflict: false };
       }
-      useBrainStore.getState().loadCardFiles(cardFiles);
-
-      const writable = await fileRef.createWritable();
-
-      const state = useBrainStore.getState();
-      const dataToSave = serializeCanvasDocument({
-        nodes: Array.from(state.nodes.values()),
-        synapses: state.synapses,
-        conversations: state.conversations,
-        sessions: state.sessions,
-        trails: state.trails,
-        sequences: state.sequences,
-        activeSessionId: state.activeSessionId,
-        trailUi: {
-          selectedTrailIds: state.selectedTrailIds,
-          showActiveTrailLine: state.showActiveTrailLine,
-        },
-        omnical: state.omnical,
-        cardFiles,
-      });
-
-      await writable.write(JSON.stringify(dataToSave, null, 2));
-      await writable.close();
-      lastKnownRevisionRef.current = dataToSave.revision;
-      setSaveConflict(null);
-      return { ok: true, conflict: false };
-    } catch (err) {
-      console.error('Kunde inte spara data.json:', err);
-      return { ok: false, conflict: false };
-    }
+    });
   }, [fileHandle]);
 
   // --- LÖS SPARKONFLIKT ---
