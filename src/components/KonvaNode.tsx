@@ -687,17 +687,27 @@ const KonvaNodeInner: React.FC<KonvaNodeInnerProps> = ({
     return getGravitatingColor(gravitatingSimilarity);
   }, [isGravitating, gravitatingColorMode, gravitatingSemanticTheme, gravitatingSimilarity]);
 
-  // Beräkna stroke-färg med prioritet: selected > gravitating > scope > default
+  // Beräkna stroke-färg med prioritet: selected > gravitating > scope > age (bild/pdf) > default
+  // Bild/pdf-kort får ingen heltäckande ålders-tint (den skulle dölja bilden) -
+  // istället visas åldersfärgen bara som kant, som vitnar i samma takt som textkort.
   const strokeColor = useMemo(() => {
     if (isSelected) return styles.border;
     if (isGravitating) return gravitatingColor;
     if (isScopeSelected) return getScopeColor(node.scopeDegree);
+    if (hasImage && !node.backgroundColor) return styles.ageAccent;
     return '#4a4a4a';
-  }, [isSelected, styles.border, isGravitating, gravitatingColor, isScopeSelected, node.scopeDegree]);
+  }, [isSelected, styles.border, isGravitating, gravitatingColor, isScopeSelected, node.scopeDegree, hasImage, node.backgroundColor, styles.ageAccent]);
 
   const isSoftBorderTheme = theme.name === 'Papper' || theme.name === 'Moln';
   const baseStrokeWidth = isSoftBorderTheme ? 0.1 : 1;
-  const strokeWidth = isSelected ? 3 : isGravitating ? 3 : isScopeSelected ? 2 : baseStrokeWidth;
+  const isAgeAccentBorder = hasImage && !node.backgroundColor && !isSelected && !isGravitating && !isScopeSelected;
+  const strokeWidth = isSelected ? 3 : isGravitating ? 3 : isScopeSelected ? 2 : isAgeAccentBorder ? 4 : baseStrokeWidth;
+
+  // Bild/pdf-kortets bakgrund ska vara den neutrala temafärgen, inte ålders-tintad,
+  // annars syns tinten genom/runt bilden och gör den svår att se.
+  const cardFill = (hasImage && !node.backgroundColor && !isSelected && !isGravitating)
+    ? theme.node.bg
+    : (isGravitating ? gravitatingColor : styles.bg);
 
   return (
     <Group
@@ -725,7 +735,7 @@ const KonvaNodeInner: React.FC<KonvaNodeInnerProps> = ({
 
       <Rect
         width={CARD.WIDTH} height={cardHeight}
-        fill={isGravitating ? gravitatingColor : styles.bg}
+        fill={cardFill}
         opacity={isGravitating ? 0.85 : 1}
         cornerRadius={CARD.CORNER_RADIUS}
         stroke={strokeColor}

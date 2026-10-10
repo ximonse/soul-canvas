@@ -53,6 +53,10 @@ interface NodeStyleResult {
   border: string;
   text: string;
   shadow: string;
+  /** Age/hot/active-tinted color before selection or custom-bg overrides are applied.
+   * Used to give image/pdf cards a fading colored edge instead of a full-bleed tint,
+   * since a full fill would hide the thumbnail. */
+  ageAccent: string;
 }
 
 interface AgeStop {
@@ -141,6 +145,8 @@ export function getNodeStyles(
     currentText = theme.node.activeText || currentText;
   }
 
+  const ageAccent = currentBg;
+
   // Override with custom background color from node if present
   if (customBgColor) {
     currentBg = customBgColor;
@@ -166,5 +172,6 @@ export function getNodeStyles(
     border: currentBorder,
     text: adjustedText,
     shadow: currentShadow,
+    ageAccent,
   };
 }
