@@ -65,6 +65,41 @@ const extractPdfName = (pdfLink: string | undefined): string | undefined => {
 };
 
 
+/**
+ * Dragging a highlight out of Zotero's PDF reader produces no <a> tags at
+ * all — the source lives in a URL-encoded JSON blob on `data-annotation`
+ * (and `data-citation` on the citation span). Shape, abbreviated:
+ *   { attachmentURI: "http://zotero.org/users/<uid>/items/<ATTACHMENT_KEY>",
+ *     annotationKey: "...", color: "#ffd400", pageLabel: "1",
+ *     citationItem: { uris: ["http://zotero.org/.../items/<ITEM_KEY>"] } }
+ * Everything needed to rebuild a working zotero:// link is in there.
+ */
+interface ZoteroAnnotationData {
+  attachmentURI?: string;
+  annotationKey?: string;
+  color?: string;
+  pageLabel?: string;
+  citationItem?: { uris?: string[] };
+}
+
+const parseEncodedJson = (raw: string | null): ZoteroAnnotationData | null => {
+  if (!raw) return null;
+  try {
+    const decoded = JSON.parse(decodeURIComponent(raw)) as unknown;
+    return decoded && typeof decoded === 'object' ? decoded as ZoteroAnnotationData : null;
+  } catch {
+    return null;
+  }
+};
+
+// Zotero URIs are "http://zotero.org/users/<uid>/items/<KEY>" (or
+// /groups/<gid>/); only the trailing key matters for a zotero:// link.
+const keyFromZoteroUri = (uri?: string): string | undefined => {
+  if (!uri) return undefined;
+  const match = uri.match(/\/items\/([A-Z0-9]+)/i);
+  return match ? match[1] : undefined;
+};
+
 const extractZoteroItemKey = (pdfLink: string | undefined): string | undefined => {
   if (!pdfLink) return undefined;
   const zoteroMatch = pdfLink.match(/\/items\/([A-Z0-9]+)/);
@@ -118,10 +153,14 @@ export const parseZoteroHTML = (html: string): ZoteroNote[] => {
       text = text.slice(1, -1).trim();
     }
 
+    // A highlight dragged straight from the PDF reader carries its source
+    // here instead of in <a> tags — see ZoteroAnnotationData.
+    const annotation = parseEncodedJson(highlight.getAttribute('data-annotation'));
+
     // Extract background color for accent stripe (från span med style om den finns)
     const style = highlightSpan?.getAttribute('style') || highlight.getAttribute('style') || '';
     const colorMatch = style.match(/background-color:\s*([^;]+)/);
-    const color = colorMatch ? colorMatch[1] : undefined;
+    const color = colorMatch ? colorMatch[1] : annotation?.color;
 
     // Extract PDF link - stöd både zotero:// och file:// länkar
     let pdfLink: string | undefined;
@@ -140,11 +179,31 @@ export const parseZoteroHTML = (html: string): ZoteroNote[] => {
       }
     }
 
+    // No anchors at all (reader drag): rebuild the open-pdf link from the
+    // annotation blob. attachmentURI points at the PDF attachment, which is
+    // what open-pdf takes — not the parent item the citation refers to.
+    if (!pdfLink && annotation) {
+      const attachmentKey = keyFromZoteroUri(annotation.attachmentURI);
+      if (attachmentKey) {
+        const page = annotation.pageLabel ? `?page=${encodeURIComponent(annotation.pageLabel)}` : '';
+        const anchor = annotation.annotationKey
+          ? `${page ? '&' : '?'}annotation=${encodeURIComponent(annotation.annotationKey)}`
+          : '';
+        pdfLink = `zotero://open-pdf/library/items/${attachmentKey}${page}${anchor}`;
+      }
+    }
+
     // Extract Zotero library link from citation
     const citationEl = p.querySelector('.citation');
     const zoteroLinkEl = citationEl?.querySelector('a[href^="zotero://select"]');
-    const zoteroLink = zoteroLinkEl?.getAttribute('href') || undefined;
+    let zoteroLink = zoteroLinkEl?.getAttribute('href') || undefined;
     const citationText = citationEl?.textContent?.trim() || '';
+
+    // Same fallback for the library link, from the cited parent item.
+    if (!zoteroLink) {
+      const itemKey = keyFromZoteroUri(annotation?.citationItem?.uris?.[0]);
+      if (itemKey) zoteroLink = `zotero://select/library/items/${itemKey}`;
+    }
 
     // Extract tags from citation (författare + år)
     const tags = extractTagsFromCitation(citationText);
@@ -245,9 +304,15 @@ export const isZoteroHTML = (html: string): boolean => {
   // it by the wrapper alone made exported annotation files fall through and
   // land on the canvas as a card full of raw HTML. zotero:// links are the
   // reliable marker across both shapes.
+  // A highlight dragged out of the PDF reader has none of the above: no
+  // wrapper class, no anchors, no zotero:// anywhere. Its marker is the
+  // data-annotation/data-citation blob, whose encoded URIs mention
+  // zotero.org.
   return html.includes('class="zotero-notes"')
     || html.includes('class="zotero-note"')
-    || html.includes('zotero://');
+    || html.includes('zotero://')
+    || html.includes('data-annotation=')
+    || html.includes('data-citation=');
 };
 
 /**
