@@ -73,16 +73,47 @@ export function useFileSystem() {
       // Read the store, scan, and write the result back all inside the
       // lock. Snapshotting outside it would let omnicalSync's runSync (or
       // a save) land in between and have its merged nodes overwritten by
-      // this pre-scan snapshot — the "an Omnical edit flashes up in the
-      // canvas and then disappears" case.
+      // this pre-scan snapshot.
+      //
+      // withCardFileLock only serializes this against *other* card-file-lock
+      // holders — it does nothing to stop a normal UI action (pasting a
+      // card, dropping a Zotero note) from mutating the store directly while
+      // scanCardFiles's disk reads are still in flight. Committing
+      // `scanned.nodes` wholesale would silently erase any such concurrent
+      // addition the instant this scan finishes — the "a card flashes up
+      // and then disappears a moment later" case. So re-read the store at
+      // commit time and apply only the ids this scan actually touched onto
+      // whatever is live *now*, instead of replacing the whole map with a
+      // stale pre-scan snapshot.
       const result = await withCardFileLock(async () => {
         const current = useBrainStore.getState();
         const scanned = await scanCardFiles(dirHandle, current.nodes, current.sessions, current.cardFiles);
         const didChange = scanned.merged > 0 || scanned.ingested > 0;
+        const live = useBrainStore.getState();
+        const liveNodes = new Map(live.nodes);
+        // cardFiles gets the same treatment: scanCardFiles only adds and
+        // updates baseline entries (never deletes), so merging the touched
+        // ones onto live state is safe — while replacing the map wholesale
+        // would drop entries a concurrent syncCardFiles just registered,
+        // leaving those files baseline-less. The next scan then takes the
+        // re-link branch for them, bumps updatedAt on each, and every card
+        // suddenly renders as brand new.
+        const liveCardFiles = { ...live.cardFiles };
+        for (const id of scanned.touchedNodeIds) {
+          const node = scanned.nodes.get(id);
+          // A node deleted through the UI while this scan was in flight must
+          // stay deleted — only re-add ids the scan ingested (absent from
+          // the pre-scan snapshot), never resurrect one it merely merged.
+          if (!node) continue;
+          if (!liveNodes.has(id) && current.nodes.has(id)) continue;
+          liveNodes.set(id, node);
+          const entry = scanned.baseline[id];
+          if (entry) liveCardFiles[id] = entry;
+        }
         useBrainStore.setState({
-          nodes: scanned.nodes,
+          nodes: liveNodes,
           sessions: scanned.sessions,
-          cardFiles: scanned.baseline,
+          cardFiles: liveCardFiles,
           ...(didChange ? { pendingSave: true } : {}),
         });
         return scanned;
