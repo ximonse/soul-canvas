@@ -355,6 +355,28 @@ export function cardFrontmatterToNodeFields(frontmatter: CardFrontmatter, body: 
   };
 }
 
+/**
+ * Merge a parsed .md file's fields back into an *existing* node of known
+ * type. Mirror of nodeToCardFrontmatter's body choice: for image cards,
+ * `body` is the OCR text, not the asset reference — `node.content` (e.g.
+ * "assets/foo.jpg") is Soul-local and never round-trips through the .md
+ * file. Letting `content: body` through here would overwrite the card's
+ * only pointer to its image on every background card-file scan, since body
+ * is empty until OCR has run. See docs/shared-markdown-contract.md.
+ */
+export function mergeCardFrontmatterIntoNode(
+  node: MindNode,
+  frontmatter: CardFrontmatter,
+  body: string,
+): Partial<MindNode> {
+  const fields = cardFrontmatterToNodeFields(frontmatter, body);
+  if (node.type === 'image') {
+    const { content: _ignoredContent, ...rest } = fields;
+    return rest;
+  }
+  return fields;
+}
+
 function slugify(text: string): string {
   const cleaned = text
     .trim()
