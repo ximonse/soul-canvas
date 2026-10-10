@@ -371,7 +371,8 @@ export function mergeCardFrontmatterIntoNode(
 ): Partial<MindNode> {
   const fields = cardFrontmatterToNodeFields(frontmatter, body);
   if (node.type === 'image') {
-    const { content: _ignoredContent, ...rest } = fields;
+    const rest: Partial<MindNode> = { ...fields };
+    delete rest.content;
     return rest;
   }
   return fields;

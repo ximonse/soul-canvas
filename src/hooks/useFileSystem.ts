@@ -4,7 +4,7 @@ import { useBrainStore } from '../store/useBrainStore';
 import { set as setDb, get as getDb, del as delDb } from 'idb-keyval';
 import { exportSessionForAI, sanitizeFilename } from '../utils/aiExport';
 import { createEmptyCanvasDocument, parseCanvasDocument, serializeCanvasDocument } from '../utils/canvasDocument';
-import { scanCardFiles, syncCardFiles, withCardFileLock } from '../utils/cardFileSync';
+import { EXTERNAL_CARDS_SESSION_ID, scanCardFiles, syncCardFiles, withCardFileLock } from '../utils/cardFileSync';
 import { FEATURE_FLAGS } from '../utils/featureFlags';
 import { findMissingLocalAssets } from '../utils/imageRefs';
 import { writeSaveSnapshot } from '../utils/saveSnapshot';
@@ -110,9 +110,22 @@ export function useFileSystem() {
           const entry = scanned.baseline[id];
           if (entry) liveCardFiles[id] = entry;
         }
+        // Sessions are stale for the same reason the node map is: a card
+        // added through the UI during the scan was also appended to the
+        // active session, and committing the pre-scan clone drops it back
+        // out of that session's cardIds — the card survives in `nodes` but
+        // disappears from a session-filtered view. A scan only ever changes
+        // the "Osorterade" session (ingested external files), so graft just
+        // that one onto the live list.
+        const scannedExternal = scanned.sessions.find((s) => s.id === EXTERNAL_CARDS_SESSION_ID);
+        const liveSessions = scannedExternal
+          ? live.sessions.some((s) => s.id === EXTERNAL_CARDS_SESSION_ID)
+            ? live.sessions.map((s) => (s.id === EXTERNAL_CARDS_SESSION_ID ? scannedExternal : s))
+            : [...live.sessions, scannedExternal]
+          : live.sessions;
         useBrainStore.setState({
           nodes: liveNodes,
-          sessions: scanned.sessions,
+          sessions: liveSessions,
           cardFiles: liveCardFiles,
           ...(didChange ? { pendingSave: true } : {}),
         });

@@ -141,7 +141,15 @@ function linkedNodeByOmnicalId(nodes: Map<string, MindNode>) {
   return groups;
 }
 
-async function publishShareRequests(handle: FileSystemDirectoryHandle, nodes: Map<string, MindNode>, pendingFiles: PendingOmnicalFile[]) {
+// `touched` collects every node id this function writes into `nodes`, so
+// runSyncLocked can commit those ids onto live state instead of swapping in
+// its stale snapshot — see the commit block at the end of runSyncLocked.
+async function publishShareRequests(
+  handle: FileSystemDirectoryHandle,
+  nodes: Map<string, MindNode>,
+  pendingFiles: PendingOmnicalFile[],
+  touched: Set<string>,
+) {
   const nextPending = [...pendingFiles];
   for (const node of nodes.values()) {
     if (node.omnicalLink?.status !== 'share-requested') continue;
@@ -156,6 +164,7 @@ async function publishShareRequests(handle: FileSystemDirectoryHandle, nodes: Ma
       createdAt: new Date().toISOString(),
     };
     nextPending.push(pending);
+    touched.add(node.id);
     nodes.set(node.id, {
       ...node,
       omnicalLink: {
@@ -236,8 +245,16 @@ async function runSyncLocked(activeHandle: FileSystemDirectoryHandle) {
   const nodes = new Map(state.nodes);
   let sessions = state.sessions.map((session) => ({ ...session, cardIds: [...session.cardIds] }));
   const errors: string[] = [];
+  // Ids this sync actually writes into `nodes`. `nodes` is a clone of the
+  // snapshot taken above, before any of the folder I/O below — a card added
+  // straight through the store while that I/O is in flight (pasting, a
+  // Zotero drop) exists live but not here. withCardFileLock doesn't help:
+  // UI mutations take no lock. So the commit at the end applies only these
+  // ids onto the store's current nodes rather than swapping in this stale
+  // map, which would erase the concurrent card a beat after it appeared.
+  const touchedNodeIds = new Set<string>();
 
-  let pendingFiles = await publishShareRequests(activeHandle, nodes, state.omnical.pendingFiles);
+  let pendingFiles = await publishShareRequests(activeHandle, nodes, state.omnical.pendingFiles, touchedNodeIds);
   const scan = await scanFolder(activeHandle);
   errors.push(...scan.errors);
 
@@ -252,6 +269,7 @@ async function runSyncLocked(activeHandle: FileSystemDirectoryHandle) {
       continue;
     }
     linkedIds.add(adopted.id);
+    touchedNodeIds.add(node.id);
     nodes.set(node.id, {
       ...node,
       omnicalLink: {
@@ -290,6 +308,7 @@ async function runSyncLocked(activeHandle: FileSystemDirectoryHandle) {
     if (!link) continue;
     const remote = scan.notes.get(omnicalId);
     if (!remote) {
+      touchedNodeIds.add(node.id);
       nodes.set(node.id, { ...node, omnicalLink: { ...link, status: 'detached' } });
       continue;
     }
@@ -320,6 +339,7 @@ async function runSyncLocked(activeHandle: FileSystemDirectoryHandle) {
       }
     }
     const metaChanged = metaHash(metaOf(node)) !== metaHash(plan.meta);
+    touchedNodeIds.add(node.id);
     nodes.set(node.id, {
       ...node,
       content: plan.body,
@@ -381,6 +401,7 @@ async function runSyncLocked(activeHandle: FileSystemDirectoryHandle) {
     };
     gridIndex += 1;
     nodes.set(id, node);
+    touchedNodeIds.add(id);
     omnicalCardIds.add(id);
     existingLinkedIds.add(note.id);
   }
@@ -389,9 +410,30 @@ async function runSyncLocked(activeHandle: FileSystemDirectoryHandle) {
     ? { ...session, cardIds: [...omnicalCardIds] }
     : session);
 
+  // Re-read at commit time: anything added to the store during the folder
+  // I/O above is missing from `nodes`, and must survive this write.
+  const liveState = useBrainStore.getState();
+  const liveNodes = new Map(liveState.nodes);
+  for (const id of touchedNodeIds) {
+    const node = nodes.get(id);
+    if (node) liveNodes.set(id, node);
+  }
+
+  // Same staleness applies to sessions: a card added during the I/O was
+  // also appended to whatever session is active, and committing the
+  // pre-sync clone would drop it back out of that session's cardIds. This
+  // sync only ever changes the Omnical session, so graft just that one onto
+  // the live list and leave every other session as the store has it now.
+  const syncedOmnicalSession = sessions.find((session) => session.id === OMNICAL_SESSION_ID);
+  const liveSessions = syncedOmnicalSession
+    ? liveState.sessions.some((session) => session.id === OMNICAL_SESSION_ID)
+      ? liveState.sessions.map((session) => (session.id === OMNICAL_SESSION_ID ? syncedOmnicalSession : session))
+      : [...liveState.sessions, syncedOmnicalSession]
+    : liveState.sessions;
+
   useBrainStore.setState({
-    nodes,
-    sessions,
+    nodes: liveNodes,
+    sessions: liveSessions,
     omnical: { pendingFiles, ignoredNoteIds: [...ignored] },
     omnicalConflicts: conflicts,
     omnicalSyncStatus: errors.length ? 'error' : 'synced',
