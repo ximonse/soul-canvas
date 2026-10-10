@@ -49,6 +49,22 @@ const dataURLtoBlob = (dataurl: string) => {
   return new Blob([u8arr], { type: mime });
 };
 
+// Readable text out of an HTML document, for files we can't parse as
+// structured annotations. Block-level tags become line breaks so the card
+// doesn't collapse into one run-on paragraph.
+const htmlToPlainText = (html: string): string => {
+  try {
+    const doc = new DOMParser().parseFromString(html, 'text/html');
+    doc.querySelectorAll('script, style').forEach((el) => el.remove());
+    doc.querySelectorAll('p, div, br, li, h1, h2, h3, h4, h5, h6').forEach((el) => {
+      el.insertAdjacentText('afterend', '\n');
+    });
+    return (doc.body?.textContent || '').replace(/\n{3,}/g, '\n\n').trim();
+  } catch {
+    return '';
+  }
+};
+
 const normalizeZoteroContent = (text?: string) => (
   (text || '')
     .replace(/[“”„”«»"'/]+/g, '')
@@ -599,9 +615,21 @@ export function useImportHandlers({
     // dragged straight out of a Zotero PDF reader, which carries plain text
     // only. Falling through silently here just drops the drag on the floor;
     // make it a plain text card instead of doing nothing.
+    // Keep whatever Zotero context the payload did carry — dragging a
+    // selection out of the PDF reader still puts the item key in the
+    // uri-list/html even when there's no note structure to parse, so the
+    // card can link back to the source instead of being orphaned text.
     if (files.length === 0 && plainTextPayload.trim()) {
       saveStateForUndo();
-      addNode(plainTextPayload.trim(), worldPos.x, worldPos.y, 'text');
+      const nodeId = crypto.randomUUID();
+      addNodeWithId(nodeId, plainTextPayload.trim(), worldPos.x, worldPos.y, 'text');
+      const updates: Partial<MindNode> = {};
+      if (zoteroInfo?.zoteroItemKey) updates.zoteroItemKey = zoteroInfo.zoteroItemKey;
+      if (zoteroInfo?.zoteroPdfPath) updates.zoteroPdfPath = zoteroInfo.zoteroPdfPath;
+      const pdfLink = buildZoteroPdfLink(zoteroInfo?.zoteroItemKey, zoteroInfo?.zoteroPage);
+      if (pdfLink) updates.link = `[PDF](${pdfLink})`;
+      if (zoteroInfo?.zoteroItemKey) updates.tags = [`zotero:${zoteroInfo.zoteroItemKey}`];
+      if (Object.keys(updates).length > 0) updateNode(nodeId, updates);
       return;
     }
 
@@ -730,15 +758,14 @@ export function useImportHandlers({
         }
       } else if (file.type === 'text/html' || file.name.endsWith('.html')) {
         const text = await file.text();
-        if (isZoteroHTML(text)) {
-          const notes = parseZoteroHTML(text);
-          if (notes.length > 0) {
-            addZoteroNotes(notes, worldPos.x, worldPos.y);
-          } else {
-            addNode(text, worldPos.x, worldPos.y, 'text');
-          }
+        const notes = isZoteroHTML(text) ? parseZoteroHTML(text) : [];
+        if (notes.length > 0) {
+          saveStateForUndo();
+          addZoteroNotes(notes, worldPos.x, worldPos.y);
         } else {
-          addNode(text, worldPos.x, worldPos.y, 'text');
+          // Not parseable as annotations — put the readable text on the
+          // card rather than the raw markup, which is unusable as a note.
+          addNode(htmlToPlainText(text) || text, worldPos.x, worldPos.y, 'text');
         }
       }
     }

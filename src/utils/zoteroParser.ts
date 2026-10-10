@@ -86,12 +86,19 @@ export const parseZoteroHTML = (html: string): ZoteroNote[] => {
 
   const notes: ZoteroNote[] = [];
 
-  // Find all <p> tags within .zotero-note
-  const paragraphs = doc.querySelectorAll('.zotero-note p');
+  // Drag-and-drop payloads wrap notes in .zotero-note, but a note exported
+  // from Zotero via "Export Note → HTML" has no such wrapper — it's just
+  // paragraphs in the body. Fall back to every <p> so an exported file
+  // parses too; paragraphs without a highlight are skipped below anyway.
+  const scoped = doc.querySelectorAll('.zotero-note p');
+  const paragraphs = scoped.length > 0 ? scoped : doc.querySelectorAll('p');
 
   paragraphs.forEach((p) => {
-    // Extract the highlighted text
-    const highlight = p.querySelector('.highlight');
+    // Extract the highlighted text. Exported notes often carry the
+    // highlight only as an inline background-color, without the
+    // .highlight class the drag payload uses.
+    const highlight = p.querySelector('.highlight')
+      || p.querySelector('span[style*="background-color"]');
     if (!highlight) return;
 
     // Text kan vara direkt i .highlight eller i en span inuti
@@ -100,8 +107,14 @@ export const parseZoteroHTML = (html: string): ZoteroNote[] => {
 
     if (!text) return;
 
-    // Ta bort omgivande citattecken om de finns
-    if ((text.startsWith('"') && text.endsWith('"')) || (text.startsWith('"') && text.endsWith('"'))) {
+    // Ta bort omgivande citattecken om de finns. Zotero använder typografiska
+    // citattecken (“ ”) i sina highlights, så båda varianterna måste täckas —
+    // tidigare testade båda grenarna samma ASCII-tecken och de typografiska
+    // blev kvar i korttexten.
+    if (
+      (text.startsWith('"') && text.endsWith('"'))
+      || (text.startsWith('“') && text.endsWith('”'))
+    ) {
       text = text.slice(1, -1).trim();
     }
 
@@ -227,7 +240,14 @@ export const parseZoteroPlainText = (text: string): ZoteroNote[] => {
  * Check if HTML content is a Zotero export
  */
 export const isZoteroHTML = (html: string): boolean => {
-  return html.includes('class="zotero-notes"') || html.includes('class="zotero-note"');
+  // The .zotero-note wrapper only exists in drag-and-drop payloads. A file
+  // produced by "Export Note → HTML" carries no such class, so recognizing
+  // it by the wrapper alone made exported annotation files fall through and
+  // land on the canvas as a card full of raw HTML. zotero:// links are the
+  // reliable marker across both shapes.
+  return html.includes('class="zotero-notes"')
+    || html.includes('class="zotero-note"')
+    || html.includes('zotero://');
 };
 
 /**
