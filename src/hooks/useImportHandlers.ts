@@ -594,6 +594,17 @@ export function useImportHandlers({
       return;
     }
 
+    // Nothing matched a known structured format (no Zotero note markers, no
+    // RIS/COinS metadata, no files) — most commonly a raw text selection
+    // dragged straight out of a Zotero PDF reader, which carries plain text
+    // only. Falling through silently here just drops the drag on the floor;
+    // make it a plain text card instead of doing nothing.
+    if (files.length === 0 && plainTextPayload.trim()) {
+      saveStateForUndo();
+      addNode(plainTextPayload.trim(), worldPos.x, worldPos.y, 'text');
+      return;
+    }
+
     const markdownFiles = files.filter(isMarkdownFile);
     if (markdownFiles.length > 0) {
       await importObsidianMarkdownFiles(markdownFiles, worldPos.x, worldPos.y, options);
