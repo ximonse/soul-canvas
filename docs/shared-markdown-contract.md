@@ -60,7 +60,7 @@ Kontrollvärden (identiska i båda apparna, verifierade 2026-08-10):
 
 Omnical äger och skriver om: `omnicalId`, `date`, `created`, `updated`,
 `trackId`, `område`, `activityId`, `tags`, `done`, `sources`, `remindAt`,
-`archived`, `omnicalDraft`.
+`archived`, `omnicalDraft`, `isTask`.
 
 Soul skriver sex av dem i en delad anteckning: `tags`, `done`, `archived`,
 `område`, `remindAt`, `updated`. Alla sex är delade med flit.
@@ -74,9 +74,14 @@ Regler:
 1. Varje nyckel Soul skriver i en delad anteckning måste finnas i Omnicals
    reserverade lista.
 2. Soul får aldrig skriva `omnicalId`, `date`, `created`, `trackId`,
-   `activityId`, `sources` eller `omnicalDraft`.
+   `activityId`, `sources`, `omnicalDraft` eller `isTask`.
 3. `soulCardId` får aldrig läggas till i Omnicals reserverade lista.
 4. Båda apparna bevarar allt annat i frontmatter rad för rad, orört.
+
+`isTask` är Omnicals valfria todo-flagga. Soul skriver den aldrig och ska
+bevara raden oförändrad vid redigering av de sex delade fälten. Omnical
+skriver endast `isTask: true` när flaggan är aktiv; `done` har företräde när
+status visas. Äldre filer utan flaggan och deras semantiska hash är oförändrade.
 
 ## Kända skillnader — inte buggar, men inte heller beslutade
 
