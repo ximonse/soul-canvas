@@ -34,7 +34,7 @@ const HASH_GOLDEN: Array<[string, string]> = [
 const OMNICAL_OWNED_KEYS = [
   "omnicalId", "date", "created", "updated", "trackId", "område",
   "activityId", "tags", "done", "sources", "remindAt", "archived",
-  "omnicalDraft",
+  "omnicalDraft", "isTask",
 ];
 
 /** De sex Soul skriver i en delad anteckning. Alla ägs även av Omnical. */
@@ -42,7 +42,7 @@ const SOUL_WRITTEN_KEYS = ["tags", "done", "archived", "område", "remindAt", "u
 
 /** Omnicals ensamma. Soul får aldrig skriva någon av dem. */
 const OMNICAL_ONLY_KEYS = [
-  "omnicalId", "date", "created", "trackId", "activityId", "sources", "omnicalDraft",
+  "omnicalId", "date", "created", "trackId", "activityId", "sources", "omnicalDraft", "isTask",
 ];
 
 /** Souls egen nyckel. Måste överleva som främmande frontmatter genom Omnicals
@@ -62,6 +62,7 @@ const SHARED_NOTE = [
   'activityId: ""',
   'tags: ["skola","möte"]',
   "done: false",
+  "isTask: true",
   "sources: []",
   'remindAt: ""',
   "archived: false",
@@ -243,5 +244,19 @@ describe('delat kontrakt: taggar', () => {
 
   it('normaliserar taggar likadant oavsett var de kom ifrån', () => {
     expect(normalizeTags(['#skola', 'Skola', 'möte'])).toEqual(['skola', 'möte']);
+  });
+});
+
+
+describe('delat kontrakt: uppgiftsstatus', () => {
+  it('preserves the Omnical task flag while completing and reopening a shared note', () => {
+    const note = parseOmnicalMarkdown(SHARED_NOTE, 'note-1.md')!;
+    const completed = writeSharedMarkdown(note, note.body, note.tags,
+      { ...note, done: true });
+    expect(completed).toContain('isTask: true');
+    const reopened = parseOmnicalMarkdown(completed, 'note-1.md')!;
+    const written = writeSharedMarkdown(reopened, reopened.body, reopened.tags,
+      { ...reopened, done: false });
+    expect(written).toContain('isTask: true');
   });
 });
