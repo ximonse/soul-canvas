@@ -13,7 +13,7 @@ En lokal, canvas-baserad kunskapsyta för tusentals kort med AI-driven förståe
 
 ## Aktuell status (hålls kort)
 - Fokus: Omnical-integration (delade anteckningar + status-synk) + drift/deploy-hygien.
-- Blockers: inga kända. Vercels GitHub-autodeploy funkar nu (var trasig länge, se WORKLOG 2026-08-07) — undvik manuella `vercel deploy --prod` från CLI, låt push till `main` deploya.
+- Blockers: inga kända. Vercels GitHub-autodeploy funkar nu (var trasig länge, se WORKLOG 2026-08-07) — undvik manuella `vercel deploy --prod` från CLI. Jobba på egen gren; merge till `main` via PR ("production") deployar. Se `C:\Users\ximon\AGENTS.md` → Git.
 - Senast uppdaterad: 2026-08-08
 - Detaljer: WORKLOG.md
 
